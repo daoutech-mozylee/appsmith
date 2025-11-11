@@ -142,7 +142,7 @@ frontend_host=${frontend_host-$upstream_host}
 backend_host=${backend_host-$upstream_host}
 rts_host=${rts_host-$upstream_host}
 
-frontend_port=${frontend_port-3000}
+frontend_port=${frontend_port-3001}
 backend_port=${backend_port-8080}
 rts_port=${rts_port-8091}
 
