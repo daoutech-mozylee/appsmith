@@ -46,6 +46,8 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint;
 import org.springframework.security.web.server.authentication.ServerAuthenticationEntryPointFailureHandler;
 import org.springframework.security.web.server.authentication.ServerAuthenticationSuccessHandler;
+import org.springframework.security.web.server.context.ServerSecurityContextRepository;
+import org.springframework.security.web.server.context.WebSessionServerSecurityContextRepository;
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
@@ -73,6 +75,7 @@ import static com.appsmith.server.constants.Url.THEME_URL;
 import static com.appsmith.server.constants.Url.USAGE_PULSE_URL;
 import static com.appsmith.server.constants.Url.USER_URL;
 import static com.appsmith.server.constants.ce.UrlCE.CONSOLIDATED_API_URL;
+import static com.appsmith.server.constants.ce.UrlCE.SSO_URL;
 
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
@@ -150,6 +153,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public ServerSecurityContextRepository serverSecurityContextRepository() {
+        return new WebSessionServerSecurityContextRepository();
+    }
+
+    @Bean
     public ForwardedHeaderTransformer forwardedHeaderTransformer() {
         return new ForwardedHeaderTransformer();
     }
@@ -205,6 +213,7 @@ public class SecurityConfig {
                         .matchers(
                                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, Url.HEALTH_CHECK),
                                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, USER_URL),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, SSO_URL + "/login"),
                                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, USER_URL + "/super"),
                                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, USER_URL + "/forgotPassword"),
                                 ServerWebExchangeMatchers.pathMatchers(
