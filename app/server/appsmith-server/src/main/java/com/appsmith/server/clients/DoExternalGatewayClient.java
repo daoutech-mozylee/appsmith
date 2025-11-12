@@ -21,7 +21,7 @@ public class DoExternalGatewayClient {
             .baseUrl("https://dev-exgate.daouoffice.com")
             // TODO: Replace with actual authentication header
             .defaultHeader("X-DaouOffice-Auth",
-                "{ \"mac\": \"Pyk+DCZPn85LzIOyCuwazOnWurBdS8rQChkd11ayF+8=\", \"message\": \"test-message\", \"clientId\": \"1\" }")
+                "{\"mac\":\"ZP1q/eR3s0QGTbW0TPa4qAQrza4YSx6J9Sk5ZShD2rQ=\",\"message\":\"test-message\", \"clientId\": \"addcon\" }")
             .build();
     }
 
