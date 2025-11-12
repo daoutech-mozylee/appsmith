@@ -27,27 +27,20 @@ public class SsoController {
 
     private final SsoService ssoService;
     private final ServerSecurityContextRepository securityContextRepository;
-    private final ServerAuthenticationSuccessHandler authenticationSuccessHandler;
 
     @PostMapping("/login")
     public Mono<Void> login(@RequestBody SsoLoginRequestDTO request, ServerWebExchange exchange) {
         return ssoService.loginOrSignup(request, exchange)
-                .flatMap(user -> {
-                    // Programmatically log the user in
-                    Authentication authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+            .flatMap(user -> {
+                // Programmatically log the user in
+                Authentication authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
 
-                    SecurityContext securityContext = new SecurityContextImpl();
-                    securityContext.setAuthentication(authentication);
+                SecurityContext securityContext = new SecurityContextImpl();
+                securityContext.setAuthentication(authentication);
 
-                    // Save the security context in the session
-                    return securityContextRepository.save(exchange, securityContext)
-                            .then(Mono.defer(() -> {
-                                // Trigger the success handler to perform redirection and other post-login actions
-                                return authenticationSuccessHandler.onAuthenticationSuccess(
-                                        new org.springframework.security.web.server.WebFilterExchange(exchange, (ex) -> Mono.empty()),
-                                        authentication
-                                );
-                            }));
-                });
+                // Save the security context in the session
+                return securityContextRepository.save(exchange, securityContext);
+            });
     }
+
 }
