@@ -1,0 +1,33 @@
+{
+  "editor": [
+    {
+      "controlType": "SECTION_V2",
+      "identifier": "DAOUOFFICE_SELECTOR",
+      "children": [
+        {
+          "controlType": "DOUBLE_COLUMN_ZONE",
+          "identifier": "DAOUOFFICE_SELECTOR-Z1",
+          "children": [
+            {
+              "label": "Action",
+              "tooltipText": "Daouoffice operation",
+              "description": "Select the Daouoffice action to execute",
+              "propertyName": "do_action",
+              "configProperty": "actionConfiguration.formData.command.data",
+              "controlType": "DROP_DOWN",
+              "initialValue": "fetchReceivers",
+              "isRequired": true,
+              "options": [
+                {
+                  "label": "Fetch Receivers",
+                  "value": "fetchReceivers"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "files": []
+}
