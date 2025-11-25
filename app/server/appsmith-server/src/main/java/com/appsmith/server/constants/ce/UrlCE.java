@@ -35,6 +35,9 @@ public class UrlCE {
     public static final String GIT_APPLICATION_URL = BASE_URL + VERSION + "/git/applications";
     public static final String GIT_ARTIFACT_URL = BASE_URL + VERSION + "/git/artifacts";
     public static final String SSO_URL = BASE_URL + VERSION + "/sso";
+    public static final String MODULE_PACKAGE_URL = BASE_URL + VERSION + "/module-packages";
+    public static final String MODULE_URL = BASE_URL + VERSION + "/modules";
+    public static final String MODULE_INSTANCE_URL = BASE_URL + VERSION + "/module-instances";
 
     // Sub-paths
     public static final String MOCKS = "/mocks";
