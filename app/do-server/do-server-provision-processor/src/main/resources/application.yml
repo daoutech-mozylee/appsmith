@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: do-server-provision-processor
+  profiles:
+    active: local
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  datasource:
+    url: jdbc:postgresql://localhost:5432/appsmith
+    driver-class-name: org.postgresql.Driver
+    username: appsmith
+    password:
+    hikari:
+      connection-timeout: 10000
+      maximum-pool-size: 20
+      minimum-idle: 10
+  jpa:
+    hibernate:
+      ddl-auto: update
+    defer-datasource-initialization: false
+    generate-ddl: true
+    open-in-view: false
+    database: postgresql
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+    show-sql: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        prefetch: 1
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000
+
+# 조직도 동기화 스케줄러 설정
+org-sync:
+  scheduler:
+    fixed-delay: 1000  # 1초마다 폴링
+
+server:
+  port: 8081
+
+logging:
+  level:
+    com.daou.dop.allapps.doserver: DEBUG
+    org.springframework.amqp: INFO

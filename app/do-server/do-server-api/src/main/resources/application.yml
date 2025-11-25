@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: do-server-api
+  profiles:
+    active:
+      - local
+    group:
+      local:
+        - persistence-local
+      dev:
+        - persistence-dev
+      stg:
+        - persistence-stg
+      prod:
+        - persistence-prod
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
