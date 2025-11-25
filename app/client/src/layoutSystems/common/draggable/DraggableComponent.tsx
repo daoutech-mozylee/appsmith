@@ -113,7 +113,10 @@ function DraggableComponent(props: DraggableComponentProps) {
     // allowDrag check is added as react jest test simulation is not respecting default behaviour
     // of draggable=false and triggering onDragStart. allowDrag condition check is purely for the test cases.
     if (allowDrag && draggableRef.current && !(e.metaKey || e.ctrlKey)) {
-      if (!isFocused) return;
+      const inModuleEditor = window.location.pathname.includes("/modules/");
+
+      // In module editor, bypass focus check
+      if (!isFocused && !inModuleEditor) return;
 
       if (!isSelected) {
         selectWidget(SelectionRequestType.One, [props.widgetId]);

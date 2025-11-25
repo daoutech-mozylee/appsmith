@@ -31,6 +31,18 @@ export const DropTargetComponentWrapper = memo(
       getWidget(state, dropTargetProps.parentId || MAIN_CONTAINER_WIDGET_ID),
     );
 
+    // In module editor, always enable drop target for canvas
+    const inModuleEditor = window.location.pathname.includes("/modules/");
+
+    if (inModuleEditor) {
+      // Always render DropTargetComponent in module editor
+      return (
+        <DropTargetComponent {...dropTargetProps}>
+          {children}
+        </DropTargetComponent>
+      );
+    }
+
     if ((dropTargetProps.parentId && !widget) || dropDisabled) {
       //eslint-disable-next-line
       return <>{children}</>;

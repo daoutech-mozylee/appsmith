@@ -18,15 +18,14 @@ export const generateDragStateForFixedLayout = (
   const widgetHeight = bottomRow - topRow;
   const widgetWidth = rightColumn - leftColumn;
   const bounds = draggableRef.getBoundingClientRect();
+
+  // Calculate offset in grid units (not pixels)
+  const offsetX = e.clientX - bounds.left;
+  const offsetY = e.clientY - bounds.top;
+
   const startPoints = {
-    top: Math.min(
-      Math.max((e.clientY - bounds.top) / parentRowSpace, 0),
-      widgetHeight - 1,
-    ),
-    left: Math.min(
-      Math.max((e.clientX - bounds.left) / parentColumnSpace, 0),
-      widgetWidth - 1,
-    ),
+    top: Math.min(Math.max(offsetY, 0), widgetHeight * parentRowSpace - 1) / parentRowSpace,
+    left: Math.min(Math.max(offsetX, 0), widgetWidth * parentColumnSpace - 1) / parentColumnSpace,
   };
 
   return {

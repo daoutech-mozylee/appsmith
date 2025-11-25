@@ -63,6 +63,21 @@ export interface WidgetMoveParams {
   useAutoLayout?: boolean;
 }
 
+// Debug helpers for module editor
+function logDragStart(widgetId: string) {
+  if (window.location.pathname.includes("/modules/")) {
+    // eslint-disable-next-line no-console
+    console.log("ModuleEditor WIDGET_DRAG_START", widgetId);
+  }
+}
+
+function logDragEnd(widgetId: string) {
+  if (window.location.pathname.includes("/modules/")) {
+    // eslint-disable-next-line no-console
+    console.log("ModuleEditor WIDGET_DRAG_END", widgetId);
+  }
+}
+
 export function* getCanvasSizeAfterWidgetMove(
   canvasWidgetId: string,
   movedWidgetIds: string[],

@@ -174,9 +174,16 @@ export const getBlocksToDraw = (
       ],
     };
   } else {
-    const draggingSpaces = childrenOccupiedSpaces.filter((each) =>
+    let draggingSpaces = childrenOccupiedSpaces.filter((each) =>
       selectedWidgets.includes(each.id),
     );
+
+    // Module editor: if selectedWidgets is empty but we have childrenOccupiedSpaces,
+    // use all of them (this happens when drag starts before selection completes)
+    const inModuleEditor = window.location.pathname.includes("/modules/");
+    if (inModuleEditor && draggingSpaces.length === 0 && childrenOccupiedSpaces.length > 0) {
+      draggingSpaces = childrenOccupiedSpaces;
+    }
 
     return {
       draggingSpaces,
@@ -190,6 +197,7 @@ export const getBlocksToDraw = (
         widgetId: each.id,
         isNotColliding: true,
         fixedHeight: each.fixedHeight,
+        detachFromLayout: allWidgets[each.id]?.detachFromLayout,
         type: allWidgets[each.id].type,
       })),
     };

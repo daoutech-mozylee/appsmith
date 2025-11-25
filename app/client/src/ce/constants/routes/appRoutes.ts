@@ -22,6 +22,7 @@ export const BUILDER_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:applicationSlug/:page
 export const BUILDER_CUSTOM_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:customSlug(.*\-):basePageId${ID_EXTRACTION_REGEX}/edit`;
 export const VIEWER_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:applicationSlug/:pageSlug(.*\-):basePageId${ID_EXTRACTION_REGEX}`;
 export const VIEWER_CUSTOM_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:customSlug(.*\-):basePageId${ID_EXTRACTION_REGEX}`;
+export const MODULE_EDITOR_PATH = `/modules/:moduleId/edit`;
 
 // Static URL routes that accept any page slug (must be added after more specific routes)
 export const BUILDER_PATH_STATIC = `${BUILDER_VIEWER_PATH_PREFIX}:staticApplicationSlug/:staticPageSlug/edit`;

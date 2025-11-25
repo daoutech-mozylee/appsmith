@@ -197,6 +197,9 @@ export const queryAddURL = (props: URLBuilderParams): string =>
     suffix: `queries/add`,
   });
 
+export const moduleEditorURL = ({ moduleId }: { moduleId: string }) =>
+  `/modules/${moduleId}/edit`;
+
 export const appLibrariesURL = (): string =>
   urlBuilder.build({
     suffix: "libraries",

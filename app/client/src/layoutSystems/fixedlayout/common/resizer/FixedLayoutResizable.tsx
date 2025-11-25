@@ -87,6 +87,7 @@ export function FixedLayoutResizable(props: ResizableProps) {
       height: height - props.componentHeight,
       width: width - props.componentWidth,
     };
+
     const updatedPositions = computeRowCols(
       delta,
       { x, y },
@@ -100,6 +101,7 @@ export function FixedLayoutResizable(props: ResizableProps) {
       id: widget.widgetId,
       parentId: widget.parentId,
     };
+
     //if it is reached the end of canvas
     const { canResizeHorizontally, canResizeVertically } =
       props.getResizedPositions(resizedPositions);

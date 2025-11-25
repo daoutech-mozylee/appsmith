@@ -329,15 +329,23 @@ export const ResizableComponent = memo(function ResizableComponent(
     (state: DefaultRootState) => state.ui.widgetDragResize.isAutoCanvasResizing,
   );
 
-  const isEnabled =
-    !isAutoCanvasResizing &&
-    !isDragging &&
-    canPerformResize &&
-    !props.resizeDisabled &&
-    !isSnipingMode &&
-    !isPreviewMode &&
-    !isWidgetSelectionBlock &&
-    !isAppSettingsPaneWithNavigationTabOpen;
+  // Allow resize in module editor with relaxed conditions
+  const inModuleEditor = window.location.pathname.includes("/modules/");
+
+  const isEnabled = inModuleEditor
+    ? !isAutoCanvasResizing &&
+      !isDragging &&
+      (isFocused || isLastSelected || isSelected || isResizing) &&
+      !props.resizeDisabled
+    : !isAutoCanvasResizing &&
+      !isDragging &&
+      (canPerformResize || isResizing) &&
+      !props.resizeDisabled &&
+      !isSnipingMode &&
+      !isPreviewMode &&
+      !isWidgetSelectionBlock &&
+      !isAppSettingsPaneWithNavigationTabOpen;
+
   const { updateDropTargetRows } = useContext(DropTargetContext);
 
   const gridProps = {

@@ -34,6 +34,13 @@ export const getShouldAllowDrag = createSelector(
     isAppSettingsPaneWithNavigationTabOpen,
     widgetSelectionIsBlocked,
   ) => {
+    // Allow drag in module editor regardless of other states
+    const inModuleEditor = window.location.pathname.includes("/modules/");
+
+    if (inModuleEditor) {
+      return !isResizing && !isDragging;
+    }
+
     return (
       !isResizing &&
       !isDragging &&
