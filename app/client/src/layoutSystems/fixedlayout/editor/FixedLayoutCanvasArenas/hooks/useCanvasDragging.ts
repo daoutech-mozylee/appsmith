@@ -30,13 +30,624 @@ import {
   modifyDrawingRectangles,
   updateRectanglesPostReflow,
 } from "layoutSystems/common/utils/canvasDraggingUtils";
-import type { WidgetDraggingBlock } from "../../../../common/canvasArenas/ArenaTypes";
+import type {
+  AlignmentGuide,
+  WidgetDraggingBlock,
+} from "../../../../common/canvasArenas/ArenaTypes";
 import { useBlocksToBeDraggedOnCanvas } from "./useBlocksToBeDraggedOnCanvas";
 import { useRenderBlocksOnCanvas } from "./useRenderBlocksOnCanvas";
 import { useCanvasDragToScroll } from "layoutSystems/common/canvasArenas/useCanvasDragToScroll";
 import type { FixedCanvasDraggingArenaProps } from "../FixedCanvasDraggingArena";
 import { useSelector } from "react-redux";
 import { getDragDetails } from "sagas/selectors";
+
+const ALIGNMENT_TOLERANCE_PX = 4;
+const SPACING_TOLERANCE_PX = 4;
+const SNAP_EPSILON = 0.5;
+
+type PixelRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+};
+
+const getBoundingRect = (blocks: WidgetDraggingBlock[]): PixelRect | null => {
+  if (!blocks.length) {
+    return null;
+  }
+
+  let left = blocks[0].left;
+  let top = blocks[0].top;
+  let right = blocks[0].left + blocks[0].width;
+  let bottom = blocks[0].top + blocks[0].height;
+
+  blocks.forEach((block) => {
+    left = Math.min(left, block.left);
+    top = Math.min(top, block.top);
+    right = Math.max(right, block.left + block.width);
+    bottom = Math.max(bottom, block.top + block.height);
+  });
+
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+  };
+};
+
+const addGuide = (
+  guides: AlignmentGuide[],
+  guideSet: Set<string>,
+  guide: AlignmentGuide,
+) => {
+  const key = `${guide.orientation}:${Math.round(guide.start.x)}:${Math.round(
+    guide.start.y,
+  )}:${Math.round(guide.end.x)}:${Math.round(guide.end.y)}:${guide.kind}`;
+
+  if (!guideSet.has(key)) {
+    guideSet.add(key);
+    guides.push(guide);
+  }
+};
+
+const toPixelSpace = (
+  space: OccupiedSpace,
+  snapColumnSpace: number,
+  snapRowSpace: number,
+  spacePositionMap?: SpaceMap,
+): PixelRect => {
+  const override = spacePositionMap?.[space.id];
+  const left = (override?.left ?? space.left) * snapColumnSpace;
+  const right = (override?.right ?? space.right) * snapColumnSpace;
+  const top = (override?.top ?? space.top) * snapRowSpace;
+  const bottom = (override?.bottom ?? space.bottom) * snapRowSpace;
+
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+  };
+};
+
+const getAlignmentGuides = (
+  rectanglesToDraw: WidgetDraggingBlock[],
+  occupiedSpaces: OccupiedSpace[],
+  snapColumnSpace: number,
+  snapRowSpace: number,
+  parentWidth: number,
+  parentHeight: number,
+  spacePositionMap?: SpaceMap,
+): AlignmentGuide[] => {
+  const guides: AlignmentGuide[] = [];
+  const guideSet = new Set<string>();
+  const boundingRect = getBoundingRect(rectanglesToDraw);
+
+  if (!boundingRect) {
+    return guides;
+  }
+
+  const centerX = boundingRect.left + boundingRect.width / 2;
+  const centerY = boundingRect.top + boundingRect.height / 2;
+  const dragLeft = boundingRect.left;
+  const dragRight = boundingRect.right;
+  const dragTop = boundingRect.top;
+  const dragBottom = boundingRect.bottom;
+  const pixelSpaces = occupiedSpaces.map((space) =>
+    toPixelSpace(space, snapColumnSpace, snapRowSpace, spacePositionMap),
+  );
+
+  let centerVerticalBounds = {
+    min: boundingRect.top,
+    max: boundingRect.bottom,
+  };
+  let centerHorizontalBounds = {
+    min: boundingRect.left,
+    max: boundingRect.right,
+  };
+  let hasVerticalCenterGuide = false;
+  let hasHorizontalCenterGuide = false;
+  let closestCenterDeltaX: number | null = null;
+  let closestCenterDeltaY: number | null = null;
+
+  pixelSpaces.forEach((rect) => {
+    const otherCenterX = rect.left + rect.width / 2;
+    const otherCenterY = rect.top + rect.height / 2;
+
+    const minX = Math.min(rect.left, dragLeft);
+    const maxX = Math.max(rect.right, dragRight);
+    const minY = Math.min(rect.top, dragTop);
+    const maxY = Math.max(rect.bottom, dragBottom);
+
+    if (Math.abs(dragTop - rect.top) <= ALIGNMENT_TOLERANCE_PX) {
+      const deltaY = rect.top - dragTop;
+      addGuide(guides, guideSet, {
+        orientation: "horizontal",
+        start: { x: minX, y: rect.top },
+        end: { x: maxX, y: rect.top },
+        kind: "edge",
+        snap: { deltaY },
+      });
+    }
+
+    if (Math.abs(dragBottom - rect.bottom) <= ALIGNMENT_TOLERANCE_PX) {
+      const deltaY = rect.bottom - dragBottom;
+      addGuide(guides, guideSet, {
+        orientation: "horizontal",
+        start: { x: minX, y: rect.bottom },
+        end: { x: maxX, y: rect.bottom },
+        kind: "edge",
+        snap: { deltaY },
+      });
+    }
+
+    if (Math.abs(dragLeft - rect.left) <= ALIGNMENT_TOLERANCE_PX) {
+      const deltaX = rect.left - dragLeft;
+      addGuide(guides, guideSet, {
+        orientation: "vertical",
+        start: { x: rect.left, y: minY },
+        end: { x: rect.left, y: maxY },
+        kind: "edge",
+        snap: { deltaX },
+      });
+    }
+
+    if (Math.abs(dragRight - rect.right) <= ALIGNMENT_TOLERANCE_PX) {
+      const deltaX = rect.right - dragRight;
+      addGuide(guides, guideSet, {
+        orientation: "vertical",
+        start: { x: rect.right, y: minY },
+        end: { x: rect.right, y: maxY },
+        kind: "edge",
+        snap: { deltaX },
+      });
+    }
+
+    if (Math.abs(centerX - otherCenterX) <= ALIGNMENT_TOLERANCE_PX) {
+      const delta = otherCenterX - centerX;
+      if (
+        closestCenterDeltaX === null ||
+        Math.abs(delta) < Math.abs(closestCenterDeltaX)
+      ) {
+        closestCenterDeltaX = delta;
+      }
+      hasVerticalCenterGuide = true;
+      centerVerticalBounds = {
+        min: Math.min(centerVerticalBounds.min, rect.top),
+        max: Math.max(centerVerticalBounds.max, rect.bottom),
+      };
+    }
+
+    if (Math.abs(centerY - otherCenterY) <= ALIGNMENT_TOLERANCE_PX) {
+      const delta = otherCenterY - centerY;
+      if (
+        closestCenterDeltaY === null ||
+        Math.abs(delta) < Math.abs(closestCenterDeltaY)
+      ) {
+        closestCenterDeltaY = delta;
+      }
+      hasHorizontalCenterGuide = true;
+      centerHorizontalBounds = {
+        min: Math.min(centerHorizontalBounds.min, rect.left),
+        max: Math.max(centerHorizontalBounds.max, rect.right),
+      };
+    }
+  });
+
+  if (hasVerticalCenterGuide) {
+    const deltaX = closestCenterDeltaX ?? 0;
+    addGuide(guides, guideSet, {
+      orientation: "vertical",
+      start: { x: centerX, y: centerVerticalBounds.min },
+      end: { x: centerX, y: centerVerticalBounds.max },
+      kind: "center",
+      snap: { deltaX },
+    });
+  }
+
+  if (hasHorizontalCenterGuide) {
+    const deltaY = closestCenterDeltaY ?? 0;
+    addGuide(guides, guideSet, {
+      orientation: "horizontal",
+      start: { x: centerHorizontalBounds.min, y: centerY },
+      end: { x: centerHorizontalBounds.max, y: centerY },
+      kind: "center",
+      snap: { deltaY },
+    });
+  }
+
+  if (parentWidth > 0) {
+    const parentCenterX = parentWidth / 2;
+    if (Math.abs(centerX - parentCenterX) <= ALIGNMENT_TOLERANCE_PX) {
+      const deltaX = parentCenterX - centerX;
+      addGuide(guides, guideSet, {
+        orientation: "vertical",
+        start: { x: parentCenterX, y: 0 },
+        end: { x: parentCenterX, y: Math.max(parentHeight, dragBottom) },
+        kind: "center",
+        snap: { deltaX },
+      });
+    }
+  }
+
+  if (parentHeight > 0) {
+    const parentCenterY = parentHeight / 2;
+    if (Math.abs(centerY - parentCenterY) <= ALIGNMENT_TOLERANCE_PX) {
+      const deltaY = parentCenterY - centerY;
+      addGuide(guides, guideSet, {
+        orientation: "horizontal",
+        start: { x: 0, y: parentCenterY },
+        end: { x: Math.max(parentWidth, dragRight), y: parentCenterY },
+        kind: "center",
+        snap: { deltaY },
+      });
+    }
+  }
+
+  const horizontalSpacingGuides = getEqualSpacingGuides(
+    pixelSpaces,
+    boundingRect,
+    "horizontal",
+  );
+  const verticalSpacingGuides = getEqualSpacingGuides(
+    pixelSpaces,
+    boundingRect,
+    "vertical",
+  );
+
+  horizontalSpacingGuides.forEach((guide) => addGuide(guides, guideSet, guide));
+  verticalSpacingGuides.forEach((guide) => addGuide(guides, guideSet, guide));
+
+  return guides;
+};
+
+const getOverlapMidpoint = (
+  startA: number,
+  endA: number,
+  startB: number,
+  endB: number,
+) => {
+  const start = Math.max(startA, startB);
+  const end = Math.min(endA, endB);
+
+  if (start <= end) {
+    return start + (end - start) / 2;
+  }
+
+  return (startA + endA + startB + endB) / 4;
+};
+
+const getEqualSpacingGuides = (
+  pixelSpaces: PixelRect[],
+  movingRect: PixelRect,
+  axis: "horizontal" | "vertical",
+): AlignmentGuide[] => {
+  const guides: AlignmentGuide[] = [];
+
+  if (!pixelSpaces.length) {
+    return guides;
+  }
+
+  if (axis === "horizontal") {
+    const sameRow = pixelSpaces.filter(
+      (rect) =>
+        !(rect.bottom <= movingRect.top || rect.top >= movingRect.bottom),
+    );
+
+    if (!sameRow.length) {
+      return guides;
+    }
+
+    const combined = [...sameRow, movingRect].sort(
+      (a, b) => a.left - b.left || a.top - b.top,
+    );
+    const movingIndex = combined.findIndex((rect) => rect === movingRect);
+
+    const addHorizontalGuide = (
+      startX: number,
+      endX: number,
+      rectA: PixelRect,
+      rectB: PixelRect,
+      deltaX: number,
+    ) => {
+      if (startX === endX) return;
+      const y = getOverlapMidpoint(
+        rectA.top,
+        rectA.bottom,
+        rectB.top,
+        rectB.bottom,
+      );
+      guides.push({
+        orientation: "horizontal",
+        start: { x: startX, y },
+        end: { x: endX, y },
+        kind: "spacing",
+        snap: { deltaX },
+      });
+    };
+
+    if (movingIndex > 0 && movingIndex < combined.length - 1) {
+      const leftNeighbor = combined[movingIndex - 1];
+      const rightNeighbor = combined[movingIndex + 1];
+      const targetLeft =
+        (leftNeighbor.right + rightNeighbor.left - movingRect.width) / 2;
+      const delta = targetLeft - movingRect.left;
+      const gapLeft = movingRect.left - leftNeighbor.right;
+      const gapRight = rightNeighbor.left - movingRect.right;
+      if (
+        gapLeft >= 0 &&
+        gapRight >= 0 &&
+        Math.abs(gapLeft - gapRight) <= SPACING_TOLERANCE_PX
+      ) {
+        addHorizontalGuide(
+          leftNeighbor.right,
+          movingRect.left,
+          leftNeighbor,
+          movingRect,
+          delta,
+        );
+        addHorizontalGuide(
+          movingRect.right,
+          rightNeighbor.left,
+          movingRect,
+          rightNeighbor,
+          delta,
+        );
+      }
+    }
+
+    if (movingIndex > 1) {
+      const leftNeighbor = combined[movingIndex - 1];
+      const secondLeft = combined[movingIndex - 2];
+      const gapCurrent = movingRect.left - leftNeighbor.right;
+      const gapReference = leftNeighbor.left - secondLeft.right;
+      if (
+        gapCurrent >= 0 &&
+        gapReference >= 0 &&
+        Math.abs(gapCurrent - gapReference) <= SPACING_TOLERANCE_PX
+      ) {
+        const targetLeft = leftNeighbor.right + gapReference;
+        const delta = targetLeft - movingRect.left;
+        addHorizontalGuide(
+          leftNeighbor.right,
+          movingRect.left,
+          leftNeighbor,
+          movingRect,
+          delta,
+        );
+      }
+    }
+
+    if (combined.length - movingIndex > 2) {
+      const rightNeighbor = combined[movingIndex + 1];
+      const secondRight = combined[movingIndex + 2];
+      const gapCurrent = rightNeighbor.left - movingRect.right;
+      const gapReference = secondRight.left - rightNeighbor.right;
+      if (
+        gapCurrent >= 0 &&
+        gapReference >= 0 &&
+        Math.abs(gapCurrent - gapReference) <= SPACING_TOLERANCE_PX
+      ) {
+        const targetLeft = rightNeighbor.left - gapReference - movingRect.width;
+        const delta = targetLeft - movingRect.left;
+        addHorizontalGuide(
+          movingRect.right,
+          rightNeighbor.left,
+          movingRect,
+          rightNeighbor,
+          delta,
+        );
+      }
+    }
+  } else {
+    const sameColumn = pixelSpaces.filter(
+      (rect) =>
+        !(rect.right <= movingRect.left || rect.left >= movingRect.right),
+    );
+
+    if (!sameColumn.length) {
+      return guides;
+    }
+
+    const combined = [...sameColumn, movingRect].sort(
+      (a, b) => a.top - b.top || a.left - b.left,
+    );
+    const movingIndex = combined.findIndex((rect) => rect === movingRect);
+
+    const addVerticalGuide = (
+      startY: number,
+      endY: number,
+      rectA: PixelRect,
+      rectB: PixelRect,
+      deltaY: number,
+    ) => {
+      if (startY === endY) return;
+      const x = getOverlapMidpoint(
+        rectA.left,
+        rectA.right,
+        rectB.left,
+        rectB.right,
+      );
+      guides.push({
+        orientation: "vertical",
+        start: { x, y: startY },
+        end: { x, y: endY },
+        kind: "spacing",
+        snap: { deltaY },
+      });
+    };
+
+    if (movingIndex > 0 && movingIndex < combined.length - 1) {
+      const topNeighbor = combined[movingIndex - 1];
+      const bottomNeighbor = combined[movingIndex + 1];
+      const targetTop =
+        (topNeighbor.bottom + bottomNeighbor.top - movingRect.height) / 2;
+      const delta = targetTop - movingRect.top;
+      const gapTop = movingRect.top - topNeighbor.bottom;
+      const gapBottom = bottomNeighbor.top - movingRect.bottom;
+      if (
+        gapTop >= 0 &&
+        gapBottom >= 0 &&
+        Math.abs(gapTop - gapBottom) <= SPACING_TOLERANCE_PX
+      ) {
+        addVerticalGuide(
+          topNeighbor.bottom,
+          movingRect.top,
+          topNeighbor,
+          movingRect,
+          delta,
+        );
+        addVerticalGuide(
+          movingRect.bottom,
+          bottomNeighbor.top,
+          movingRect,
+          bottomNeighbor,
+          delta,
+        );
+      }
+    }
+
+    if (movingIndex > 1) {
+      const topNeighbor = combined[movingIndex - 1];
+      const secondTop = combined[movingIndex - 2];
+      const gapCurrent = movingRect.top - topNeighbor.bottom;
+      const gapReference = topNeighbor.top - secondTop.bottom;
+      if (
+        gapCurrent >= 0 &&
+        gapReference >= 0 &&
+        Math.abs(gapCurrent - gapReference) <= SPACING_TOLERANCE_PX
+      ) {
+        const targetTop = topNeighbor.bottom + gapReference;
+        const delta = targetTop - movingRect.top;
+        addVerticalGuide(
+          topNeighbor.bottom,
+          movingRect.top,
+          topNeighbor,
+          movingRect,
+          delta,
+        );
+      }
+    }
+
+    if (combined.length - movingIndex > 2) {
+      const bottomNeighbor = combined[movingIndex + 1];
+      const secondBottom = combined[movingIndex + 2];
+      const gapCurrent = bottomNeighbor.top - movingRect.bottom;
+      const gapReference = secondBottom.top - bottomNeighbor.bottom;
+      if (
+        gapCurrent >= 0 &&
+        gapReference >= 0 &&
+        Math.abs(gapCurrent - gapReference) <= SPACING_TOLERANCE_PX
+      ) {
+        const targetTop = bottomNeighbor.top - gapReference - movingRect.height;
+        const delta = targetTop - movingRect.top;
+        addVerticalGuide(
+          movingRect.bottom,
+          bottomNeighbor.top,
+          movingRect,
+          bottomNeighbor,
+          delta,
+        );
+      }
+    }
+  }
+
+  return guides;
+};
+
+type SnapDelta = {
+  deltaX: number;
+  deltaY: number;
+};
+
+const getSnapDeltaFromGuides = (guides: AlignmentGuide[]): SnapDelta => {
+  let deltaX: number | null = null;
+  let deltaY: number | null = null;
+
+  guides.forEach((guide) => {
+    const { snap } = guide;
+    if (!snap) {
+      return;
+    }
+
+    if (snap.deltaX !== undefined) {
+      if (deltaX === null || Math.abs(snap.deltaX) < Math.abs(deltaX)) {
+        deltaX = snap.deltaX;
+      }
+    }
+
+    if (snap.deltaY !== undefined) {
+      if (deltaY === null || Math.abs(snap.deltaY) < Math.abs(deltaY)) {
+        deltaY = snap.deltaY;
+      }
+    }
+  });
+
+  const result: SnapDelta = {
+    deltaX: deltaX ?? 0,
+    deltaY: deltaY ?? 0,
+  };
+
+  if (Math.abs(result.deltaX) < SNAP_EPSILON) {
+    result.deltaX = 0;
+  }
+  if (Math.abs(result.deltaY) < SNAP_EPSILON) {
+    result.deltaY = 0;
+  }
+
+  return result;
+};
+
+const applyAlignmentSnap = (
+  rectangles: WidgetDraggingBlock[],
+  snapDelta: SnapDelta,
+): WidgetDraggingBlock[] => {
+  const { deltaX, deltaY } = snapDelta;
+  if (deltaX === 0 && deltaY === 0) {
+    return rectangles;
+  }
+
+  return rectangles.map((block) => ({
+    ...block,
+    left: block.left + deltaX,
+    top: block.top + deltaY,
+  }));
+};
+
+const applySnapToReflowSpaces = (
+  spaces: OccupiedSpace[],
+  snapDelta: SnapDelta,
+  snapColumnSpace: number,
+  snapRowSpace: number,
+): OccupiedSpace[] => {
+  const { deltaX, deltaY } = snapDelta;
+  if (spaces.length === 0 || (deltaX === 0 && deltaY === 0)) {
+    return spaces;
+  }
+
+  const deltaCols = deltaX / snapColumnSpace;
+  const deltaRows = deltaY / snapRowSpace;
+
+  if (deltaCols === 0 && deltaRows === 0) {
+    return spaces;
+  }
+
+  return spaces.map((space) => ({
+    ...space,
+    left: space.left + deltaCols,
+    right: space.right + deltaCols,
+    top: space.top + deltaRows,
+    bottom: space.bottom + deltaRows,
+  }));
+};
 
 /**
  * useCanvasDragging hook is utilized to handle all drag and drop related functions that are required to give user the sense of dragging and dropping while moving a widget on canvas
@@ -107,6 +718,7 @@ export const useCanvasDragging = (
     reflowSpaces: ReflowInterface;
     resetReflow: () => void;
   }>();
+  const alignmentGuidesRef = useRef<AlignmentGuide[]>([]);
 
   reflow.current = useReflow(draggingSpaces, widgetId || "", gridProps);
 
@@ -137,11 +749,13 @@ export const useCanvasDragging = (
   );
 
   useEffect(() => {
+    const inModuleEditor = window.location.pathname.includes("/modules/");
+
     if (
       slidingArenaRef.current &&
       !isResizing &&
       isDragging &&
-      blocksToDraw.length > 0
+      (blocksToDraw.length > 0 || inModuleEditor)
     ) {
       // doing throttling coz reflow moves are also throttled and resetCanvas can be called multiple times
       const throttledStopReflowing = throttle(stopReflowing, 50);
@@ -197,6 +811,7 @@ export const useCanvasDragging = (
         if (isDragging) {
           setDraggingCanvas(MAIN_CONTAINER_WIDGET_ID);
         }
+        alignmentGuidesRef.current = [];
       };
 
       if (isDragging) {
@@ -204,7 +819,7 @@ export const useCanvasDragging = (
         /**
          * On mouse up, calculate the top, left, bottom and right positions for each of the reflowed widgets
          */
-        const onMouseUp = () => {
+        const onMouseUp = (event: MouseEvent) => {
           if (isDragging && canvasIsDragging) {
             const { movementMap: reflowingWidgets } = currentReflowParams;
             const reflowedPositionsUpdatesWidgets: OccupiedSpace[] = occSpaces
@@ -218,14 +833,30 @@ export const useCanvasDragging = (
                 ),
               );
 
+            const shouldSnap = event.shiftKey;
+            const snapDelta = shouldSnap
+              ? getSnapDeltaFromGuides(alignmentGuidesRef.current)
+              : { deltaX: 0, deltaY: 0 };
+            const snappedRectangles = shouldSnap
+              ? applyAlignmentSnap(currentRectanglesToDraw, snapDelta)
+              : currentRectanglesToDraw;
+            const snappedReflowSpaces = shouldSnap
+              ? applySnapToReflowSpaces(
+                  reflowedPositionsUpdatesWidgets,
+                  snapDelta,
+                  snapColumnSpace,
+                  snapRowSpace,
+                )
+              : reflowedPositionsUpdatesWidgets;
+
             onDrop(
               modifyDrawingRectangles(
-                currentRectanglesToDraw,
+                snappedRectangles,
                 currentReflowParams.spacePositionMap,
                 snapColumnSpace,
                 snapRowSpace,
               ),
-              reflowedPositionsUpdatesWidgets,
+              snappedReflowSpaces,
             );
           }
 
@@ -275,6 +906,7 @@ export const useCanvasDragging = (
 
             canvasIsDragging = true;
             slidingArenaRef.current.style.zIndex = "2";
+
             onMouseMove(e, over);
           }
         };
@@ -283,7 +915,9 @@ export const useCanvasDragging = (
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const triggerReflow = (e: any, firstMove: boolean) => {
           const canReflow =
-            !currentRectanglesToDraw[0].detachFromLayout && !dropDisabled;
+            currentRectanglesToDraw.length > 0 &&
+            !currentRectanglesToDraw[0].detachFromLayout &&
+            !dropDisabled;
           const isReflowing =
             !isEmpty(currentReflowParams.movementMap) ||
             (!isEmpty(currentReflowParams.movementLimitMap) &&
@@ -435,12 +1069,26 @@ export const useCanvasDragging = (
               triggerReflow(e, firstMove);
             }
 
+            const parentWidth =
+              GridDefaults.DEFAULT_GRID_COLUMNS * snapColumnSpace;
+            const parentHeight = rowRef.current * snapRowSpace;
+            const alignmentGuides = getAlignmentGuides(
+              currentRectanglesToDraw,
+              occSpaces,
+              snapColumnSpace,
+              snapRowSpace,
+              parentWidth,
+              parentHeight,
+              currentReflowParams.spacePositionMap,
+            );
+            alignmentGuidesRef.current = alignmentGuides;
             isUpdatingRows = renderBlocks(
               currentRectanglesToDraw,
               currentReflowParams.spacePositionMap,
               isUpdatingRows,
               canvasIsDragging,
               scrollParent,
+              alignmentGuides,
             );
             scrollObj.lastMouseMoveEvent = {
               offsetX: e.offsetX,
@@ -504,12 +1152,26 @@ export const useCanvasDragging = (
               stickyCanvasRef.current.height,
             );
             canvasCtx.restore();
+            const parentWidth =
+              GridDefaults.DEFAULT_GRID_COLUMNS * snapColumnSpace;
+            const parentHeight = rowRef.current * snapRowSpace;
+            const alignmentGuides = getAlignmentGuides(
+              currentRectanglesToDraw,
+              occSpaces,
+              snapColumnSpace,
+              snapRowSpace,
+              parentWidth,
+              parentHeight,
+              currentReflowParams.spacePositionMap,
+            );
+            alignmentGuidesRef.current = alignmentGuides;
             isUpdatingRows = renderBlocks(
               currentRectanglesToDraw,
               currentReflowParams.spacePositionMap,
               isUpdatingRows,
               canvasIsDragging,
               scrollParent,
+              alignmentGuides,
             );
             canScroll.current = false;
             endRenderRows.cancel();
@@ -535,12 +1197,26 @@ export const useCanvasDragging = (
         }) => {
           currentReflowParams = { ...currentReflowParams, ...reflowParams };
           updateParamsPostReflow();
+          const parentWidth =
+            GridDefaults.DEFAULT_GRID_COLUMNS * snapColumnSpace;
+          const parentHeight = rowRef.current * snapRowSpace;
+          const alignmentGuides = getAlignmentGuides(
+            currentRectanglesToDraw,
+            occSpaces,
+            snapColumnSpace,
+            snapRowSpace,
+            parentWidth,
+            parentHeight,
+            currentReflowParams.spacePositionMap,
+          );
+          alignmentGuidesRef.current = alignmentGuides;
           isUpdatingRows = renderBlocks(
             currentRectanglesToDraw,
             currentReflowParams.spacePositionMap,
             isUpdatingRows,
             canvasIsDragging,
             scrollParent,
+            alignmentGuides,
           );
         };
 
