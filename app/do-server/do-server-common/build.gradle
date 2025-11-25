@@ -1,0 +1,30 @@
+bootJar { enabled = false }
+jar { enabled = true }
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    api "com.fasterxml.jackson.core:jackson-databind:${libs.versions.jackson.get()}"
+    api "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${libs.versions.jackson.get()}"
+    implementation "com.github.ulisesbocchio:jasypt-spring-boot-starter:${libs.versions.jasypt.get()}"
+    api "org.apache.commons:commons-lang3:${libs.versions.apache.commons.lang3.get()}"
+    api "org.apache.commons:commons-collections4:${libs.versions.apache.commons.collections4.get()}"
+
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${libs.versions.springdoc.get()}"
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

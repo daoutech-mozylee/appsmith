@@ -1,0 +1,20 @@
+# https://docs.spring.io/spring-boot/docs/current/reference/html/dependency-versions.html
+
+[versions]
+spring-boot = "3.5.7"
+spring-dependency-management = "1.1.7"
+projectlombok = "1.18.30"
+springdoc = "2.8.6"
+flyway = "11.8.1"
+jasypt = "3.0.5"
+jackson = "2.18.4"
+apache-commons-lang3 = "3.19.0"
+apache-commons-collections4 = "4.5.0"
+redisson = "3.52.0"
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+
+[libraries]
+springdoc = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }

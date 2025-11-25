@@ -1,0 +1,13 @@
+dependencies {
+    implementation project(':do-server-domain')
+    implementation project(':do-server-common')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework:spring-tx'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+}
+
+bootJar { enabled = false }
+jar { enabled = true }

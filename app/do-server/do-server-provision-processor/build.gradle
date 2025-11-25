@@ -1,0 +1,19 @@
+dependencies {
+    implementation project(':do-server-domain')
+    implementation project(':do-server-common')
+    implementation project(':usecase:do-server-provision')
+    implementation project(':adaptor:do-server-persistence')
+    implementation project(':adaptor:do-server-internal')
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+bootJar { enabled = true }
+jar { enabled = false }

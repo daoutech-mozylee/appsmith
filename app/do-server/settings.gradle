@@ -1,0 +1,8 @@
+rootProject.name = 'do-server'
+include ('do-server-domain', 'do-server-common')
+include('usecase:do-server-api-core')
+include('usecase:do-server-provision')
+include('adaptor:do-server-persistence')
+include('adaptor:do-server-internal')
+include('do-server-api')
+include('do-server-provision-processor')
