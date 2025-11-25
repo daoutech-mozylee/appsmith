@@ -100,6 +100,16 @@ const WidgetLoaders = new Map<string, () => Promise<typeof BaseWidget>>([
     async () => import("./CustomWidget").then((m) => m.default),
   ],
   [
+    "BOARD_MODAL_WIDGET",
+    async () =>
+      import("./BoardModalWidget").then((m) => m.default),
+  ],
+  [
+    "MODULE_INSTANCE_WIDGET",
+    async () =>
+      import("./ModuleInstanceWidget").then((m) => m.default),
+  ],
+  [
     anvilWidgets.SECTION_WIDGET,
     async () =>
       import("widgets/wds/WDSSectionWidget").then((m) => m.WDSSectionWidget),
@@ -237,6 +247,7 @@ const WidgetLoaders = new Map<string, () => Promise<typeof BaseWidget>>([
     async () => import("./SwitchWidget").then((m) => m.default),
   ],
   ["FORM_WIDGET", async () => import("./FormWidget").then((m) => m.default)],
+  ["BOARD_WIDGET", async () => import("./BoardWidget").then((m) => m.default)],
   ["RATE_WIDGET", async () => import("./RateWidget").then((m) => m.default)],
   [
     "IFRAME_WIDGET",

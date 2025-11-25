@@ -40,6 +40,7 @@ import {
   getJSCollectionFromAllEntities,
   getPlugin,
 } from "ee/selectors/entitiesSelector";
+import { getModuleInstancePageLoadActions } from "ee/selectors/moduleInstanceSelectors";
 import {
   getAppMode,
   getCurrentApplication,
@@ -1279,16 +1280,23 @@ function* executePageLoadActionsSaga(
 
   try {
     const pageActions: PageAction[][] = yield select(getLayoutOnLoadActions);
+    const modulePageActions: PageAction[][] = yield select(
+      getModuleInstancePageLoadActions,
+    );
+    const allPageActions: PageAction[][] = [
+      ...pageActions,
+      ...modulePageActions,
+    ];
     const layoutOnLoadActionErrors: LayoutOnLoadActionErrors[] = yield select(
       getLayoutOnLoadIssues,
     );
-    const actionCount = flatten(pageActions).length;
+    const actionCount = flatten(allPageActions).length;
 
     setAttributesToSpan(span, { numActions: actionCount });
 
     // when cyclical depedency issue is there,
     // none of the page load actions would be executed
-    for (const actionSet of pageActions) {
+    for (const actionSet of allPageActions) {
       // Load all sets in parallel
       // @ts-expect-error: no idea how to type this
       yield* yield all(

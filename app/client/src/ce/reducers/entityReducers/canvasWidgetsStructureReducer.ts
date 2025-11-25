@@ -36,13 +36,15 @@ export const handlers = {
     state: CanvasWidgetsStructureReduxState,
     action: ReduxAction<UpdateCanvasPayload>,
   ) => {
-    return denormalize("0", action.payload.widgets);
+    const rootId = action.payload.pageWidgetId || MAIN_CONTAINER_WIDGET_ID;
+    return denormalize(rootId, action.payload.widgets);
   },
   [ReduxActionTypes.UPDATE_LAYOUT]: (
     state: CanvasWidgetsStructureReduxState,
     action: ReduxAction<UpdateCanvasPayload>,
   ) => {
-    return denormalize("0", action.payload.widgets);
+    const rootId = action.payload.pageWidgetId || MAIN_CONTAINER_WIDGET_ID;
+    return denormalize(rootId, action.payload.widgets);
   },
   [ReduxActionTypes.RESET_EDITOR_REQUEST]: () => {
     return klona(initialState);

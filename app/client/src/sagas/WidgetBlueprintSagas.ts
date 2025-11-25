@@ -6,7 +6,7 @@ import {
 import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { WidgetProps } from "widgets/BaseWidget";
 import { generateReactKey } from "utils/generators";
-import { call, select } from "redux-saga/effects";
+import { call, put, select, take } from "redux-saga/effects";
 import { get } from "lodash";
 import WidgetFactory from "WidgetProvider/factory";
 
@@ -17,9 +17,20 @@ import * as log from "loglevel";
 import { toast } from "@appsmith/ads";
 import type { LayoutSystemTypes } from "layoutSystems/types";
 import { getLayoutSystemType } from "selectors/layoutSystemSelectors";
-import type { PluginPackageName } from "entities/Plugin";
+import { PluginPackageName, type Plugin } from "entities/Plugin";
 import type { Action } from "../entities/Action";
 import { createOrUpdateDataSourceWithAction } from "../ee/sagas/DatasourcesSagas";
+import { createJSCollectionRequest } from "actions/jsActionActions";
+import type { JSAction, JSCollection, Variable } from "entities/JSCollection";
+import type { CreateJSCollectionRequest } from "ee/api/JSActionAPI";
+import { getCurrentWorkspaceId } from "ee/selectors/selectedWorkspaceSelectors";
+import {
+  getCurrentApplicationId,
+  getCurrentPageId,
+} from "selectors/editorSelectors";
+import { getPluginByPackageName } from "ee/selectors/entitiesSelector";
+import type { ReduxAction } from "actions/ReduxActionTypes";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 
 function buildView(view: WidgetBlueprint["view"], widgetId: string) {
   const children = [];
@@ -28,6 +39,7 @@ function buildView(view: WidgetBlueprint["view"], widgetId: string) {
     for (const template of view) {
       //TODO(abhinav): Can we keep rows and size mandatory?
       try {
+        const { widgetName, ...restProps } = template.props || {};
         children.push({
           widgetId,
           type: template.type,
@@ -36,7 +48,8 @@ function buildView(view: WidgetBlueprint["view"], widgetId: string) {
           columns: template.size && template.size.cols,
           rows: template.size && template.size.rows,
           newWidgetId: generateReactKey(),
-          props: template.props,
+          widgetName,
+          props: restProps,
         });
       } catch (e) {
         log.error(e);
@@ -110,10 +123,18 @@ export type BlueprintOperationType = keyof typeof BlueprintOperationTypes;
 export type BlueprintOperationActionType =
   keyof typeof BlueprintOperationActionTypes;
 
+export interface BlueprintJSActionTemplate {
+  name: string;
+  body: string;
+  actions?: Array<Partial<JSAction>>;
+  variables?: Array<Variable>;
+}
+
 export interface BlueprintOperationActionPayload {
-  pluginPackageName: PluginPackageName;
-  actionConfig: Action;
+  pluginPackageName?: PluginPackageName;
+  actionConfig?: Action;
   datasourceName?: string;
+  jsActionTemplate?: BlueprintJSActionTemplate;
 }
 
 export interface BlueprintOperation {
@@ -129,7 +150,7 @@ export function* executeWidgetBlueprintOperations(
   widgetId: string,
 ) {
   const layoutSystemType: LayoutSystemTypes = yield select(getLayoutSystemType);
-  let addActionResult: ActionData = {} as ActionData;
+  let addActionResult: ActionData | JSCollection | undefined = undefined;
 
   for (const operation of operations) {
     const widget: WidgetProps & { children?: string[] | WidgetProps[] } = {
@@ -201,7 +222,89 @@ function* executeWidgetBlueprintAddActionOperations(
         );
 
       return createdAction;
+    case BlueprintOperationActionTypes.CREATE_JS_ACTION:
+      if (!operation.payload?.jsActionTemplate) {
+        return;
+      }
+
+      const jsAction = yield createJSCollectionForBlueprint(
+        operation.payload.jsActionTemplate,
+      );
+
+      return jsAction;
   }
+}
+
+function* createJSCollectionForBlueprint(
+  jsTemplate: BlueprintJSActionTemplate,
+) {
+  if (!jsTemplate.name || !jsTemplate.body) {
+    log.error("JS blueprint template is missing required fields");
+    return;
+  }
+
+  const plugin: Plugin = yield select(
+    getPluginByPackageName,
+    PluginPackageName.JS,
+  );
+
+  if (!plugin) {
+    log.error("JS plugin not available for blueprint creation");
+    return;
+  }
+
+  const workspaceId: string = yield select(getCurrentWorkspaceId);
+  const applicationId: string = yield select(getCurrentApplicationId);
+  const pageId: string = yield select(getCurrentPageId);
+
+  const sanitizedActions =
+    jsTemplate.actions?.map((action) => {
+      const {
+        id: _id,
+        baseId: _baseId,
+        collectionId: _collectionId,
+        pluginId: _pluginId,
+        pluginType: _pluginType,
+        workspaceId: _workspaceId,
+        applicationId: _applicationId,
+        pageId: _pageId,
+        ...rest
+      } = action;
+
+      return {
+        ...rest,
+        pluginId: plugin.id,
+        pluginType: plugin.type,
+        workspaceId,
+        applicationId,
+        pageId,
+      };
+    }) || [];
+
+  const request: CreateJSCollectionRequest = {
+    name: jsTemplate.name,
+    body: jsTemplate.body,
+    variables: jsTemplate.variables || [],
+    actions: sanitizedActions,
+    workspaceId,
+    applicationId,
+    pageId,
+    pluginId: plugin.id,
+    pluginType: plugin.type,
+  };
+
+  yield put(
+    createJSCollectionRequest({
+      request,
+      from: "ADD_PANE",
+    }),
+  );
+
+  const result: ReduxAction<JSCollection> = yield take(
+    ReduxActionTypes.CREATE_JS_ACTION_SUCCESS,
+  );
+
+  return result.payload;
 }
 
 /**

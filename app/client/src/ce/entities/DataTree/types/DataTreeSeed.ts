@@ -8,6 +8,7 @@ import type { MetaWidgetsReduxState } from "reducers/entityReducers/metaWidgetsR
 import type { AppTheme } from "entities/AppTheming";
 import type { Module } from "ee/constants/ModuleConstants";
 import type { ModuleInstance } from "ee/constants/ModuleInstanceConstants";
+import type { ModuleInstanceEntitiesState } from "ce/reducers/entityReducers/moduleInstanceEntitiesReducer";
 import type { LayoutSystemTypes } from "layoutSystems/types";
 import type { LoadingEntitiesState } from "reducers/evaluationReducers/loadingEntitiesReducer";
 
@@ -26,9 +27,7 @@ export interface DataTreeSeed {
   isMobile: boolean;
   moduleInputs: Module["inputsForm"];
   moduleInstances: Record<string, ModuleInstance> | null;
-  // TODO: Fix this the next time the file is edited
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  moduleInstanceEntities: any;
+  moduleInstanceEntities: ModuleInstanceEntitiesState;
   layoutSystemType: LayoutSystemTypes;
   loadingEntities: LoadingEntitiesState;
 }

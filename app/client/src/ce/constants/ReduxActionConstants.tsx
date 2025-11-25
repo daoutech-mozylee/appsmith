@@ -10,6 +10,30 @@ const ResourceMapActionTypes = {
   RESET_ALL_RESOURCE_MAPS: "RESET_ALL_RESOURCE_MAPS",
 };
 
+const ModuleInstanceActionTypes = {
+  FETCH_MODULE_INSTANCES_INIT: "FETCH_MODULE_INSTANCES_INIT",
+  FETCH_MODULE_INSTANCES_SUCCESS: "FETCH_MODULE_INSTANCES_SUCCESS",
+  FETCH_MODULE_INSTANCES_ERROR: "FETCH_MODULE_INSTANCES_ERROR",
+};
+
+const ModuleActionTypes = {
+  FETCH_WORKSPACE_MODULES_INIT: "FETCH_WORKSPACE_MODULES_INIT",
+  FETCH_WORKSPACE_MODULES_SUCCESS: "FETCH_WORKSPACE_MODULES_SUCCESS",
+  FETCH_MODULE_INIT: "FETCH_MODULE_INIT",
+  FETCH_MODULE_SUCCESS: "FETCH_MODULE_SUCCESS",
+  UPDATE_MODULE_INIT: "UPDATE_MODULE_INIT",
+  UPDATE_MODULE_SUCCESS: "UPDATE_MODULE_SUCCESS",
+  SAVE_MODULE_INIT: "SAVE_MODULE_INIT",
+  SAVE_MODULE_SUCCESS: "SAVE_MODULE_SUCCESS",
+};
+
+const ModuleActionErrorTypes = {
+  FETCH_WORKSPACE_MODULES_ERROR: "FETCH_WORKSPACE_MODULES_ERROR",
+  FETCH_MODULE_ERROR: "FETCH_MODULE_ERROR",
+  UPDATE_MODULE_ERROR: "UPDATE_MODULE_ERROR",
+  SAVE_MODULE_ERROR: "SAVE_MODULE_ERROR",
+};
+
 const JSLibraryActionTypes = {
   TOGGLE_INSTALLER: "TOGGLE_INSTALLER",
   FETCH_JS_LIBRARIES_INIT: "FETCH_JS_LIBRARIES_INIT",
@@ -173,6 +197,7 @@ const GitActionTypes = {
   SET_PROTECTED_MODE: "SET_PROTECTED_MODE",
   SET_DISCONNECTING_GIT_APPLICATION: "SET_DISCONNECTING_GIT_APPLICATION",
 };
+
 
 const GitActionErrorTypes = {
   GIT_DISCARD_CHANGES_ERROR: "GIT_DISCARD_CHANGES_ERROR",
@@ -1357,6 +1382,8 @@ export const ReduxActionTypes = {
   ...PluginActionTypes,
   ...PropertyPanelActionTypes,
   ...ResourceMapActionTypes,
+  ...ModuleInstanceActionTypes,
+  ...ModuleActionTypes,
   ...SnippingModeActionTypes,
   ...TableWidgetActionsTypes,
   ...TemplateActionsTypes,
@@ -1396,6 +1423,7 @@ export const ReduxActionErrorTypes = {
   ...WidgetCanvasActionErrorTypes,
   ...WidgetOperationActionErrorTypes,
   ...WorkspaceActionErrorTypes,
+  ...ModuleActionErrorTypes,
 };
 
 export const toastMessageErrorTypes = {

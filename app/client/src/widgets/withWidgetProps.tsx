@@ -50,6 +50,7 @@ import WidgetFactory from "WidgetProvider/factory";
 import { getIsAnvilLayout } from "layoutSystems/anvil/integrations/selectors";
 import { endSpan, startRootSpan } from "instrumentation/generateTraces";
 import { selectCombinedPreviewMode } from "selectors/gitModSelectors";
+import { getWidgetMetaProps } from "sagas/selectors";
 
 const WIDGETS_WITH_CHILD_WIDGETS = ["LIST_WIDGET", "FORM_WIDGET"];
 const WIDGETS_REQUIRING_SELECTED_ANCESTRY = ["MODAL_WIDGET", "TABS_WIDGET"];
@@ -89,6 +90,10 @@ function withWidgetProps(WrappedWidget: typeof BaseWidget) {
     const evaluatedWidget = useSelector((state: DefaultRootState) =>
       getWidgetEvalValues(state, widgetName),
     );
+    const metaPropsFromStore = useSelector((state: DefaultRootState) => {
+      const baseWidget = metaWidget || canvasWidget;
+      return baseWidget ? getWidgetMetaProps(state, baseWidget) : undefined;
+    });
 
     const isLoading = useSelector((state: DefaultRootState) =>
       getIsWidgetLoading(state, widgetName),
@@ -170,12 +175,12 @@ function withWidgetProps(WrappedWidget: typeof BaseWidget) {
     }
 
     if (!skipWidgetPropsHydration) {
-      const canvasWidgetProps = (() => {
-        if (widgetId === MAIN_CONTAINER_WIDGET_ID) {
-          const computed = computeMainContainerWidget(
-            canvasWidget,
-            mainCanvasProps,
-          );
+    const canvasWidgetProps = (() => {
+      if (widgetId === MAIN_CONTAINER_WIDGET_ID) {
+        const computed = computeMainContainerWidget(
+          canvasWidget,
+          mainCanvasProps,
+        );
 
           if (renderMode === RenderModes.CANVAS) {
             return {
@@ -200,9 +205,17 @@ function withWidgetProps(WrappedWidget: typeof BaseWidget) {
           }
         }
 
-        return evaluatedWidget
-          ? createCanvasWidget(widget, evaluatedWidget, evaluatedWidgetConfig)
-          : createLoadingWidget(widget);
+        if (evaluatedWidget) {
+          return createCanvasWidget(widget, evaluatedWidget, evaluatedWidgetConfig);
+        }
+
+        /**
+         * 모듈 에디터처럼 평가 트리가 아직 없을 때도 위젯을 그대로 렌더하기 위해
+         * skeleton 대신 원본 canvas 위젯 데이터를 사용한다.
+         * 또한 meta 스토어에 있는 상태(예: isVisible, isLoading)를 병합해 표시 상태를 반영한다.
+         * (데이터 바인딩은 동작하지 않지만 레이아웃은 보여줌)
+         */
+        return { ...widget, ...metaPropsFromStore, isLoading: false };
       })();
 
       widgetProps = { ...canvasWidgetProps };
@@ -219,8 +232,14 @@ function withWidgetProps(WrappedWidget: typeof BaseWidget) {
        * is set to true
        */
       widgetProps.isVisible =
+        metaPropsFromStore?.isVisible ??
         canvasWidgetProps.isVisible ??
         canvasWidgetProps.type !== "MODAL_WIDGET";
+
+      // 메타의 isLoading 값도 버튼 등에 반영
+      if (metaPropsFromStore?.isLoading !== undefined) {
+        widgetProps.isLoading = metaPropsFromStore.isLoading;
+      }
 
       if (
         props.type === "CANVAS_WIDGET" &&

@@ -158,6 +158,7 @@ import type { AxiosError } from "axios";
 import { handleFetchApplicationError } from "./ApplicationSagas";
 import { getCurrentUser } from "actions/authActions";
 import { getIsFirstPageLoad } from "selectors/evaluationSelectors";
+import { fetchModuleInstancesForPage } from "actions/moduleInstanceActions";
 
 export interface HandleWidgetNameUpdatePayload {
   newName: string;
@@ -277,6 +278,8 @@ export function* handleFetchedPage({
     yield put(updateCurrentPage(pageId, pageSlug, pagePermissions));
     // Generate UI module instances when page DSL is loaded
     yield call(generateUIModuleInstanceSaga);
+    // Fetch module instances for this page
+    yield put(fetchModuleInstancesForPage(pageId));
     // dispatch fetch page success
     yield put(fetchPageSuccess());
 

@@ -12,6 +12,8 @@ export function* openModalSaga(
   action: TShowModalDescription,
   source?: SourceEntity,
 ) {
+  // eslint-disable-next-line no-console
+  console.log("ModuleEditor ActionExecution openModalSaga", action);
   const { modalName } = action.payload;
 
   if (typeof modalName !== "string") {

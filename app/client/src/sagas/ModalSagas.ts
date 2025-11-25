@@ -135,12 +135,16 @@ export function* createModalSaga(action: ReduxAction<{ modalName: string }>) {
 export function* showModalByNameSaga(
   action: ReduxAction<{ modalName: string }>,
 ) {
+  // eslint-disable-next-line no-console
+  console.log("ModuleEditor showModalByNameSaga", action.payload.modalName);
   const modal: FlattenedWidgetProps | null = yield select(
     getWidgetByName,
     action.payload.modalName,
   );
 
   if (modal) {
+    // eslint-disable-next-line no-console
+    console.log("ModuleEditor showModalByNameSaga found modal", modal.widgetId);
     yield put(showModal(modal.widgetId));
   }
 }
@@ -156,6 +160,8 @@ export function* showIfModalSaga(
 export function* showModalSaga(action: ReduxAction<{ modalId: string }>) {
   // First we close the currently open modals (if any)
   // Notice the empty payload.
+  // eslint-disable-next-line no-console
+  console.log("ModuleEditor showModalSaga", action.payload.modalId);
   yield call(closeModalSaga, {
     type: ReduxActionTypes.CLOSE_MODAL,
     payload: {
@@ -175,9 +181,30 @@ export function* showModalSaga(action: ReduxAction<{ modalId: string }>) {
 
   if (!metaProps || !metaProps.isVisible) {
     // Then show the modal we would like to show.
+    // Fallback: explicitly set meta prop immediately for module editor flows
+    yield put({
+      type: ReduxActionTypes.SET_META_PROP,
+      payload: {
+        widgetId: action.payload.modalId,
+        propertyName: "isVisible",
+        propertyValue: true,
+      },
+    });
     yield put(
       updateWidgetMetaPropAndEval(action.payload.modalId, "isVisible", true),
     );
+    // Also update canvas widget property so render doesn't depend solely on meta
+    yield put({
+      type: ReduxActionTypes.UPDATE_MULTIPLE_WIDGET_PROPERTIES,
+      payload: {
+        widgetsToUpdate: {
+          [action.payload.modalId]: [
+            { propertyPath: "isVisible", propertyValue: true },
+          ],
+        },
+        shouldEval: false,
+      },
+    });
     yield delay(1000);
   }
 
@@ -200,6 +227,8 @@ export function* closeModalSaga(
 
     // If modalName is provided, we just want to close this modal
     if (modalName) {
+      // eslint-disable-next-line no-console
+      console.log("ModuleEditor closeModalSaga by name", modalName);
       const widget: FlattenedWidgetProps | null = yield select(
         getWidgetByName,
         modalName,

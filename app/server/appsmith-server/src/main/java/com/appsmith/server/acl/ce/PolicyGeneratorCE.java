@@ -27,32 +27,50 @@ import static com.appsmith.server.acl.AclPermission.APPLICATION_CREATE_PAGES;
 import static com.appsmith.server.acl.AclPermission.APPLICATION_DELETE_PAGES;
 import static com.appsmith.server.acl.AclPermission.COMMENT_ON_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.CONNECT_TO_GIT;
+import static com.appsmith.server.acl.AclPermission.CONNECT_TO_GIT_PACKAGES;
+import static com.appsmith.server.acl.AclPermission.CREATE_MODULE_INSTANCES;
 import static com.appsmith.server.acl.AclPermission.DELETE_ACTIONS;
 import static com.appsmith.server.acl.AclPermission.DELETE_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.DELETE_DATASOURCES;
+import static com.appsmith.server.acl.AclPermission.DELETE_MODULES;
+import static com.appsmith.server.acl.AclPermission.DELETE_MODULE_INSTANCES;
+import static com.appsmith.server.acl.AclPermission.DELETE_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.DELETE_PAGES;
 import static com.appsmith.server.acl.AclPermission.DELETE_WORKSPACES;
 import static com.appsmith.server.acl.AclPermission.EXECUTE_ACTIONS;
 import static com.appsmith.server.acl.AclPermission.EXECUTE_DATASOURCES;
 import static com.appsmith.server.acl.AclPermission.EXPORT_APPLICATIONS;
+import static com.appsmith.server.acl.AclPermission.EXPORT_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.MAKE_PUBLIC_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.MANAGE_ACTIONS;
 import static com.appsmith.server.acl.AclPermission.MANAGE_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.MANAGE_AUTO_COMMIT;
+import static com.appsmith.server.acl.AclPermission.MANAGE_AUTO_COMMIT_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_DATASOURCES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_DEFAULT_BRANCHES;
+import static com.appsmith.server.acl.AclPermission.MANAGE_DEFAULT_BRANCHES_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_INSTANCE_CONFIGURATION;
+import static com.appsmith.server.acl.AclPermission.MANAGE_MODULES;
+import static com.appsmith.server.acl.AclPermission.MANAGE_MODULE_INSTANCES;
+import static com.appsmith.server.acl.AclPermission.MANAGE_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_PAGES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_PROTECTED_BRANCHES;
+import static com.appsmith.server.acl.AclPermission.MANAGE_PROTECTED_BRANCHES_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_THEMES;
 import static com.appsmith.server.acl.AclPermission.MANAGE_USERS;
 import static com.appsmith.server.acl.AclPermission.MANAGE_WORKSPACES;
+import static com.appsmith.server.acl.AclPermission.PACKAGE_CREATE_MODULES;
+import static com.appsmith.server.acl.AclPermission.PACKAGE_CREATE_MODULE_INSTANCES;
 import static com.appsmith.server.acl.AclPermission.PAGE_CREATE_PAGE_ACTIONS;
 import static com.appsmith.server.acl.AclPermission.PUBLISH_APPLICATIONS;
+import static com.appsmith.server.acl.AclPermission.PUBLISH_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.READ_ACTIONS;
 import static com.appsmith.server.acl.AclPermission.READ_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.READ_DATASOURCES;
 import static com.appsmith.server.acl.AclPermission.READ_INSTANCE_CONFIGURATION;
+import static com.appsmith.server.acl.AclPermission.READ_MODULES;
+import static com.appsmith.server.acl.AclPermission.READ_MODULE_INSTANCES;
+import static com.appsmith.server.acl.AclPermission.READ_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.READ_PAGES;
 import static com.appsmith.server.acl.AclPermission.READ_THEMES;
 import static com.appsmith.server.acl.AclPermission.READ_USERS;
@@ -60,14 +78,20 @@ import static com.appsmith.server.acl.AclPermission.READ_WORKSPACES;
 import static com.appsmith.server.acl.AclPermission.RESET_PASSWORD_USERS;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_CREATE_APPLICATION;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_CREATE_DATASOURCE;
+import static com.appsmith.server.acl.AclPermission.WORKSPACE_CREATE_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_DELETE_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_DELETE_DATASOURCES;
+import static com.appsmith.server.acl.AclPermission.WORKSPACE_DELETE_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_EXPORT_APPLICATIONS;
+import static com.appsmith.server.acl.AclPermission.WORKSPACE_EXPORT_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_MANAGE_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_MANAGE_DATASOURCES;
+import static com.appsmith.server.acl.AclPermission.WORKSPACE_MANAGE_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_PUBLISH_APPLICATIONS;
+import static com.appsmith.server.acl.AclPermission.WORKSPACE_PUBLISH_PACKAGES;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_READ_APPLICATIONS;
 import static com.appsmith.server.acl.AclPermission.WORKSPACE_READ_DATASOURCES;
+import static com.appsmith.server.acl.AclPermission.WORKSPACE_READ_PACKAGES;
 
 @Getter
 @Setter
@@ -114,6 +138,7 @@ public class PolicyGeneratorCE {
         createActionPolicyGraph();
         createThemePolicyGraph();
         createPermissionGroupPolicyGraph();
+        createModulePackagePolicyGraph();
     }
 
     protected void addLateralEdgesForAllIndirectRelationships() {
@@ -163,6 +188,29 @@ public class PolicyGeneratorCE {
         lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_MANAGE_APPLICATIONS);
         lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_READ_APPLICATIONS);
         lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_PUBLISH_APPLICATIONS);
+        lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_MANAGE_PACKAGES);
+        lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_READ_PACKAGES);
+        lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_PUBLISH_PACKAGES);
+        lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_EXPORT_PACKAGES);
+        lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_DELETE_PACKAGES);
+        lateralGraph.addEdge(MANAGE_WORKSPACES, WORKSPACE_CREATE_PACKAGES);
+
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, MANAGE_PACKAGES);
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, READ_PACKAGES);
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, DELETE_PACKAGES);
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, PUBLISH_PACKAGES);
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, EXPORT_PACKAGES);
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, PACKAGE_CREATE_MODULES);
+        hierarchyGraph.addEdge(MANAGE_WORKSPACES, PACKAGE_CREATE_MODULE_INSTANCES);
+        hierarchyGraph.addEdge(READ_WORKSPACES, READ_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, MANAGE_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, READ_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, DELETE_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, PUBLISH_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, EXPORT_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, PACKAGE_CREATE_MODULES);
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, PACKAGE_CREATE_MODULE_INSTANCES);
+        hierarchyGraph.addEdge(WORKSPACE_READ_APPLICATIONS, READ_PACKAGES);
 
         lateralGraph.addEdge(WORKSPACE_CREATE_APPLICATION, WORKSPACE_MANAGE_APPLICATIONS);
         lateralGraph.addEdge(WORKSPACE_CREATE_APPLICATION, WORKSPACE_DELETE_APPLICATIONS);
@@ -181,6 +229,14 @@ public class PolicyGeneratorCE {
         lateralGraph.addEdge(WORKSPACE_CREATE_DATASOURCE, WORKSPACE_DELETE_DATASOURCES);
         lateralGraph.addEdge(WORKSPACE_MANAGE_DATASOURCES, WORKSPACE_READ_DATASOURCES);
         lateralGraph.addEdge(WORKSPACE_DELETE_DATASOURCES, WORKSPACE_READ_DATASOURCES);
+
+        lateralGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, WORKSPACE_MANAGE_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, WORKSPACE_READ_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, WORKSPACE_PUBLISH_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, WORKSPACE_EXPORT_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, WORKSPACE_DELETE_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_APPLICATIONS, WORKSPACE_CREATE_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_READ_APPLICATIONS, WORKSPACE_READ_PACKAGES);
     }
 
     protected void createDatasourcePolicyGraph() {
@@ -193,6 +249,45 @@ public class PolicyGeneratorCE {
         lateralGraph.addEdge(MANAGE_DATASOURCES, READ_DATASOURCES);
         lateralGraph.addEdge(MANAGE_DATASOURCES, EXECUTE_DATASOURCES);
         lateralGraph.addEdge(READ_DATASOURCES, EXECUTE_DATASOURCES);
+    }
+
+    protected void createModulePackagePolicyGraph() {
+        lateralGraph.addEdge(WORKSPACE_MANAGE_PACKAGES, WORKSPACE_READ_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_PACKAGES, WORKSPACE_DELETE_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_PACKAGES, WORKSPACE_PUBLISH_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_MANAGE_PACKAGES, WORKSPACE_EXPORT_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_CREATE_PACKAGES, WORKSPACE_MANAGE_PACKAGES);
+        lateralGraph.addEdge(WORKSPACE_CREATE_PACKAGES, WORKSPACE_DELETE_PACKAGES);
+
+        hierarchyGraph.addEdge(WORKSPACE_MANAGE_PACKAGES, MANAGE_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_READ_PACKAGES, READ_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_DELETE_PACKAGES, DELETE_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_EXPORT_PACKAGES, EXPORT_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_PUBLISH_PACKAGES, PUBLISH_PACKAGES);
+        hierarchyGraph.addEdge(WORKSPACE_CREATE_PACKAGES, PACKAGE_CREATE_MODULES);
+        hierarchyGraph.addEdge(WORKSPACE_CREATE_PACKAGES, PACKAGE_CREATE_MODULE_INSTANCES);
+
+        lateralGraph.addEdge(MANAGE_PACKAGES, READ_PACKAGES);
+        lateralGraph.addEdge(MANAGE_PACKAGES, PACKAGE_CREATE_MODULES);
+        lateralGraph.addEdge(MANAGE_PACKAGES, PACKAGE_CREATE_MODULE_INSTANCES);
+        lateralGraph.addEdge(MANAGE_PACKAGES, CONNECT_TO_GIT_PACKAGES);
+        lateralGraph.addEdge(MANAGE_PACKAGES, MANAGE_PROTECTED_BRANCHES_PACKAGES);
+        lateralGraph.addEdge(MANAGE_PACKAGES, MANAGE_DEFAULT_BRANCHES_PACKAGES);
+        lateralGraph.addEdge(MANAGE_PACKAGES, MANAGE_AUTO_COMMIT_PACKAGES);
+
+        hierarchyGraph.addEdge(MANAGE_PACKAGES, MANAGE_MODULES);
+        hierarchyGraph.addEdge(READ_PACKAGES, READ_MODULES);
+        hierarchyGraph.addEdge(DELETE_PACKAGES, DELETE_MODULES);
+
+        lateralGraph.addEdge(MANAGE_MODULES, READ_MODULES);
+        hierarchyGraph.addEdge(MANAGE_MODULES, MANAGE_MODULE_INSTANCES);
+        hierarchyGraph.addEdge(READ_MODULES, READ_MODULE_INSTANCES);
+        hierarchyGraph.addEdge(PACKAGE_CREATE_MODULE_INSTANCES, CREATE_MODULE_INSTANCES);
+
+        lateralGraph.addEdge(MANAGE_MODULE_INSTANCES, READ_MODULE_INSTANCES);
+        lateralGraph.addEdge(MANAGE_MODULE_INSTANCES, DELETE_MODULE_INSTANCES);
+        lateralGraph.addEdge(CREATE_MODULE_INSTANCES, READ_MODULE_INSTANCES);
+        hierarchyGraph.addEdge(DELETE_MODULES, DELETE_MODULE_INSTANCES);
     }
 
     protected void createApplicationPolicyGraph() {

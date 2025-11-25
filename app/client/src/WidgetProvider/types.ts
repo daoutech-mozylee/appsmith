@@ -40,6 +40,7 @@ export enum BlueprintOperationTypes {
 
 export enum BlueprintOperationActionTypes {
   CREATE_OR_UPDATE_DATASOURCE_WITH_ACTION = "CREATE_OR_UPDATE_DATASOURCE_WITH_ACTION",
+  CREATE_JS_ACTION = "CREATE_JS_ACTION",
 }
 
 export type FlattenedWidgetProps = WidgetProps & {

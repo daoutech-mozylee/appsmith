@@ -5,11 +5,14 @@ import com.appsmith.external.models.Datasource;
 import com.appsmith.server.domains.ActionCollection;
 import com.appsmith.server.domains.Application;
 import com.appsmith.server.domains.Config;
+import com.appsmith.server.domains.ModuleInstance;
+import com.appsmith.server.domains.ModulePackage;
 import com.appsmith.server.domains.NewAction;
 import com.appsmith.server.domains.NewPage;
 import com.appsmith.server.domains.Organization;
 import com.appsmith.server.domains.PermissionGroup;
 import com.appsmith.server.domains.Theme;
+import com.appsmith.server.domains.UiModule;
 import com.appsmith.server.domains.User;
 import com.appsmith.server.domains.Workspace;
 import lombok.Getter;
@@ -66,6 +69,13 @@ public enum AclPermission {
     WORKSPACE_DELETE_DATASOURCES("delete:workspaceDatasources", Workspace.class),
     WORKSPACE_EXECUTE_DATASOURCES("execute:workspaceDatasources", Workspace.class),
 
+    WORKSPACE_MANAGE_PACKAGES("manage:workspacePackages", Workspace.class),
+    WORKSPACE_READ_PACKAGES("read:workspacePackages", Workspace.class),
+    WORKSPACE_CREATE_PACKAGES("create:packages", Workspace.class),
+    WORKSPACE_DELETE_PACKAGES("delete:workspacePackages", Workspace.class),
+    WORKSPACE_EXPORT_PACKAGES("export:workspacePackages", Workspace.class),
+    WORKSPACE_PUBLISH_PACKAGES("publish:workspacePackages", Workspace.class),
+
     // Invitation related permissions : TODO : Delete this since invitation would be led by user groups
     @Deprecated
     WORKSPACE_INVITE_USERS("inviteUsers:workspace", Workspace.class),
@@ -101,6 +111,27 @@ public enum AclPermission {
     READ_ACTIONS("read:actions", NewAction.class),
     EXECUTE_ACTIONS("execute:actions", NewAction.class),
     DELETE_ACTIONS("delete:actions", NewAction.class),
+
+    MANAGE_PACKAGES("manage:packages", ModulePackage.class),
+    READ_PACKAGES("read:packages", ModulePackage.class),
+    PUBLISH_PACKAGES("publish:packages", ModulePackage.class),
+    EXPORT_PACKAGES("export:packages", ModulePackage.class),
+    DELETE_PACKAGES("delete:packages", ModulePackage.class),
+    CONNECT_TO_GIT_PACKAGES("connectToGit:packages", ModulePackage.class),
+    MANAGE_PROTECTED_BRANCHES_PACKAGES("manageProtectedBranches:packages", ModulePackage.class),
+    MANAGE_DEFAULT_BRANCHES_PACKAGES("manageDefaultBranches:packages", ModulePackage.class),
+    MANAGE_AUTO_COMMIT_PACKAGES("manageAutoCommit:packages", ModulePackage.class),
+    PACKAGE_CREATE_MODULES("create:modules", ModulePackage.class),
+    PACKAGE_CREATE_MODULE_INSTANCES("create:packageModuleInstances", ModulePackage.class),
+
+    MANAGE_MODULES("manage:modules", UiModule.class),
+    READ_MODULES("read:modules", UiModule.class),
+    DELETE_MODULES("delete:modules", UiModule.class),
+
+    MANAGE_MODULE_INSTANCES("manage:moduleInstances", ModuleInstance.class),
+    READ_MODULE_INSTANCES("read:moduleInstances", ModuleInstance.class),
+    CREATE_MODULE_INSTANCES("create:moduleInstances", ModuleInstance.class),
+    DELETE_MODULE_INSTANCES("delete:moduleInstances", ModuleInstance.class),
 
     MANAGE_DATASOURCES("manage:datasources", Datasource.class),
     READ_DATASOURCES("read:datasources", Datasource.class),

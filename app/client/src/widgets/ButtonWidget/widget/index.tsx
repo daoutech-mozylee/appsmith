@@ -35,6 +35,8 @@ import type {
   SnipingModeProperty,
 } from "WidgetProvider/types";
 import { WIDGET_TAGS } from "constants/WidgetConstants";
+import store from "store";
+import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 
 class ButtonWidget extends BaseWidget<ButtonWidgetProps, ButtonWidgetState> {
   onButtonClickBound: (event: React.MouseEvent<HTMLElement>) => void;
@@ -505,6 +507,36 @@ class ButtonWidget extends BaseWidget<ButtonWidgetProps, ButtonWidgetState> {
       this.setState({
         isLoading: true,
       });
+
+      /**
+       * Module editor fallback: 평가/트리거가 완전히 연결되지 않았을 때도
+       * showModal 등 기본 동작이 되도록 보조 처리.
+       */
+      const inModuleEditor = window.location.pathname.includes("/modules/");
+      if (inModuleEditor) {
+        const match = this.props.onClick.match(/showModal\(([^)]+)\)/);
+        if (match && match[1]) {
+          const raw = match[1].trim().replace(/^['"`]|['"`]$/g, "");
+          const modalName = raw.replace(/\.name$/, "");
+          store.dispatch({
+            type: ReduxActionTypes.SHOW_MODAL_BY_NAME,
+            payload: { modalName },
+          });
+          store.dispatch({
+            type: ReduxActionTypes.SET_META_PROP,
+            payload: {
+              widgetId: modalName,
+              propertyName: "isVisible",
+              propertyValue: true,
+            },
+          });
+        }
+        // Fail-safe 로딩 해제
+        setTimeout(() => {
+          this.handleActionComplete();
+        }, 2000);
+      }
+
       super.executeAction({
         triggerPropertyName: "onClick",
         dynamicString: this.props.onClick,
@@ -541,12 +573,31 @@ class ButtonWidget extends BaseWidget<ButtonWidgetProps, ButtonWidgetState> {
     }
   };
 
-  handleActionComplete = (result: ExecutionResult) => {
+  handleActionComplete = (result?: ExecutionResult) => {
     this.setState({
       isLoading: false,
     });
 
-    if (result.success) {
+    // Fallback: if no result (e.g., module editor triggers not resolving), try opening modal by name
+    if (!result && typeof this.props.onClick === "string") {
+      const match = this.props.onClick.match(/showModal\\(([^)]+)\\)/);
+      if (match && match[1]) {
+        // strip quotes/whitespace and trailing ".name"
+        const raw = match[1].trim().replace(/^['"`]|['"`]$/g, "");
+        const modalName = raw.replace(/\\.name$/, "");
+        // eslint-disable-next-line no-console
+        console.log("ModuleEditor Button fallback showModal", {
+          raw,
+          modalName,
+        });
+        store.dispatch({
+          type: ReduxActionTypes.SHOW_MODAL_BY_NAME,
+          payload: { modalName },
+        });
+      }
+    }
+
+    if (result && result.success) {
       if (this.props.resetFormOnClick && this.props.onReset)
         this.props.onReset();
     }

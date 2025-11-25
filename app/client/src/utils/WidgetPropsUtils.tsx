@@ -2,6 +2,7 @@ import type { FetchPageResponse } from "api/PageApi";
 import type { WidgetConfigProps } from "WidgetProvider/types";
 import type { WidgetOperation, WidgetProps } from "widgets/BaseWidget";
 import { WidgetOperations } from "widgets/BaseWidget";
+import type { WidgetAddChild } from "actions/pageActions";
 import type { RenderMode } from "constants/WidgetConstants";
 import {
   CONTAINER_GRID_PADDING,
@@ -311,18 +312,24 @@ export const widgetOperationParams = (
     rows: widget.rows,
   };
 
+  const payload: WidgetAddChild = {
+    type: widget.type,
+    leftColumn,
+    topRow,
+    ...widgetDimensions,
+    parentRowSpace,
+    parentColumnSpace,
+    newWidgetId: widget.widgetId,
+  };
+
+  if (widget.props) {
+    payload.props = widget.props;
+  }
+
   return {
     operation: WidgetOperations.ADD_CHILD,
     widgetId: parentWidgetId,
-    payload: {
-      type: widget.type,
-      leftColumn,
-      topRow,
-      ...widgetDimensions,
-      parentRowSpace,
-      parentColumnSpace,
-      newWidgetId: widget.widgetId,
-    },
+    payload,
   };
 };
 

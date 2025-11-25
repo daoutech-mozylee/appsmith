@@ -71,6 +71,8 @@ import type { layoutConversionReduxState } from "reducers/uiReducers/layoutConve
 import type { OneClickBindingState } from "reducers/uiReducers/oneClickBindingReducer";
 import type { IDEState } from "reducers/uiReducers/ideReducer";
 import type { PluginActionEditorState } from "PluginActionEditor";
+import type { ModulesReduxState } from "reducers/uiReducers/modulesReducer";
+import type { ModuleEditorState } from "reducers/uiReducers/moduleEditorReducer";
 import type { FirstEvaluationState } from "reducers/evaluationReducers/firstEvaluationReducer";
 
 /* Reducers which are integrated into the core system when registering a pluggable module
@@ -149,6 +151,8 @@ export interface AppState {
     ide: IDEState;
     pluginActionEditor: PluginActionEditorState;
     windowDimensions: WindowDimensionsState;
+    modules: ModulesReduxState;
+    moduleEditor: ModuleEditorState;
   };
   entities: {
     canvasWidgetsStructure: CanvasWidgetStructure;

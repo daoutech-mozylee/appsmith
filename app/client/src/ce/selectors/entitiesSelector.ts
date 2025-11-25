@@ -45,6 +45,9 @@ import { getEntityNameAndPropertyPath } from "ee/workers/Evaluation/evaluationUt
 import { getFormValues } from "redux-form";
 import { TEMP_DATASOURCE_ID } from "constants/Datasource";
 import type { Module } from "ee/constants/ModuleConstants";
+import { MODULE_TYPE } from "ee/constants/ModuleConstants";
+import type { ModuleInstance } from "ee/constants/ModuleInstanceConstants";
+import type { ModuleInstanceEntitiesState } from "ce/reducers/entityReducers/moduleInstanceEntitiesReducer";
 // import { getAnvilSpaceDistributionStatus } from "layoutSystems/anvil/integrations/selectors";
 import {
   getCurrentWorkflowActions,
@@ -72,6 +75,18 @@ import {
 import WidgetFactory from "../../WidgetProvider/factory";
 
 const WidgetTypes = WidgetFactory.widgetTypes;
+
+const selectCanvasWidgets = (
+  state: DefaultRootState,
+): CanvasWidgetsReduxState =>
+  (state.entities.canvasWidgets ||
+    {}) as CanvasWidgetsReduxState;
+
+const selectModuleInstanceEntitiesState = (
+  state: DefaultRootState,
+): ModuleInstanceEntitiesState =>
+  (state.entities.moduleInstanceEntities ||
+    {}) as ModuleInstanceEntitiesState;
 
 export enum GROUP_TYPES {
   API = "APIs",
@@ -1633,16 +1648,61 @@ export function getInputsForModule(): Module["inputsForm"] {
   return [];
 }
 
-export const getModuleInstances = (
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  state: DefaultRootState,
-) => {
-  return null;
-};
+export const getModuleInstances = createSelector(
+  selectCanvasWidgets,
+  selectModuleInstanceEntitiesState,
+  (widgets, moduleInstanceEntities) => {
+    const instances: Record<string, ModuleInstance> = {};
 
-export const getModuleInstanceEntities = () => {
-  return null;
-};
+    Object.values(widgets).forEach((widget) => {
+      if (widget.type !== WidgetTypes.MODULE_INSTANCE_WIDGET) {
+        return;
+      }
+
+      const instanceId = widget.moduleInstanceId;
+
+      if (!instanceId) {
+        return;
+      }
+
+      const entity = moduleInstanceEntities[instanceId];
+
+      if (!entity) {
+        return;
+      }
+
+      const displayName =
+        widget.moduleName || entity.name || widget.widgetName || instanceId;
+
+      instances[instanceId] = {
+        id: instanceId,
+        name: displayName,
+        type: MODULE_TYPE.UI,
+        sourceModuleId: entity.sourceModuleId,
+        moduleId: entity.moduleId,
+        modulePackageId: entity.modulePackageId,
+        moduleUUID: entity.moduleUUID,
+        workspaceId: entity.workspaceId,
+        applicationId: entity.applicationId,
+        contextId: entity.contextId,
+        contextType: entity.contextType,
+        widgetId: widget.widgetId,
+        inputBindings: entity.inputBindings,
+        outputBindings: entity.outputBindings,
+        metadata: entity.metadata,
+        moduleDslSnapshots: entity.moduleDslSnapshots,
+        layoutOnLoadActions: entity.moduleLayoutOnLoadActions,
+      };
+    });
+
+    return Object.keys(instances).length ? instances : null;
+  },
+);
+
+export const getModuleInstanceEntities = createSelector(
+  selectModuleInstanceEntitiesState,
+  (moduleInstanceEntities) => moduleInstanceEntities,
+);
 
 export const getQueryModuleInstances = () => {
   return [];

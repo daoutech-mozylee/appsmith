@@ -69,6 +69,35 @@ interface WidgetDeleteTabChild {
   widgetId: string;
 }
 
+function* getBoardBundleDeleteTarget(widgetId?: string) {
+  if (!widgetId) {
+    return undefined;
+  }
+
+  const widget: FlattenedWidgetProps = yield select(getWidget, widgetId);
+
+  if (
+    widget &&
+    widget.isBoardBundleChild &&
+    widget.boardWidgetId &&
+    widget.boardWidgetId !== widget.widgetId
+  ) {
+    const parentWidget: FlattenedWidgetProps = yield select(
+      getWidget,
+      widget.boardWidgetId,
+    );
+
+    if (parentWidget) {
+      return {
+        widgetId: parentWidget.widgetId,
+        parentId: parentWidget.parentId,
+      };
+    }
+  }
+
+  return undefined;
+}
+
 function* deleteTabChildSaga(
   deleteChildTabAction: ReduxAction<WidgetDeleteTabChild>,
 ) {
@@ -248,11 +277,40 @@ export function* deleteSaga(deleteAction: ReduxAction<WidgetDelete>) {
 
       if (!selectedWidget) return;
 
-      // if widget is not deletable, don't do anything
-      if (selectedWidget.isDeletable === false) return false;
+      let targetWidget: FlattenedWidgetProps | undefined = selectedWidget;
 
-      widgetId = selectedWidget.widgetId;
-      parentId = selectedWidget.parentId;
+      if (
+        selectedWidget.isBoardBundleChild &&
+        selectedWidget.boardWidgetId &&
+        selectedWidget.boardWidgetId !== selectedWidget.widgetId
+      ) {
+        targetWidget = yield select(
+          getWidget,
+          selectedWidget.boardWidgetId,
+        );
+      }
+
+      if (!targetWidget) {
+        return;
+      }
+
+      if (targetWidget.isDeletable === false) return false;
+
+      widgetId = targetWidget.widgetId;
+      parentId = targetWidget.parentId;
+    } else {
+      const boardBundleTarget: { widgetId: string; parentId: string } | undefined =
+        yield call(getBoardBundleDeleteTarget, widgetId);
+
+      if (boardBundleTarget) {
+        widgetId = boardBundleTarget.widgetId;
+        parentId = boardBundleTarget.parentId;
+      }
+    }
+
+    if (widgetId && !parentId) {
+      const currentWidget: WidgetProps = yield select(getWidget, widgetId);
+      parentId = currentWidget?.parentId;
     }
 
     if (widgetId && parentId) {

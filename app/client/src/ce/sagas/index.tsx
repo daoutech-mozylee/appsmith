@@ -53,6 +53,8 @@ import ideSagas from "sagas/IDESaga";
 import sendSideBySideWidgetHoverAnalyticsEventSaga from "sagas/AnalyticsSaga";
 import gitSagas from "git/sagas";
 import PostEvaluationSagas from "sagas/PostEvaluationSagas";
+import moduleInstanceSagas from "sagas/ModuleInstanceSagas";
+import moduleSagas from "sagas/ModuleSagas";
 
 /* Sagas that are registered by a module that is designed to be independent of the core platform */
 import ternSagas from "sagas/TernSaga";
@@ -115,4 +117,6 @@ export const sagas = [
   gitSagas,
   gitApplicationSagas,
   PostEvaluationSagas,
+  moduleInstanceSagas,
+  moduleSagas,
 ];

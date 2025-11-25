@@ -105,6 +105,8 @@ export function* processTriggerHandler(message: any) {
   const { eventType, trigger, triggerMeta } = data;
   const { messageType } = message;
 
+  // eslint-disable-next-line no-console
+  console.log("ModuleEditor processTriggerHandler", { trigger });
   log.debug({ trigger: data.trigger });
   const result: ResponsePayload = yield call(
     executeTriggerRequestSaga,

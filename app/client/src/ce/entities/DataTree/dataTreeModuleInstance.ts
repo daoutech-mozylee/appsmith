@@ -1,14 +1,47 @@
 import type { ModuleInstance } from "ee/constants/ModuleInstanceConstants";
+import type { ModuleInstanceEntitiesState } from "ce/reducers/entityReducers/moduleInstanceEntitiesReducer";
+import { ENTITY_TYPE } from "ee/entities/DataTree/types";
 
 export const generateModuleInstance = (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   moduleInstance: ModuleInstance,
-  // TODO: Fix this the next time the file is edited
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  moduleInstanceEntities: any,
+  moduleInstanceEntities: ModuleInstanceEntitiesState,
 ) => {
+  if (!moduleInstance?.id) {
+    return {
+      configEntity: null,
+      unEvalEntity: null,
+    };
+  }
+
+  const entity = moduleInstanceEntities?.[moduleInstance.id];
+
+  if (!entity) {
+    return {
+      configEntity: null,
+      unEvalEntity: null,
+    };
+  }
+
+  const unEvalEntity = {
+    ...entity,
+    name: moduleInstance.name,
+    moduleInstanceId: moduleInstance.id,
+    moduleWidgetId: moduleInstance.widgetId,
+    layoutOnLoadActions: moduleInstance.layoutOnLoadActions,
+    ENTITY_TYPE: ENTITY_TYPE.MODULE_INSTANCE,
+  };
+
+  const configEntity = {
+    ENTITY_TYPE: ENTITY_TYPE.MODULE_INSTANCE,
+    name: moduleInstance.name,
+    type: moduleInstance.type,
+    moduleInstanceId: moduleInstance.id,
+    moduleId: moduleInstance.moduleId,
+    modulePackageId: moduleInstance.modulePackageId,
+  };
+
   return {
-    configEntity: null,
-    unEvalEntity: null,
+    configEntity,
+    unEvalEntity,
   };
 };

@@ -35,4 +35,9 @@ public class WorkspacePermissionCEImpl implements WorkspacePermissionCE, DomainP
     public Mono<AclPermission> getDatasourceCreatePermission() {
         return Mono.just(AclPermission.WORKSPACE_MANAGE_DATASOURCES);
     }
+
+    @Override
+    public Mono<AclPermission> getPackageCreatePermission() {
+        return Mono.just(AclPermission.WORKSPACE_MANAGE_APPLICATIONS);
+    }
 }

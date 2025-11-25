@@ -1,21 +1,84 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { DefaultRootState } from "react-redux";
 import type { Module } from "ee/constants/ModuleConstants";
+import type { BoardUiModuleSummary } from "api/ModuleApi";
+import type { ModulesReduxState } from "reducers/uiReducers/modulesReducer";
+import type { ModuleEditorState } from "reducers/uiReducers/moduleEditorReducer";
+import { createSelector } from "reselect";
 
-export const getAllModules = (
+const getModulesState = (
   state: DefaultRootState,
-  // TODO: Fix this the next time the file is edited
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Record<string, Module> | any => {};
+): ModulesReduxState => state.ui.modules as ModulesReduxState;
 
-export const getCurrentModuleId = (state: DefaultRootState) => "";
+const getModuleEditorState = (
+  state: DefaultRootState,
+): ModuleEditorState => state.ui.moduleEditor as ModuleEditorState;
 
-export const getCurrentBaseModuleId = (state: DefaultRootState) => "";
+export const getAllModules = createSelector(
+  getModulesState,
+  (modulesState): Record<string, Module> | Record<string, Module> => {
+    // Temporary compatibility layer until module domain is fully defined.
+    // Consumers expecting Module record can derive from the per-workspace map.
+    return modulesState.byWorkspaceId as unknown as Record<string, Module>;
+  },
+);
 
-export const showUIModulesList = (state: DefaultRootState) => false;
+export const getModulesForWorkspace = (
+  state: DefaultRootState,
+  workspaceId?: string,
+): BoardUiModuleSummary[] => {
+  if (!workspaceId) {
+    return [];
+  }
 
-export const getActionsInCurrentModule = (state: DefaultRootState) => [];
-export const getJSCollectionsInCurrentModule = (state: DefaultRootState) => [];
+  const modulesState = getModulesState(state);
 
-export const getModuleInstanceActions = (state: DefaultRootState) => [];
-export const getModuleInstanceJSCollections = (state: DefaultRootState) => [];
+  return modulesState.byWorkspaceId[workspaceId] || [];
+};
+
+export const getIsFetchingModulesForWorkspace = (
+  state: DefaultRootState,
+  workspaceId?: string,
+): boolean => {
+  if (!workspaceId) {
+    return false;
+  }
+
+  const modulesState = getModulesState(state);
+
+  return !!modulesState.isFetchingByWorkspaceId[workspaceId];
+};
+
+export const getCurrentModuleId = (_state: DefaultRootState) => "";
+
+export const getCurrentBaseModuleId = (_state: DefaultRootState) => "";
+
+export const showUIModulesList = createSelector(
+  getModulesState,
+  (modulesState) =>
+    Object.values(modulesState.byWorkspaceId).some(
+      (modules) => Array.isArray(modules) && modules.length > 0,
+    ),
+);
+
+export const getActionsInCurrentModule = (_state: DefaultRootState) => [];
+export const getJSCollectionsInCurrentModule = (_state: DefaultRootState) => [];
+
+export const getModuleInstanceActions = (_state: DefaultRootState) => [];
+export const getModuleInstanceJSCollections = (
+  _state: DefaultRootState,
+) => [];
+
+export const getModuleEditorModule = (state: DefaultRootState) =>
+  getModuleEditorState(state).data;
+
+export const getIsModuleEditorLoading = (state: DefaultRootState) =>
+  getModuleEditorState(state).isFetching;
+
+export const getModuleEditorError = (state: DefaultRootState) =>
+  getModuleEditorState(state).error;
+
+export const getModuleEditorCanvas = (state: DefaultRootState) =>
+  getModuleEditorState(state).canvas;
+
+export const getIsModuleSaving = (state: DefaultRootState) =>
+  getModuleEditorState(state).isSaving;

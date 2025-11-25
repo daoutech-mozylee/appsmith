@@ -86,6 +86,7 @@ import ApplicationCardList from "ee/pages/Applications/ApplicationCardList";
 import CreateNewAppsOption from "ee/pages/Applications/CreateNewAppsOption";
 import { usePackage } from "ee/pages/Applications/helpers";
 import PackageCardList from "ee/pages/Applications/PackageCardList";
+import ModulesCardList from "ee/pages/Applications/ModulesCardList";
 import ResourceListLoader from "ee/pages/Applications/ResourceListLoader";
 import WorkflowCardList from "ee/pages/Applications/WorkflowCardList";
 import WorkspaceAction from "ee/pages/Applications/WorkspaceAction";
@@ -93,6 +94,10 @@ import WorkspaceMenu from "ee/pages/Applications/WorkspaceMenu";
 import { getIsReconnectingDatasourcesModalOpen } from "ee/selectors/entitiesSelector";
 import { allowManageEnvironmentAccessForUser } from "ee/selectors/environmentSelectors";
 import { getPackagesList } from "ee/selectors/packageSelectors";
+import {
+  getModulesForWorkspace,
+  getIsFetchingModulesForWorkspace,
+} from "ee/selectors/modulesSelector";
 import {
   getApplicationsOfWorkspace,
   getCurrentWorkspaceId,
@@ -572,8 +577,15 @@ export const WorkspaceSelectorWrapper = styled.div`
 // TODO: Fix this the next time the file is edited
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function ApplicationsSection(props: any) {
-  const { activeWorkspaceId, applications, packages, workflows, workspaces } =
-    props;
+  const {
+    activeWorkspaceId,
+    applications,
+    isFetchingModules = false,
+    modules = [],
+    packages,
+    workflows,
+    workspaces,
+  } = props;
   const enableImportExport = true;
   const dispatch = useDispatch();
   const theme = useContext(ThemeContext);
@@ -614,7 +626,10 @@ export function ApplicationsSection(props: any) {
     dispatch(updateApplication(id, data));
   };
   const isLoadingResources =
-    isFetchingWorkspaces || isFetchingApplications || isFetchingPackages;
+    isFetchingWorkspaces ||
+    isFetchingApplications ||
+    isFetchingPackages ||
+    isFetchingModules;
   const isGACEnabled = useFeatureFlag(FEATURE_FLAG.license_gac_enabled);
   const [
     isCreateAppFromTemplateModalOpen,
@@ -969,6 +984,12 @@ export function ApplicationsSection(props: any) {
                   workspaceId={activeWorkspace.id}
                 />
               )}
+              <ModulesCardList
+                isLoading={isFetchingModules}
+                isMobile={isMobile}
+                modules={modules}
+                workspaceId={activeWorkspace.id}
+              />
               <PackageCardList
                 isMobile={isMobile}
                 packages={packages}
@@ -1042,6 +1063,12 @@ export const ApplictionsMainPage = (props: any) => {
     string | undefined
   >(
     workspaceIdFromQueryParams ? workspaceIdFromQueryParams : workspaces[0]?.id,
+  );
+  const modulesOfWorkspace = useSelector((state: DefaultRootState) =>
+    getModulesForWorkspace(state, activeWorkspaceId),
+  );
+  const isFetchingModules = useSelector((state: DefaultRootState) =>
+    getIsFetchingModulesForWorkspace(state, activeWorkspaceId),
   );
 
   useEffect(() => {
@@ -1126,6 +1153,8 @@ export const ApplictionsMainPage = (props: any) => {
             <ApplicationsSection
               activeWorkspaceId={activeWorkspaceId}
               applications={fetchedApplications}
+              isFetchingModules={isFetchingModules}
+              modules={modulesOfWorkspace}
               packages={packagesOfWorkspace}
               searchKeyword={searchKeyword}
               workflows={workflowsOfWorkspace}

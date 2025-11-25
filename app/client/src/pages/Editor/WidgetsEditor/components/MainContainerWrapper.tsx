@@ -130,7 +130,8 @@ export function MainContainerWrapper(props: MainCanvasWrapperProps) {
   const showAnonymousDataPopup = useSelector(getIsAnonymousDataPopupVisible);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const isCanvasInitialized = useCanvasWidthAutoResize({ ref: wrapperRef });
+  const isCanvasInitialized =
+    useCanvasWidthAutoResize({ ref: wrapperRef }) || !!widgetsStructure;
   const isPageInitializing = isFetchingPage || !isCanvasInitialized;
   const { canShowResizer, enableMainContainerResizer } =
     useMainContainerResizer();
@@ -155,6 +156,12 @@ export function MainContainerWrapper(props: MainCanvasWrapperProps) {
   );
 
   if (isPageInitializing) {
+    // eslint-disable-next-line no-console
+    console.log("ModuleEditor MainContainerWrapper init state", {
+      isFetchingPage,
+      isCanvasInitialized,
+      widgetsStructurePresent: !!widgetsStructure,
+    });
     node = pageLoading;
   }
 

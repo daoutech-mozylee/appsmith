@@ -241,7 +241,9 @@ export const WIDGET_TAGS = {
   SLIDERS: "Sliders",
   CONTENT: "Content",
   EXTERNAL: "External",
+  DAOU_OFFICE: "DAOU Office",
   BUILDING_BLOCKS: "Building Blocks",
+  MODULES: "Modules",
 } as const;
 
 export type WidgetTags = (typeof WIDGET_TAGS)[keyof typeof WIDGET_TAGS];

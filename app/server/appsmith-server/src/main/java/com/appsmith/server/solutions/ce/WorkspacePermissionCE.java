@@ -9,4 +9,6 @@ public interface WorkspacePermissionCE {
     Mono<AclPermission> getApplicationCreatePermission();
 
     Mono<AclPermission> getDatasourceCreatePermission();
+
+    Mono<AclPermission> getPackageCreatePermission();
 }
