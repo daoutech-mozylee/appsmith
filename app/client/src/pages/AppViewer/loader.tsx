@@ -7,11 +7,7 @@ import { initAppViewerAction } from "actions/initActions";
 import { APP_MODE } from "entities/App";
 import { connect } from "react-redux";
 import { getSearchQuery } from "utils/helpers";
-import { AUTH_LOGIN_URL, GIT_BRANCH_QUERY_KEY } from "constants/routes";
-import {
-  ensurePlatformSsoSession,
-  getSsoTokenFromLocation,
-} from "utils/platformSso";
+import { GIT_BRANCH_QUERY_KEY } from "constants/routes";
 import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 
 type Props = {
@@ -57,10 +53,10 @@ class AppViewerLoader extends React.PureComponent<Props, { Page: any }> {
     return Page ? <Page {...this.props} /> : <PageLoadingBar />;
   }
 
-  private async initialize() {
+  private initialize() {
     const {
       initAppViewer,
-      location: { search, hash },
+      location: { search },
       match: { params },
     } = this.props;
     const {
@@ -70,16 +66,6 @@ class AppViewerLoader extends React.PureComponent<Props, { Page: any }> {
       staticPageSlug,
     } = params;
     const branch = getSearchQuery(search, GIT_BRANCH_QUERY_KEY);
-    const token = getSsoTokenFromLocation(search, hash);
-    console.log("token", token);
-    const ssoReady = await ensurePlatformSsoSession(token);
-
-    console.log("ssoReady", ssoReady);
-
-    if (!ssoReady) {
-      window.location.href = AUTH_LOGIN_URL;
-      return false;
-    }
 
     // onMount initPage
     if (baseApplicationId || basePageId) {
@@ -92,8 +78,6 @@ class AppViewerLoader extends React.PureComponent<Props, { Page: any }> {
         staticPageSlug,
       });
     }
-
-    return true;
   }
   componentWillUnmount() {
     const { clearCache } = this.props;

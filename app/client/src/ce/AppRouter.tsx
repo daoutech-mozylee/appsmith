@@ -66,49 +66,8 @@ import CustomWidgetBuilderLoader from "pages/Editor/CustomWidgetBuilder/loader";
 import { getIsConsolidatedPageLoading } from "selectors/ui";
 import { useFeatureFlagOverride } from "utils/hooks/useFeatureFlagOverride";
 import { SentryRoute } from "components/SentryRoute";
-import {
-  ensurePlatformSsoSession,
-  getSsoTokenFromLocation,
-} from "utils/platformSso";
 
 export const loadingIndicator = <PageLoadingBar />;
-
-const ensureTokenInQueryParams = () => {
-  try {
-    const currentUrl = new URL(window.location.href);
-    const tokenInSearch = currentUrl.searchParams.get("token");
-
-    if (tokenInSearch) {
-      return;
-    }
-
-    const hash = currentUrl.hash.startsWith("#")
-      ? currentUrl.hash.substring(1)
-      : currentUrl.hash;
-
-    if (!hash) {
-      return;
-    }
-
-    const hashParams = new URLSearchParams(hash);
-    const tokenInHash = hashParams.get("token");
-
-    if (!tokenInHash) {
-      return;
-    }
-
-    hashParams.delete("token");
-    currentUrl.searchParams.set("token", tokenInHash);
-
-    const newHashString = hashParams.toString();
-    const newHash = newHashString ? `#${newHashString}` : "";
-
-    history.replace(`${currentUrl.pathname}${currentUrl.search}${newHash}`);
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error("Failed to normalize token query param", error);
-  }
-};
 
 export function Routes() {
   const user = useSelector(getCurrentUserSelector);
@@ -194,7 +153,6 @@ export function Routes() {
     </Switch>
   );
 }
-
 export default function AppRouter() {
   const safeCrash: boolean = useSelector(getSafeCrash);
   const safeCrashCode: ERROR_CODES | undefined = useSelector(getSafeCrashCode);
@@ -202,31 +160,8 @@ export default function AppRouter() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const init = async () => {
-      ensureTokenInQueryParams();
-
-      const pathname = window.location.pathname;
-      const isViewerRoute =
-        pathname.startsWith("/app/") && !pathname.includes("/edit");
-
-      if (isViewerRoute) {
-        const token = getSsoTokenFromLocation(
-          window.location.search,
-          window.location.hash,
-        );
-        const ssoReady = await ensurePlatformSsoSession(token);
-
-        if (!ssoReady) {
-          window.location.href = AUTH_LOGIN_URL;
-          return;
-        }
-      }
-
-      dispatch(initCurrentPage());
-    };
-
-    void init();
-  }, [dispatch]);
+    dispatch(initCurrentPage());
+  }, []);
 
   useBrandingTheme();
 
