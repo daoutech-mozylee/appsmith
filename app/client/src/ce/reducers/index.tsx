@@ -77,6 +77,7 @@ import type { FirstEvaluationState } from "reducers/evaluationReducers/firstEval
     or done so by a module that is designed to be eventually pluggable */
 import type { LayoutElementPositionsReduxState } from "layoutSystems/anvil/integrations/reducers/layoutElementPositionsReducer";
 import type { ActiveField } from "reducers/uiReducers/activeFieldEditorReducer";
+import type { ModuleInstancesState } from "reducers/entityReducers/moduleInstancesReducer";
 import type { SelectedWorkspaceReduxState } from "ee/reducers/uiReducers/selectedWorkspaceReducer";
 import type { ConsolidatedPageLoadState } from "reducers/uiReducers/consolidatedPageLoadReducer";
 import type { BuildingBlocksReduxState } from "reducers/uiReducers/buildingBlockReducer";
@@ -164,6 +165,7 @@ export interface AppState {
     autoHeightLayoutTree: AutoHeightLayoutTreeReduxState;
     canvasLevels: CanvasLevelsReduxState;
     layoutElementPositions: LayoutElementPositionsReduxState;
+    moduleInstances: ModuleInstancesState;
     // TODO: Fix this the next time the file is edited
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     moduleInstanceEntities: any;

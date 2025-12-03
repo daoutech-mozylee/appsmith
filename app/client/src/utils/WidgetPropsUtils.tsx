@@ -24,6 +24,7 @@ import type {
 } from "layoutSystems/common/canvasArenas/ArenaTypes";
 import { migrateDSL } from "@shared/dsl";
 import type { ContainerWidgetProps } from "widgets/ContainerWidget/widget";
+import { objectKeys } from "@appsmith/utils";
 
 export interface WidgetOperationParams {
   operation: WidgetOperation;
@@ -311,6 +312,33 @@ export const widgetOperationParams = (
     rows: widget.rows,
   };
 
+  // 모듈 위젯의 경우 추가 props(dsl, moduleName 등)도 전달
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const additionalProps: Record<string, any> = {};
+
+  if (widget.type === "PACKAGE_MODULE_WIDGET") {
+    // PackageModuleCard에서 전달된 모듈 관련 속성들
+    const widgetAny = widget as any;
+
+    if (widgetAny.dsl) additionalProps.dsl = widgetAny.dsl;
+
+    if (widgetAny.moduleName) additionalProps.moduleName = widgetAny.moduleName;
+
+    if (widgetAny.packageName)
+      additionalProps.packageName = widgetAny.packageName;
+
+    if (widgetAny.moduleUUID) additionalProps.moduleUUID = widgetAny.moduleUUID;
+
+    if (widgetAny.packageUUID)
+      additionalProps.packageUUID = widgetAny.packageUUID;
+
+    if (widgetAny.actions) additionalProps.actions = widgetAny.actions;
+
+    if (widgetAny.actionCollections)
+      additionalProps.actionCollections = widgetAny.actionCollections;
+  }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
   return {
     operation: WidgetOperations.ADD_CHILD,
     widgetId: parentWidgetId,
@@ -322,6 +350,8 @@ export const widgetOperationParams = (
       parentRowSpace,
       parentColumnSpace,
       newWidgetId: widget.widgetId,
+      // 모듈 위젯의 경우 props에 추가 데이터 포함
+      ...(objectKeys(additionalProps).length > 0 && { props: additionalProps }),
     },
   };
 };

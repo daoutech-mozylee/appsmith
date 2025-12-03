@@ -368,6 +368,10 @@ const WidgetLoaders = new Map<string, () => Promise<typeof BaseWidget>>([
     "EXTERNAL_WIDGET",
     async () => import("./ExternalWidget").then((m) => m.default),
   ],
+  [
+    "PACKAGE_MODULE_WIDGET",
+    async () => import("./PackageModuleWidget").then((m) => m.default),
+  ],
 
   // Deprecated Widgets
   [

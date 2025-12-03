@@ -61,6 +61,12 @@ export const JS_ACTIONS = [
 
 export const EVALUATE_REDUX_ACTIONS = [
   ...FIRST_EVAL_REDUX_ACTIONS,
+  // Module Instances (커스텀 모듈 시스템)
+  ReduxActionTypes.REGISTER_MODULE_INSTANCE,
+  ReduxActionTypes.UNREGISTER_MODULE_INSTANCE,
+  ReduxActionTypes.EXECUTE_MODULE_ACTION_SUCCESS,
+  ReduxActionTypes.EXECUTE_MODULE_ACTION_ERROR,
+  ReduxActionTypes.UPDATE_MODULE_INSTANCE_DATA,
   // Actions
   ReduxActionTypes.FETCH_PLUGIN_FORM_CONFIGS_SUCCESS,
   ReduxActionTypes.FETCH_ACTIONS_VIEW_MODE_SUCCESS,

@@ -242,6 +242,7 @@ export const WIDGET_TAGS = {
   CONTENT: "Content",
   EXTERNAL: "External",
   BUILDING_BLOCKS: "Building Blocks",
+  PACKAGES: "Packages",
 } as const;
 
 export type WidgetTags = (typeof WIDGET_TAGS)[keyof typeof WIDGET_TAGS];

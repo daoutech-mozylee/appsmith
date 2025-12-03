@@ -1,4 +1,5 @@
 import { pick } from "lodash";
+import { objectKeys } from "@appsmith/utils";
 
 import type {
   CanvasStructure,
@@ -30,6 +31,16 @@ export const compareAndGenerateImmutableCanvasStructure = (
 export const getCanvasStructureFromDSL = (dsl: DSL): CanvasStructure => {
   let children = dsl.children;
   let structureChildren: CanvasStructure[] | undefined = undefined;
+
+  // PACKAGE_MODULE_WIDGET의 children은 Entity Explorer에서 숨김
+  if (dsl.type === "PACKAGE_MODULE_WIDGET") {
+    return {
+      widgetId: dsl.widgetId,
+      widgetName: dsl.widgetName,
+      type: dsl.type,
+      children: undefined, // 내부 위젯 숨김
+    };
+  }
 
   // Todo(abhinav): abstraction leak
   if (dsl.type === "TABS_WIDGET") {
@@ -83,7 +94,7 @@ export function denormalize(
     );
   }
 
-  const staticProps = Object.keys(WIDGET_DSL_STRUCTURE_PROPS);
+  const staticProps = objectKeys(WIDGET_DSL_STRUCTURE_PROPS);
 
   const structure = pick(rootWidget, staticProps) as CanvasWidgetStructure;
 
