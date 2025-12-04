@@ -9,7 +9,10 @@ import {
   ReduxActionTypes,
   WidgetReduxActionTypes,
 } from "ee/constants/ReduxActionConstants";
-import type { RegisterModuleInstancePayload } from "reducers/entityReducers/moduleInstancesReducer";
+import type {
+  ModuleInstance,
+  RegisterModuleInstancePayload,
+} from "reducers/entityReducers/moduleInstancesReducer";
 import {
   getModuleInstanceById,
   getModuleInstances,
@@ -71,8 +74,10 @@ function* executeModuleAction(
     });
 
     // 모듈 인스턴스에서 Action 정보 가져오기
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const instance: any = yield select(getModuleInstanceById, instanceId);
+    const instance: ModuleInstance | undefined = yield select(
+      getModuleInstanceById,
+      instanceId,
+    );
 
     if (!instance) {
       throw new Error(`Module instance not found: ${instanceId}`);
@@ -111,7 +116,12 @@ function* executeModuleAction(
     if (moduleAction.pluginType === "SAAS") {
       // SAAS 플러그인 (Google Sheets 등): /trigger 엔드포인트 사용
       // formData를 trigger 형식으로 변환
-      const formData = moduleAction.actionConfiguration.formData || {};
+      const formData = (moduleAction.actionConfiguration.formData || {}) as {
+        sheetUrl?: { data?: string };
+        sheetName?: { data?: string };
+        queryFormat?: { data?: string };
+        tableHeaderIndex?: { data?: string };
+      };
 
       const triggerData = {
         requestType: "SHEET_DATA",

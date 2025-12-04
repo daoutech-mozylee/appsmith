@@ -313,31 +313,40 @@ export const widgetOperationParams = (
   };
 
   // 모듈 위젯의 경우 추가 props(dsl, moduleName 등)도 전달
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const additionalProps: Record<string, any> = {};
+  const additionalProps: Record<string, unknown> = {};
 
   if (widget.type === "PACKAGE_MODULE_WIDGET") {
     // PackageModuleCard에서 전달된 모듈 관련 속성들
-    const widgetAny = widget as any;
+    const moduleWidget = widget as WidgetProps &
+      Partial<WidgetConfigProps> & {
+        dsl?: unknown;
+        moduleName?: string;
+        packageName?: string;
+        moduleUUID?: string;
+        packageUUID?: string;
+        actions?: unknown[];
+        actionCollections?: unknown[];
+      };
 
-    if (widgetAny.dsl) additionalProps.dsl = widgetAny.dsl;
+    if (moduleWidget.dsl) additionalProps.dsl = moduleWidget.dsl;
 
-    if (widgetAny.moduleName) additionalProps.moduleName = widgetAny.moduleName;
+    if (moduleWidget.moduleName)
+      additionalProps.moduleName = moduleWidget.moduleName;
 
-    if (widgetAny.packageName)
-      additionalProps.packageName = widgetAny.packageName;
+    if (moduleWidget.packageName)
+      additionalProps.packageName = moduleWidget.packageName;
 
-    if (widgetAny.moduleUUID) additionalProps.moduleUUID = widgetAny.moduleUUID;
+    if (moduleWidget.moduleUUID)
+      additionalProps.moduleUUID = moduleWidget.moduleUUID;
 
-    if (widgetAny.packageUUID)
-      additionalProps.packageUUID = widgetAny.packageUUID;
+    if (moduleWidget.packageUUID)
+      additionalProps.packageUUID = moduleWidget.packageUUID;
 
-    if (widgetAny.actions) additionalProps.actions = widgetAny.actions;
+    if (moduleWidget.actions) additionalProps.actions = moduleWidget.actions;
 
-    if (widgetAny.actionCollections)
-      additionalProps.actionCollections = widgetAny.actionCollections;
+    if (moduleWidget.actionCollections)
+      additionalProps.actionCollections = moduleWidget.actionCollections;
   }
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   return {
     operation: WidgetOperations.ADD_CHILD,

@@ -11,6 +11,7 @@ import {
   type AnvilConfig,
   type AutocompletionDefinitions,
   type AutoLayoutConfig,
+  type DSLWidget,
   type WidgetBaseConfiguration,
   type WidgetDefaultProps,
 } from "WidgetProvider/types";
@@ -442,8 +443,7 @@ export interface PackageModuleWidgetProps extends WidgetProps {
   moduleName?: string;
   packageName?: string;
   // 모듈 DSL 데이터
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  moduleDSL?: any;
+  moduleDSL?: DSLWidget | null;
   // 모듈 인스턴스 정보 (페이지 로드 시 복원용)
   moduleInstanceId?: string;
   moduleInstanceData?: ModuleInstanceData | null;
