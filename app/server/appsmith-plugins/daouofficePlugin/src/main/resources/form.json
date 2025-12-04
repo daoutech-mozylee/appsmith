@@ -1,7 +1,7 @@
 {
   "form": [
     {
-      "sectionName": "다우오피스 API 설정",
+      "sectionName": "다우오피스 인증",
       "children": [
         {
           "label": "Authentication type",
@@ -12,11 +12,34 @@
           "initialValue": "NONE"
         },
         {
-          "label": "API URL",
-          "configProperty": "datasourceConfiguration.url",
+          "label": "Client ID key",
+          "configProperty": "datasourceConfiguration.properties[0].key",
+          "controlType": "INPUT_TEXT",
+          "hidden": true,
+          "initialValue": "clientId"
+        },
+        {
+          "label": "Client ID",
+          "configProperty": "datasourceConfiguration.properties[0].value",
           "controlType": "INPUT_TEXT",
           "isRequired": true,
-          "placeholderText": "api 주소를 입력하세요."
+          "placeholderText": "다우오피스에서 발급받은 Client ID를 입력하세요."
+        },
+        {
+          "label": "Client Secret key",
+          "configProperty": "datasourceConfiguration.properties[1].key",
+          "controlType": "INPUT_TEXT",
+          "hidden": true,
+          "initialValue": "clientSecret"
+        },
+        {
+          "label": "Client Secret",
+          "configProperty": "datasourceConfiguration.properties[1].value",
+          "controlType": "INPUT_TEXT",
+          "isRequired": true,
+          "dataType": "PASSWORD",
+          "encrypted": true,
+          "placeholderText": "Client Secret을 입력하세요."
         }
       ]
     }
