@@ -29,3 +29,16 @@ export interface XYCord {
   x: number;
   y: number;
 }
+
+export type AlignmentGuideKind = "edge" | "center" | "spacing";
+
+export interface AlignmentGuide {
+  orientation: "horizontal" | "vertical";
+  start: XYCord;
+  end: XYCord;
+  kind: AlignmentGuideKind;
+  snap?: {
+    deltaX?: number;
+    deltaY?: number;
+  };
+}
