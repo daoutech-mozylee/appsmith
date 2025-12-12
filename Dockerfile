@@ -11,6 +11,10 @@ ENV APPSMITH_SEGMENT_CE_KEY=${APPSMITH_SEGMENT_CE_KEY}
 
 COPY deploy/docker/fs /
 
+# Add custom CA certificate for corporate proxy
+COPY daou_ssl.crt /usr/local/share/ca-certificates/daou_ssl.crt
+RUN update-ca-certificates
+
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
     add-apt-repository -y ppa:git-core/ppa && \
