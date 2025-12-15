@@ -1,6 +1,7 @@
 import { FEATURE_FLAG } from "ee/entities/FeatureFlag";
 import { getAllTemplates } from "actions/templateActions";
 import type { WidgetTags } from "constants/WidgetConstants";
+import { WIDGET_TAGS } from "constants/WidgetConstants";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getWidgetCards } from "selectors/editorSelectors";
@@ -11,6 +12,7 @@ import {
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
 import { groupWidgetCardsByTags } from "../utils";
 import { isFixedLayoutSelector } from "selectors/layoutSystemSelectors";
+import { usePackageModules } from "./usePackageModules";
 
 /**
  * Custom hook for managing UI explorer items including widgets and building blocks.
@@ -25,12 +27,16 @@ export const useUIExplorerItems = () => {
   // check if entities have loaded
   const isBuildingBlocksLoaded = useSelector(templatesCountSelector) > 0;
 
+  // Package 모듈 로드 (빌드 시점에 이미 로드됨, 동기적)
+  const { packageModules } = usePackageModules();
+
   const [entityLoading, setEntityLoading] = useState<
     Partial<Record<WidgetTags, boolean>>
   >({
     "Building Blocks": releaseDragDropBuildingBlocks
       ? !isBuildingBlocksLoaded
       : false,
+    [WIDGET_TAGS.PACKAGES]: false, // 이미 로드됨
   });
   const widgetCards = useSelector(getWidgetCards);
   const buildingBlockCards = useSelector(getBuildingBlockExplorerCards);
@@ -54,12 +60,14 @@ export const useUIExplorerItems = () => {
       ...(isFixedLayout && releaseDragDropBuildingBlocks
         ? buildingBlockCards
         : []),
+      ...packageModules,
     ],
     [
       widgetCards,
       buildingBlockCards,
       releaseDragDropBuildingBlocks,
       isFixedLayout,
+      packageModules,
     ],
   );
 

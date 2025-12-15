@@ -10,12 +10,11 @@ import pageListReducer from "reducers/entityReducers/pageListReducer";
 import pluginsReducer from "reducers/entityReducers/pluginsReducer";
 import autoHeightLayoutTreeReducer from "reducers/entityReducers/autoHeightReducers/autoHeightLayoutTreeReducer";
 import canvasLevelsReducer from "reducers/entityReducers/autoHeightReducers/canvasLevelsReducer";
+import moduleInstancesReducer from "reducers/entityReducers/moduleInstancesReducer";
 
 /* Reducers which are integrated into the core system when registering a pluggable module
     or done so by a module that is designed to be eventually pluggable */
 import layoutElementPositionsReducer from "layoutSystems/anvil/integrations/reducers/layoutElementPositionsReducer";
-import type { ReduxAction } from "actions/ReduxActionTypes";
-import type { DefaultRootState } from "react-redux";
 
 export const entityReducerObject = {
   canvasWidgets: canvasWidgetsReducer,
@@ -31,12 +30,5 @@ export const entityReducerObject = {
   autoHeightLayoutTree: autoHeightLayoutTreeReducer,
   canvasLevels: canvasLevelsReducer,
   layoutElementPositions: layoutElementPositionsReducer,
-  moduleInstanceEntities: (
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-    state: DefaultRootState,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-    action: ReduxAction<any>,
-  ) => {
-    return {};
-  },
+  moduleInstances: moduleInstancesReducer,
 };

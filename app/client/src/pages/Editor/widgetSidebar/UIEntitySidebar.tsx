@@ -104,7 +104,7 @@ function UIEntitySidebar({
 
   return (
     <div
-      className={`flex flex-col t--widget-sidebar overflow-hidden ${
+      className={`flex flex-col h-full t--widget-sidebar overflow-hidden ${
         isActive ? "" : "hidden"
       }`}
     >
@@ -120,7 +120,7 @@ function UIEntitySidebar({
         />
       </div>
       <Flex
-        className="flex-grow px-3 overflow-y-scroll flex-col"
+        className="flex-grow min-h-0 px-3 overflow-y-auto flex-col"
         data-testid="t--widget-sidebar-scrollable-wrapper"
         pt="spaces-2"
       >
