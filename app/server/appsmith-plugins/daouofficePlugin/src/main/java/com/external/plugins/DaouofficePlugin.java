@@ -21,9 +21,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
+import static com.appsmith.external.helpers.PluginUtils.OBJECT_TYPE;
 import static com.appsmith.external.helpers.PluginUtils.STRING_TYPE;
 import static com.appsmith.external.helpers.PluginUtils.getDataValueSafelyFromFormData;
 
@@ -40,8 +40,10 @@ public class DaouofficePlugin extends BasePlugin {
         private static final ObjectMapper objectMapper = new ObjectMapper();
         private static final String BASE_API_URL = "https://dev-dopapi.daouoffice.com";
         private static final String DEFAULT_ENDPOINT_PATH = "/public/v1/account";
-        private static final Set<String> SUPPORTED_ENDPOINT_PATHS =
-                Set.of(DEFAULT_ENDPOINT_PATH, "/public/v1/dept");
+        private static final String MAIL_SEND_PATH = "/api/mail/internal/noti/send";
+        private static final String MAIL_SERVICE_URL = "http://dop-service-gateway.dop-platform.svc.cluster.local:20719";
+        private static final Set<String> SUPPORTED_ENDPOINT_PATHS = Set.of(DEFAULT_ENDPOINT_PATH, "/public/v1/dept",
+                MAIL_SEND_PATH);
         private static final String PROPERTY_CLIENT_ID = "clientId";
         private static final String PROPERTY_CLIENT_SECRET = "clientSecret";
 
@@ -86,6 +88,7 @@ public class DaouofficePlugin extends BasePlugin {
             // 간단하게 연결만 확인
             return Mono.just(new DatasourceTestResult());
         }
+
         @Override
         public Mono<ActionExecutionResult> execute(
                 WebClient connection,
@@ -97,7 +100,7 @@ public class DaouofficePlugin extends BasePlugin {
             String endpointPath = resolveEndpointPath(actionConfiguration);
             log.debug("DaouofficePlugin endpoint path: {}", endpointPath);
 
-            return executeDaouofficeRequest(connection, datasourceConfiguration, endpointPath);
+            return executeDaouofficeRequest(connection, datasourceConfiguration, endpointPath, actionConfiguration);
         }
 
         private String resolveEndpointPath(ActionConfiguration actionConfiguration) {
@@ -112,8 +115,14 @@ public class DaouofficePlugin extends BasePlugin {
         }
 
         private Mono<ActionExecutionResult> executeDaouofficeRequest(
-                WebClient connection, DatasourceConfiguration datasourceConfiguration, String requestedPath) {
+                WebClient connection, DatasourceConfiguration datasourceConfiguration, String requestedPath,
+                ActionConfiguration actionConfiguration) {
             ActionExecutionResult result = new ActionExecutionResult();
+
+            if (MAIL_SEND_PATH.equals(requestedPath)) {
+                return executeMailSendRequest(connection, actionConfiguration);
+            }
+
             String clientId = getDatasourceProperty(datasourceConfiguration, PROPERTY_CLIENT_ID);
             String clientSecret = getDatasourceProperty(datasourceConfiguration, PROPERTY_CLIENT_SECRET);
 
@@ -198,6 +207,100 @@ public class DaouofficePlugin extends BasePlugin {
                     .map(Property::getValue)
                     .map(value -> value == null ? null : String.valueOf(value))
                     .orElse(null);
+        }
+
+        private Mono<ActionExecutionResult> executeMailSendRequest(
+                WebClient connection, ActionConfiguration actionConfiguration) {
+
+            ActionExecutionResult result = new ActionExecutionResult();
+
+            try {
+                String senderEmail = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "senderEmail",
+                        STRING_TYPE, "");
+                String senderName = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "senderName",
+                        STRING_TYPE, "");
+                String subject = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "subject",
+                        STRING_TYPE, "");
+                String contents = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "contents",
+                        STRING_TYPE, "");
+                String toStr = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "to", STRING_TYPE, "");
+                String editmode = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "editmode",
+                        STRING_TYPE, "html");
+                String envFromAddr = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "envFromAddr",
+                        STRING_TYPE, "");
+
+                Object withoutNotiObj = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "withoutNoti",
+                        OBJECT_TYPE, "false");
+                String withoutNotiStr = String.valueOf(withoutNotiObj);
+
+                String targetUrl = MAIL_SERVICE_URL + MAIL_SEND_PATH;
+
+                log.debug("Daouoffice Mail Send Request: {}", targetUrl);
+
+                return connection
+                        .post()
+                        .uri(uriBuilder -> {
+                            // URL components separated to ensure correct building
+                            // MAIL_SERVICE_URL is
+                            // http://dop-service-gateway.dop-platform.svc.cluster.local:20719
+                            uriBuilder.scheme("http")
+                                    .host("dop-service-gateway.dop-platform.svc.cluster.local")
+                                    .port(20719)
+                                    .path(MAIL_SEND_PATH)
+                                    .queryParam("senderEmail", senderEmail)
+                                    .queryParam("subject", subject)
+                                    .queryParam("contents", contents)
+                                    .queryParam("editmode", editmode)
+                                    .queryParam("withoutNoti", "true".equalsIgnoreCase(withoutNotiStr));
+
+                            if (StringUtils.hasText(senderName)) {
+                                uriBuilder.queryParam("senderName", senderName);
+                            }
+                            if (StringUtils.hasText(envFromAddr)) {
+                                uriBuilder.queryParam("envFromAddr", envFromAddr);
+                            }
+
+                            // Handle 'to' array (comma separated input -> multiple query params)
+                            if (StringUtils.hasText(toStr)) {
+                                String[] emails = toStr.split(",");
+                                for (String email : emails) {
+                                    if (StringUtils.hasText(email.trim())) {
+                                        uriBuilder.queryParam("to", email.trim());
+                                    }
+                                }
+                            }
+
+                            return uriBuilder.build();
+                        })
+                        .contentType(MediaType.APPLICATION_JSON) // Usually POSTs have content type, even if empty body
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .map(responseBody -> {
+                            try {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(objectMapper.readTree(responseBody));
+                                return result;
+                            } catch (Exception e) {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(responseBody); // Fallback to string if not JSON
+                                return result;
+                            }
+                        })
+                        .onErrorResume(error -> {
+                            log.error("Mail send failed", error);
+                            result.setIsExecutionSuccess(false);
+                            result.setErrorInfo(new AppsmithPluginException(
+                                    AppsmithPluginError.PLUGIN_ERROR, "Mail Send Failed: " + error.getMessage()));
+                            return Mono.just(result);
+                        });
+
+            } catch (Exception e) {
+                log.error("Error preparing mail request", e);
+                result.setIsExecutionSuccess(false);
+                result.setErrorInfo(new AppsmithPluginException(
+                        AppsmithPluginError.PLUGIN_ERROR, "Error preparing mail request: " + e.getMessage()));
+                return Mono.just(result);
+            }
         }
     }
 }
