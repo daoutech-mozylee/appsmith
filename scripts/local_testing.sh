@@ -125,7 +125,6 @@ docker buildx build \
   --platform linux/amd64 \
   -t $FULL_IMAGE \
   --build-arg BASE="appsmith/base-$edition:release" \
-  --build-arg APPSMITH_CLOUD_SERVICES_BASE_URL="${cs_url:-https://release-cs.appsmith.com}" \
   --load \
   .
 pretty_print "Docker image build successful: $FULL_IMAGE"
