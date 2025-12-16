@@ -185,6 +185,7 @@ export interface AppsmithEntity extends Omit<AppDataState, "store"> {
   workspaceName: string;
   appName: string;
   currentEnvironmentName: string;
+  // 다우오피스 사용자 정보는 AppDataState에서 상속됨 (me: MeDataState)
 }
 
 export type DataTreeEntityConfig =

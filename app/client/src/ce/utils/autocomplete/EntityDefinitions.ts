@@ -87,6 +87,99 @@ export const entityDefinitions = {
               "https://docs.appsmith.com/reference/appsmith-framework/context-object#geolocationclearwatch",
           },
         },
+        me: {
+          ...(generatedTypeDef.me as Def),
+          "!doc":
+            "다우오피스 로그인 사용자 정보. postMessage를 통해 부모 창에서 전달받습니다.",
+          id: {
+            "!type": "number",
+            "!doc": "사용자 고유 ID",
+          },
+          name: {
+            "!type": "string",
+            "!doc": "사용자 이름",
+          },
+          loginId: {
+            "!type": "string",
+            "!doc": "로그인 ID",
+          },
+          email: {
+            "!type": "string",
+            "!doc": "이메일 주소",
+          },
+          departmentInfo: {
+            "!type": "$__department__$",
+            "!doc": "소속 부서 정보",
+          },
+          gradeName: {
+            "!type": "string",
+            "!doc": "직급명",
+          },
+          status: {
+            "!type": "string",
+            "!doc": "사용자 상태",
+          },
+          companyId: {
+            "!type": "string",
+            "!doc": "회사 ID",
+          },
+          companyGroupId: {
+            "!type": "string",
+            "!doc": "회사 그룹 ID",
+          },
+          companyUuid: {
+            "!type": "string",
+            "!doc": "회사 UUID",
+          },
+          companyName: {
+            "!type": "string",
+            "!doc": "회사명",
+          },
+          siteUrl: {
+            "!type": "string",
+            "!doc": "사이트 URL",
+          },
+          profileImageUrl: {
+            "!type": "string",
+            "!doc": "프로필 이미지 URL",
+          },
+          isBusinessPortalAccessible: {
+            "!type": "bool",
+            "!doc": "경영업무포털 접근 가능 여부",
+          },
+          isSettingAccessible: {
+            "!type": "bool",
+            "!doc": "통합설정 접근 가능 여부",
+          },
+          isAccessibleArchivingService: {
+            "!type": "bool",
+            "!doc": "아카이빙 접근 가능 여부",
+          },
+          locale: {
+            "!type": "string",
+            "!doc": "사용자 로케일",
+          },
+          enableGnbControl: {
+            "!type": "bool",
+            "!doc": "GNB 사용자화 선택 가능 여부",
+          },
+          icon: {
+            "!type": "string",
+            "!doc": "아이콘",
+          },
+          domain: {
+            "!type": "string",
+            "!doc": "회사 도메인 정보",
+          },
+          positionName: {
+            "!type": "string",
+            "!doc": "직위",
+          },
+          departments: {
+            "!type": "[$__department__$]",
+            "!doc": "부서 리스트",
+          },
+        },
         ...eeAppsmithAutocompleteDefs(generatedTypeDef),
       };
     }
@@ -183,6 +276,16 @@ export const GLOBAL_DEFS = {
     long: "number",
     title: "string",
     description: "string",
+  },
+  $__department__$: {
+    id: "number",
+    name: "string",
+    sortOrder: "number",
+    code: "string",
+    alias: "string",
+    emailId: "string",
+    deletedAt: "string",
+    departmentPath: "string",
   },
 };
 
