@@ -58,6 +58,10 @@ export function parsePackageJSON(
       // displayName: 파일명이 있으면 파일명 사용, 없으면 모듈명 사용
       const displayName = filename || moduleName;
 
+      // Input/Output 정의 가져오기
+      const inputsForm = module.unpublishedModule.inputsForm;
+      const outputsForm = module.unpublishedModule.outputsForm;
+
       const moduleCard: PackageModuleCard = {
         // WidgetCardProps 기본 속성
         type: PACKAGE_MODULE_WIDGET_TYPE as WidgetCardProps["type"],
@@ -81,6 +85,9 @@ export function parsePackageJSON(
         actions: moduleActions,
         actionCollections: moduleActionCollections,
         datasources: datasourceList.filter((ds) => !ds.deleted),
+        // Input/Output 정의
+        inputsForm,
+        outputsForm,
       };
 
       return moduleCard;

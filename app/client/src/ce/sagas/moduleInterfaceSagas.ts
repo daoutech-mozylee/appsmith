@@ -14,7 +14,12 @@ import type {
 } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { Saga } from "redux-saga";
 import { put, select } from "redux-saga/effects";
-import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
+import {
+  PACKAGE_MODULE_WIDGET_TYPE,
+  type ModuleInputSection,
+  type ModuleOutputSection,
+  type ModuleInstanceInputs,
+} from "constants/PackageModuleConstants";
 import { generateReactKey } from "utils/generators";
 import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
 import { getCurrentPageId } from "selectors/editorSelectors";
@@ -111,6 +116,37 @@ function transformBindingReferences(
 }
 
 /**
+ * this.params 및 inputs 바인딩을 모듈 인스턴스의 params 엔티티 참조로 변환
+ * 예: "{{this.params.defaultSelected}}" -> "{{__mod_xxx_params__.defaultSelected}}"
+ * 예: "{{this.params['inputName']}}" -> "{{__mod_xxx_params__['inputName']}}"
+ * 예: "{{inputs.label}}" -> "{{__mod_xxx_params__.label}}"
+ */
+function transformThisParamsBindings(
+  value: unknown,
+  instancePrefix: string,
+): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const paramsEntityName = `__${instancePrefix}_params__`;
+
+  let transformed = value;
+
+  // 1. this.params.xxx 또는 this.params['xxx'] 패턴을 변환
+  transformed = transformed.replace(/this\.params(?=[.\[])/g, paramsEntityName);
+
+  // 2. inputs.xxx 패턴도 변환 (모듈 JSON에서 사용하는 형식)
+  // 단어 경계를 사용하여 정확한 매칭 (예: myInputs는 매칭하지 않음)
+  transformed = transformed.replace(
+    /(?<![a-zA-Z0-9_])inputs(?=[.\[])/g,
+    paramsEntityName,
+  );
+
+  return transformed;
+}
+
+/**
  * JSObject body 내의 엔티티 참조를 변환
  * JSObject 내에서는 {{}} 없이 직접 엔티티를 참조함
  * 예: "Table1.selectedRow" -> "mod_xxx_Table1.selectedRow"
@@ -160,11 +196,41 @@ function collectWidgetNameMappings(
 }
 
 /**
+ * 단일 값에 대해 모든 바인딩 변환을 적용
+ * 1. 엔티티 이름 변환 (Query1 -> mod_xxx_Query1)
+ * 2. this.params 변환 (this.params.xxx -> __mod_xxx_params__.xxx)
+ */
+function applyAllBindingTransforms(
+  value: unknown,
+  entityNameMapping: Map<string, string>,
+  instancePrefix: string,
+): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  // 1. 엔티티 이름 변환
+  let transformed = transformBindingReferences(
+    value,
+    entityNameMapping,
+  ) as string;
+
+  // 2. this.params 변환
+  transformed = transformThisParamsBindings(
+    transformed,
+    instancePrefix,
+  ) as string;
+
+  return transformed;
+}
+
+/**
  * 위젯의 모든 속성에서 바인딩 참조를 변환
  */
 function transformWidgetBindings(
   widget: ModuleDSLWidget,
   entityNameMapping: Map<string, string>,
+  instancePrefix: string,
 ): ModuleDSLWidget {
   const transformed: ModuleDSLWidget = { ...widget };
 
@@ -175,13 +241,39 @@ function transformWidgetBindings(
     const value = transformed[key];
 
     if (typeof value === "string") {
-      transformed[key] = transformBindingReferences(value, entityNameMapping);
+      const newValue = applyAllBindingTransforms(
+        value,
+        entityNameMapping,
+        instancePrefix,
+      );
+
+      // 디버그: 바인딩 변환 로깅 (trigger path인 경우)
+      if (
+        key === "onItemClick" ||
+        key === "onClick" ||
+        key === "onRowSelected"
+      ) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[transformWidgetBindings] ${widget.widgetName}.${key}:`,
+          `\n  Original: ${value}`,
+          `\n  Transformed: ${newValue}`,
+          `\n  EntityMapping:`,
+          Object.fromEntries(entityNameMapping),
+        );
+      }
+
+      transformed[key] = newValue;
     } else if (typeof value === "object" && value !== null) {
       // 중첩 객체도 처리 (예: primaryColumns)
       transformed[key] = JSON.parse(
         JSON.stringify(value, (k, v) => {
           if (typeof v === "string") {
-            return transformBindingReferences(v, entityNameMapping);
+            return applyAllBindingTransforms(
+              v,
+              entityNameMapping,
+              instancePrefix,
+            );
           }
 
           return v;
@@ -193,7 +285,7 @@ function transformWidgetBindings(
   // 자식 위젯들도 재귀적으로 변환
   if (widget.children && Array.isArray(widget.children)) {
     transformed.children = widget.children.map((child) =>
-      transformWidgetBindings(child, entityNameMapping),
+      transformWidgetBindings(child, entityNameMapping, instancePrefix),
     );
   }
 
@@ -218,8 +310,12 @@ function transformDSLWithUniqueIds(
   // 위젯 이름도 엔티티 매핑에 추가 (바인딩 변환용)
   entityNameMapping.set(dsl.widgetName, newWidgetName);
 
-  // 먼저 바인딩 변환 적용
-  const bindingTransformed = transformWidgetBindings(dsl, entityNameMapping);
+  // 먼저 바인딩 변환 적용 (엔티티 이름 변환 + this.params 변환)
+  const bindingTransformed = transformWidgetBindings(
+    dsl,
+    entityNameMapping,
+    instancePrefix,
+  );
 
   const transformed: ModuleDSLWidget = {
     ...bindingTransformed,
@@ -361,6 +457,10 @@ function prepareModuleActions(
 
       // datasource not found 시 런타임에서 에러 처리됨
 
+      const executeOnLoad =
+        action.unpublishedAction.runBehaviour === "AUTOMATIC" ||
+        action.unpublishedAction.runBehaviour === "ON_PAGE_LOAD";
+
       moduleActions.push({
         name: newName,
         originalName,
@@ -374,7 +474,9 @@ function prepareModuleActions(
           ...action.unpublishedAction.actionConfiguration,
           // 바인딩 변환은 나중에 전체 매핑이 완료된 후 적용
         },
-        executeOnLoad: action.unpublishedAction.runBehaviour === "AUTOMATIC",
+        executeOnLoad,
+        // 런타임 체크를 위해 원본 runBehaviour 저장
+        runBehaviour: action.unpublishedAction.runBehaviour,
       });
     }
   }
@@ -422,25 +524,42 @@ function applyBindingTransformations(
   actions: ReturnType<typeof prepareModuleActions>,
   jsObjects: ReturnType<typeof prepareModuleJSObjects>,
   entityNameMapping: Map<string, string>,
+  instancePrefix: string,
 ) {
-  // Actions의 body에 바인딩 변환 적용
-  const transformedActions = actions.map((action) => ({
-    ...action,
-    actionConfiguration: {
-      ...action.actionConfiguration,
-      body: transformBindingReferences(
-        action.actionConfiguration.body,
-        entityNameMapping,
-      ) as string | undefined,
-    },
-  }));
+  // Actions의 body에 바인딩 변환 적용 (엔티티 이름 + this.params)
+  const transformedActions = actions.map((action) => {
+    let body = transformBindingReferences(
+      action.actionConfiguration.body,
+      entityNameMapping,
+    ) as string | undefined;
+
+    // this.params 변환 적용
+    if (body) {
+      body = transformThisParamsBindings(body, instancePrefix) as string;
+    }
+
+    return {
+      ...action,
+      actionConfiguration: {
+        ...action.actionConfiguration,
+        body,
+      },
+    };
+  });
 
   // JSObjects의 body에 바인딩 변환 적용
   // JSObject 내에서는 {{}} 없이 직접 엔티티를 참조하므로 transformJSBodyReferences 사용
-  const transformedJSObjects = jsObjects.map((jsObj) => ({
-    ...jsObj,
-    body: transformJSBodyReferences(jsObj.body, entityNameMapping),
-  }));
+  const transformedJSObjects = jsObjects.map((jsObj) => {
+    let body = transformJSBodyReferences(jsObj.body, entityNameMapping);
+
+    // this.params 변환 적용
+    body = transformThisParamsBindings(body, instancePrefix) as string;
+
+    return {
+      ...jsObj,
+      body,
+    };
+  });
 
   return { transformedActions, transformedJSObjects };
 }
@@ -469,6 +588,11 @@ export function* handleModuleWidgetCreationSaga(
         dsl?: ModuleDSLWidget;
         actions?: ModuleAction[];
         actionCollections?: ModuleActionCollection[];
+        // Input/Output 정의 (모듈 설정)
+        inputsForm?: ModuleInputSection[];
+        outputsForm?: ModuleOutputSection[];
+        // 초기 Input 값 (위젯 props에서 전달)
+        inputs?: ModuleInstanceInputs;
       }
     | undefined;
 
@@ -558,12 +682,13 @@ export function* handleModuleWidgetCreationSaga(
       )
     : [];
 
-  // 5. 바인딩 변환 적용 (전체 매핑이 완료된 후 - 위젯 + Actions + JSObjects)
+  // 5. 바인딩 변환 적용 (전체 매핑이 완료된 후 - 위젯 + Actions + JSObjects + this.params)
   const { transformedActions, transformedJSObjects } =
     applyBindingTransformations(
       moduleActions,
       moduleJSObjects,
       entityNameMapping,
+      instancePrefix,
     );
 
   // 6. 모듈 인스턴스 등록 (독립적인 Redux slice에 저장)
@@ -578,6 +703,11 @@ export function* handleModuleWidgetCreationSaga(
       pageId,
       actions: transformedActions,
       jsObjects: transformedJSObjects,
+      // Input/Output 정의 (모듈 설정에서 가져옴)
+      inputsForm: moduleData.inputsForm,
+      outputsForm: moduleData.outputsForm,
+      // 초기 Input 값 (위젯 props에서 전달)
+      initialInputs: moduleData.inputs,
     },
   });
 
@@ -630,7 +760,14 @@ export function* handleModuleWidgetCreationSaga(
     moduleInstanceData: {
       actions: transformedActions,
       jsObjects: transformedJSObjects,
+      inputsForm: moduleData.inputsForm,
+      outputsForm: moduleData.outputsForm,
     },
+    // Input/Output 정의 (Property Pane에서 직접 접근용)
+    inputsForm: moduleData.inputsForm,
+    outputsForm: moduleData.outputsForm,
+    // Input 값 저장 (위젯 props로 전달된 값)
+    inputs: moduleData.inputs,
   };
 
   return updatedWidgets;

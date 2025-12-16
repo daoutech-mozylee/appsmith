@@ -7,6 +7,36 @@ import type { DefaultRootState } from "react-redux";
 import type React from "react";
 import { useCurrentAppState } from "IDE/hooks/useCurrentAppState";
 import { EditorState } from "IDE/enums";
+import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
+
+/**
+ * 위젯이 Package Module 내부에 있는지 확인
+ */
+const checkIsWidgetInsideModule = (
+  widgetId: string,
+  widgets: CanvasWidgetsReduxState,
+): boolean => {
+  let currentWidget = widgets[widgetId];
+
+  while (currentWidget) {
+    const parentId = currentWidget.parentId;
+
+    if (!parentId) break;
+
+    const parentWidget = widgets[parentId];
+
+    if (!parentWidget) break;
+
+    if (parentWidget.type === PACKAGE_MODULE_WIDGET_TYPE) {
+      return true;
+    }
+
+    currentWidget = parentWidget;
+  }
+
+  return false;
+};
 
 export const useHoverToFocusWidget = (
   widgetId: string,
@@ -36,8 +66,22 @@ export const useHoverToFocusWidget = (
   // This state tells us whether space redistribution is in process
   const isDistributingSpace = useSelector(getAnvilSpaceDistributionStatus);
   const isPreviewMode = useSelector(selectCombinedPreviewMode);
+
+  // Check if widget is inside a module (should prevent focus/selection)
+  const canvasWidgets = useSelector(
+    (state: DefaultRootState) => state.entities.canvasWidgets,
+  );
+  const isInsideModule = checkIsWidgetInsideModule(widgetId, canvasWidgets);
+
   // When mouse is over this draggable
   const handleMouseOver = (e: React.MouseEvent) => {
+    // 모듈 내부 위젯은 focus 방지
+    if (isInsideModule) {
+      e.stopPropagation();
+
+      return;
+    }
+
     focusWidget &&
       !isResizingOrDragging &&
       !isFocused &&

@@ -53,8 +53,14 @@ export function evaluateHiddenProperty(
         );
 
       if (!isSectionHidden) {
+        // children이 함수인 경우 widgetProps를 전달하여 호출 (동적 children 지원)
+        const sectionChildren =
+          typeof sectionConfig.children === "function"
+            ? sectionConfig.children(widgetProps)
+            : sectionConfig.children;
+
         const children = evaluateHiddenProperty(
-          sectionConfig.children,
+          sectionChildren,
           widgetProps,
           shouldHidePropertyFn,
         );

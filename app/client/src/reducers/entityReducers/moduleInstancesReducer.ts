@@ -8,6 +8,12 @@
 import { createImmerReducer } from "utils/ReducerUtils";
 import type { ReduxAction } from "actions/ReduxActionTypes";
 import { ReduxActionTypes } from "ee/constants/ReduxActionConstants";
+import type {
+  ModuleInputSection,
+  ModuleOutputSection,
+  ModuleInstanceInputs,
+  ModuleInstanceOutputs,
+} from "constants/PackageModuleConstants";
 
 // 모듈 Action 정의
 export interface ModuleInstanceAction {
@@ -26,6 +32,8 @@ export interface ModuleInstanceAction {
     [key: string]: unknown;
   };
   executeOnLoad?: boolean;
+  // 런타임 체크를 위해 원본 runBehaviour 저장
+  runBehaviour?: string;
 }
 
 // 모듈 JSObject 정의
@@ -79,6 +87,12 @@ export interface ModuleInstance {
       };
     };
   };
+  // Input/Output 정의 (모듈 설정에서 가져옴)
+  inputsForm?: ModuleInputSection[];
+  outputsForm?: ModuleOutputSection[];
+  // 런타임 Input/Output 값
+  inputs: ModuleInstanceInputs;
+  outputs: ModuleInstanceOutputs;
 }
 
 // 전체 상태 타입
@@ -98,6 +112,24 @@ export interface RegisterModuleInstancePayload {
   pageId: string;
   actions: ModuleInstanceAction[];
   jsObjects: ModuleInstanceJSObject[];
+  // Input/Output 정의
+  inputsForm?: ModuleInputSection[];
+  outputsForm?: ModuleOutputSection[];
+  // 초기 Input 값 (위젯 props에서 전달)
+  initialInputs?: ModuleInstanceInputs;
+}
+
+// Input 업데이트 페이로드
+export interface UpdateModuleInstanceInputPayload {
+  instanceId: string;
+  inputName: string;
+  value: unknown;
+}
+
+// Output 업데이트 페이로드
+export interface UpdateModuleInstanceOutputPayload {
+  instanceId: string;
+  outputs: ModuleInstanceOutputs;
 }
 
 // Action 실행 페이로드
@@ -129,10 +161,13 @@ export const handlers = {
   ) => {
     const {
       actions,
+      initialInputs,
+      inputsForm,
       instanceId,
       jsObjects,
       moduleId,
       moduleName,
+      outputsForm,
       packageName,
       pageId,
       widgetId,
@@ -152,6 +187,29 @@ export const handlers = {
       jsObjectsMap[jsObj.name] = jsObj;
     }
 
+    // inputsForm에서 defaultValue로 초기 inputs 설정
+    const inputs: ModuleInstanceInputs = {};
+
+    if (inputsForm) {
+      for (const section of inputsForm) {
+        for (const input of section.children) {
+          // input 이름은 label 또는 name 필드 사용 (JSON 구조에 따라 다름)
+          const inputName = input.label || input.name;
+
+          if (inputName) {
+            // initialInputs에 값이 있으면 사용, 없으면 defaultValue
+            inputs[inputName] =
+              initialInputs?.[inputName] ?? input.defaultValue;
+          }
+        }
+      }
+    }
+
+    // initialInputs가 있으면 merge (정의되지 않은 input도 처리)
+    if (initialInputs) {
+      Object.assign(inputs, initialInputs);
+    }
+
     draftState[instanceId] = {
       instanceId,
       moduleId,
@@ -163,6 +221,10 @@ export const handlers = {
       jsObjects: jsObjectsMap,
       actionData: {},
       jsData: {},
+      inputsForm,
+      outputsForm,
+      inputs,
+      outputs: {},
     };
   },
 
@@ -354,6 +416,51 @@ export const handlers = {
   // 에디터 리셋 시 모든 모듈 인스턴스 제거
   [ReduxActionTypes.RESET_EDITOR_REQUEST]: () => {
     return {};
+  },
+
+  // 모듈 인스턴스 Input 업데이트
+  [ReduxActionTypes.UPDATE_MODULE_INSTANCE_INPUT]: (
+    draftState: ModuleInstancesState,
+    action: ReduxAction<UpdateModuleInstanceInputPayload>,
+  ) => {
+    const { inputName, instanceId, value } = action.payload;
+    const instance = draftState[instanceId];
+
+    if (instance) {
+      instance.inputs[inputName] = value;
+    }
+  },
+
+  // 모듈 인스턴스 Inputs 일괄 업데이트
+  [ReduxActionTypes.UPDATE_MODULE_INSTANCE_INPUTS]: (
+    draftState: ModuleInstancesState,
+    action: ReduxAction<{
+      instanceId: string;
+      inputs: ModuleInstanceInputs;
+    }>,
+  ) => {
+    const { inputs, instanceId } = action.payload;
+    const instance = draftState[instanceId];
+
+    if (instance) {
+      instance.inputs = {
+        ...instance.inputs,
+        ...inputs,
+      };
+    }
+  },
+
+  // 모듈 인스턴스 Outputs 업데이트 (평가 사이클에서 호출)
+  [ReduxActionTypes.UPDATE_MODULE_INSTANCE_OUTPUTS]: (
+    draftState: ModuleInstancesState,
+    action: ReduxAction<UpdateModuleInstanceOutputPayload>,
+  ) => {
+    const { instanceId, outputs } = action.payload;
+    const instance = draftState[instanceId];
+
+    if (instance) {
+      instance.outputs = outputs;
+    }
   },
 };
 

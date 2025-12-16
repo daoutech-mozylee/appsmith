@@ -16,7 +16,7 @@ import {
   getSelectedWidgets,
 } from "./ui";
 import { MAIN_CONTAINER_WIDGET_ID } from "constants/WidgetConstants";
-import { get } from "lodash";
+import { get, memoize } from "lodash";
 import { getAppMode } from "ee/selectors/applicationSelectors";
 import { APP_MODE } from "entities/App";
 import { getIsTableFilterPaneVisible } from "selectors/tableFilterSelectors";
@@ -24,6 +24,7 @@ import { getIsAutoHeightWithLimitsChanging } from "utils/hooks/autoHeightUIHooks
 import { getIsPropertyPaneVisible } from "./propertyPaneSelectors";
 import { getIsAnvilLayout } from "layoutSystems/anvil/integrations/selectors";
 import { selectCombinedPreviewMode } from "./gitModSelectors";
+import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
 
 export const getIsDraggingOrResizing = (state: DefaultRootState) =>
   state.ui.widgetDragResize.isResizing || state.ui.widgetDragResize.isDragging;
@@ -181,7 +182,38 @@ export function getParentToOpenIfAny(
   return;
 }
 
-export const shouldWidgetIgnoreClicksSelector = (widgetId: string) => {
+/**
+ * 위젯이 Package Module 내부에 있는지 확인
+ * 부모 체인을 따라가며 PACKAGE_MODULE_WIDGET 타입이 있는지 확인
+ */
+const isWidgetInsideModule = (
+  widgetId: string,
+  widgets: CanvasWidgetsReduxState,
+): boolean => {
+  let currentWidget = widgets[widgetId];
+
+  while (currentWidget) {
+    // 부모가 PACKAGE_MODULE_WIDGET이면 모듈 내부 위젯
+    const parentId = currentWidget.parentId;
+
+    if (!parentId) break;
+
+    const parentWidget = widgets[parentId];
+
+    if (!parentWidget) break;
+
+    if (parentWidget.type === PACKAGE_MODULE_WIDGET_TYPE) {
+      return true;
+    }
+
+    currentWidget = parentWidget;
+  }
+
+  return false;
+};
+
+// Memoize the selector factory to avoid creating new selectors on every render
+export const shouldWidgetIgnoreClicksSelector = memoize((widgetId: string) => {
   return createSelector(
     getFocusedWidget,
     getIsTableFilterPaneVisible,
@@ -193,6 +225,7 @@ export const shouldWidgetIgnoreClicksSelector = (widgetId: string) => {
     selectCombinedPreviewMode,
     getIsAutoHeightWithLimitsChanging,
     getAltBlockWidgetSelection,
+    getCanvasWidgets,
     (
       focusedWidgetId,
       isTableFilterPaneVisible,
@@ -203,8 +236,12 @@ export const shouldWidgetIgnoreClicksSelector = (widgetId: string) => {
       isPreviewMode,
       isAutoHeightWithLimitsChanging,
       isWidgetSelectionBlock,
+      widgets,
     ) => {
       const isFocused = focusedWidgetId === widgetId;
+
+      // 모듈 내부 위젯인 경우 선택 무시
+      const isInsideModule = isWidgetInsideModule(widgetId, widgets);
 
       return (
         isDraggingForSelection ||
@@ -215,11 +252,12 @@ export const shouldWidgetIgnoreClicksSelector = (widgetId: string) => {
         !isFocused ||
         isTableFilterPaneVisible ||
         isAutoHeightWithLimitsChanging ||
-        isWidgetSelectionBlock
+        isWidgetSelectionBlock ||
+        isInsideModule // 모듈 내부 위젯이면 클릭 무시
       );
     },
   );
-};
+});
 
 export const getSelectedWidgetAncestry = (state: DefaultRootState) =>
   state.ui.widgetDragResize.selectedWidgetAncestry;

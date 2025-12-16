@@ -80,6 +80,8 @@ import ArrayControl from "./ArrayControl";
 import TableCustomSortControl, {
   type TableCustomSortControlProps,
 } from "./TableCustomSortControl";
+import type { ModuleInputsControlProps } from "./ModuleInputsControl";
+import ModuleInputsControl from "./ModuleInputsControl";
 import EEPropertyControls from "ee/components/propertyControls";
 
 export const PropertyControls = {
@@ -135,6 +137,7 @@ export const PropertyControls = {
   PrimaryColumnsControlWDS,
   ToolbarButtonListControl,
   TableCustomSortControl,
+  ModuleInputsControl,
   ...EEPropertyControls,
 };
 
@@ -165,7 +168,8 @@ export type PropertyControlPropsType =
   | ZoneStepperControlProps
   | SectionSplitterControlProps
   | IconSelectControlV2Props
-  | TableCustomSortControlProps;
+  | TableCustomSortControlProps
+  | ModuleInputsControlProps;
 
 export const getPropertyControlTypes = (): { [key: string]: string } => {
   const _types: { [key: string]: string } = {};

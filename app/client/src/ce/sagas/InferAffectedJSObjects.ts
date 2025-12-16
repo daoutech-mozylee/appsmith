@@ -10,6 +10,31 @@ import type {
   BufferedReduxAction,
 } from "actions/EvaluationReduxActionTypes";
 
+/**
+ * 커스텀 모듈 인스턴스 관련 액션에서 영향받는 JSObject 추론
+ * REGISTER_MODULE_INSTANCE 시 커스텀 모듈의 JSObject가 새로 추가되므로
+ * isAllAffected: true를 반환하여 전체 JSObject diff를 수행하도록 함
+ */
+export function getAffectedJSObjectIdsFromModuleInstance(
+  action: ReduxAction<unknown> | BufferedReduxAction<unknown>,
+): AffectedJSObjects {
+  // 커스텀 모듈 인스턴스 등록/해제 시 전체 JSObject diff 수행
+  if (
+    action.type === ReduxActionTypes.REGISTER_MODULE_INSTANCE ||
+    action.type === ReduxActionTypes.UNREGISTER_MODULE_INSTANCE
+  ) {
+    return {
+      ids: [],
+      isAllAffected: true,
+    };
+  }
+
+  return {
+    ids: [],
+    isAllAffected: false,
+  };
+}
+
 export function getAffectedJSObjectIdsFromJSAction(
   action: ReduxAction<unknown> | BufferedReduxAction<unknown>,
 ): AffectedJSObjects {
@@ -75,4 +100,5 @@ function getAffectedJSObjectIdsFromBufferedAction(
 export const AFFECTED_JS_OBJECTS_FNS = [
   getAffectedJSObjectIdsFromJSAction,
   getAffectedJSObjectIdsFromBufferedAction,
+  getAffectedJSObjectIdsFromModuleInstance,
 ];

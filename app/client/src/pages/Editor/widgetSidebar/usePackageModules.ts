@@ -50,7 +50,8 @@ const PACKAGE_DATA_LIST: PackageDataWithFilename[] = packagesContext
   );
 
 // 모듈 카드 미리 생성 (빌드 시점에 실행)
-const PRELOADED_MODULES: PackageModuleCard[] = PACKAGE_DATA_LIST.flatMap(
+// export하여 saga 등 다른 곳에서도 접근 가능하게 함
+export const PRELOADED_MODULES: PackageModuleCard[] = PACKAGE_DATA_LIST.flatMap(
   ({ data, filename }) => {
     try {
       return parsePackageJSON(data, filename);
@@ -59,6 +60,25 @@ const PRELOADED_MODULES: PackageModuleCard[] = PACKAGE_DATA_LIST.flatMap(
     }
   },
 );
+
+/**
+ * 모듈 UUID로 outputsForm을 조회하는 헬퍼 함수
+ * 위젯에 outputsForm이 저장되어 있지 않은 경우 fallback으로 사용
+ */
+export function getOutputsFormByModuleUUID(moduleUUID: string) {
+  const moduleCard = PRELOADED_MODULES.find((m) => m.moduleUUID === moduleUUID);
+
+  return moduleCard?.outputsForm;
+}
+
+/**
+ * 모듈 UUID로 inputsForm을 조회하는 헬퍼 함수
+ */
+export function getInputsFormByModuleUUID(moduleUUID: string) {
+  const moduleCard = PRELOADED_MODULES.find((m) => m.moduleUUID === moduleUUID);
+
+  return moduleCard?.inputsForm;
+}
 
 /**
  * Package 모듈을 반환하는 훅

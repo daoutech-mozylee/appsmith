@@ -1,7 +1,8 @@
 import equal from "fast-deep-equal/es6";
 import type { ReactNode } from "react";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
+import type { DefaultRootState } from "react-redux";
 import { getIsPropertyPaneVisible } from "selectors/propertyPaneSelectors";
 import {
   getFocusedParentToOpen,
@@ -16,11 +17,41 @@ import { useWidgetSelection } from "./useWidgetSelection";
 import { SelectionRequestType } from "sagas/WidgetSelectUtils";
 import { NavigationMethod } from "../history";
 import { getLayoutSystemType } from "selectors/layoutSystemSelectors";
+import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
+import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 
 const ContentWrapper = styled.div`
   width: 100%;
   height: 100%;
 `;
+
+/**
+ * 위젯이 Package Module 내부에 있는지 확인
+ */
+const checkIsWidgetInsideModule = (
+  widgetId: string,
+  widgets: CanvasWidgetsReduxState,
+): boolean => {
+  let currentWidget = widgets[widgetId];
+
+  while (currentWidget) {
+    const parentId = currentWidget.parentId;
+
+    if (!parentId) break;
+
+    const parentWidget = widgets[parentId];
+
+    if (!parentWidget) break;
+
+    if (parentWidget.type === PACKAGE_MODULE_WIDGET_TYPE) {
+      return true;
+    }
+
+    currentWidget = parentWidget;
+  }
+
+  return false;
+};
 
 export function ClickContentToOpenPropPane({
   children,
@@ -35,9 +66,26 @@ export function ClickContentToOpenPropPane({
 
   const isCurrentWidgetFocused = useSelector(isWidgetFocused(widgetId));
   const resizingOrDragging = useSelector(isResizingOrDragging);
+
+  // Check if widget is inside a module
+  const canvasWidgets = useSelector(
+    (state: DefaultRootState) => state.entities.canvasWidgets,
+  );
+  const isInsideModule = useMemo(
+    () => checkIsWidgetInsideModule(widgetId, canvasWidgets),
+    [widgetId, canvasWidgets],
+  );
+
   // TODO: Fix this the next time the file is edited
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleMouseOver = (e: any) => {
+    // 모듈 내부 위젯은 focus 방지
+    if (isInsideModule) {
+      e.stopPropagation();
+
+      return;
+    }
+
     focusWidget &&
       !resizingOrDragging &&
       !isCurrentWidgetFocused &&
