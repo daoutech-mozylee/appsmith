@@ -326,6 +326,8 @@ export const widgetOperationParams = (
         packageUUID?: string;
         actions?: unknown[];
         actionCollections?: unknown[];
+        inputsForm?: unknown[];
+        outputsForm?: unknown[];
       };
 
     if (moduleWidget.dsl) additionalProps.dsl = moduleWidget.dsl;
@@ -346,6 +348,13 @@ export const widgetOperationParams = (
 
     if (moduleWidget.actionCollections)
       additionalProps.actionCollections = moduleWidget.actionCollections;
+
+    // Input/Output 정의 전달
+    if (moduleWidget.inputsForm)
+      additionalProps.inputsForm = moduleWidget.inputsForm;
+
+    if (moduleWidget.outputsForm)
+      additionalProps.outputsForm = moduleWidget.outputsForm;
   }
 
   return {

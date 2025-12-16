@@ -12,8 +12,6 @@ interface PackageModuleComponentProps {
   containerStyle?: PackageModuleContainerStyle;
   children?: React.ReactNode;
   widgetId: string;
-  moduleName?: string;
-  packageName?: string;
   isReadOnly?: boolean;
 }
 
@@ -34,41 +32,44 @@ const StyledContainer = styled.div<{
     ${(props) => props.$borderColor || "#E0DEDE"};
   border-radius: ${(props) => props.$borderRadius || "4px"};
   box-shadow: ${(props) => props.$boxShadow || "none"};
-
-  ${(props) =>
-    props.$isReadOnly &&
-    `
-    &::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: all;
-      z-index: 1;
-    }
-  `}
-`;
-
-const ModuleHeader = styled.div`
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  background: rgba(151, 71, 255, 0.1);
-  color: #9747ff;
-  font-size: 10px;
-  font-weight: 500;
-  padding: 2px 6px;
-  border-radius: 4px;
-  z-index: 2;
-  pointer-events: none;
 `;
 
 const ContentWrapper = styled.div<{ $isReadOnly?: boolean }>`
   width: 100%;
   height: 100%;
-  pointer-events: ${(props) => (props.$isReadOnly ? "none" : "auto")};
+
+  /* isReadOnly 모드에서 내부 위젯 선택/드래그/리사이즈만 방지 */
+  ${(props) =>
+    props.$isReadOnly &&
+    `
+    /*
+     * 내부 위젯의 선택/드래그 관련 요소만 비활성화
+     * 나머지는 모두 상호작용 가능하게 유지
+     */
+
+    /* 위젯 선택/드래그 담당 요소 비활성화 */
+    & .positioned-widget > .widget-component-boundary-layer {
+      pointer-events: none !important;
+    }
+
+    /* 위젯 이름 라벨 숨기기 */
+    & .t--widget-name {
+      display: none !important;
+    }
+
+    /* 리사이즈 핸들 숨기기 */
+    & .t--resizable-handle,
+    & .visibility-container {
+      display: none !important;
+      pointer-events: none !important;
+    }
+
+    /* 드래그 핸들 비활성화 */
+    & [class*="drag-handle"],
+    & [data-testid*="drag"] {
+      pointer-events: none !important;
+    }
+  `}
 `;
 
 function PackageModuleComponent(props: PackageModuleComponentProps) {
@@ -80,8 +81,6 @@ function PackageModuleComponent(props: PackageModuleComponentProps) {
     boxShadow,
     children,
     isReadOnly = true,
-    moduleName,
-    packageName,
     widgetId,
   } = props;
 
@@ -96,11 +95,6 @@ function PackageModuleComponent(props: PackageModuleComponentProps) {
       data-testid={`package-module-${widgetId}`}
       id={`package-module-${widgetId}`}
     >
-      {moduleName && (
-        <ModuleHeader>
-          {packageName ? `${packageName} / ${moduleName}` : moduleName}
-        </ModuleHeader>
-      )}
       <ContentWrapper $isReadOnly={isReadOnly}>{children}</ContentWrapper>
     </StyledContainer>
   );

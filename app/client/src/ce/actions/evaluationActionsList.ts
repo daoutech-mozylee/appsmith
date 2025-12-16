@@ -67,6 +67,9 @@ export const EVALUATE_REDUX_ACTIONS = [
   ReduxActionTypes.EXECUTE_MODULE_ACTION_SUCCESS,
   ReduxActionTypes.EXECUTE_MODULE_ACTION_ERROR,
   ReduxActionTypes.UPDATE_MODULE_INSTANCE_DATA,
+  ReduxActionTypes.UPDATE_MODULE_INSTANCE_INPUT,
+  ReduxActionTypes.UPDATE_MODULE_INSTANCE_INPUTS,
+  ReduxActionTypes.UPDATE_MODULE_INSTANCE_OUTPUTS,
   // Actions
   ReduxActionTypes.FETCH_PLUGIN_FORM_CONFIGS_SUCCESS,
   ReduxActionTypes.FETCH_ACTIONS_VIEW_MODE_SUCCESS,
@@ -89,6 +92,8 @@ export const EVALUATE_REDUX_ACTIONS = [
   ReduxActionTypes.FETCH_USER_DETAILS_SUCCESS,
   ReduxActionTypes.UPDATE_APP_STORE,
   ReduxActionTypes.SET_USER_CURRENT_GEO_LOCATION,
+  // 다우오피스 사용자 정보 (postMessage로 부모 창에서 전달받음)
+  ReduxActionTypes.SET_ME_DATA,
   // Widgets
   ReduxActionTypes.UPDATE_LAYOUT,
   ReduxActionTypes.UPDATE_WIDGET_PROPERTY,

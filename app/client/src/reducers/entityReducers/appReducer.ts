@@ -10,6 +10,54 @@ export interface AuthUserState {
   id: string;
 }
 
+// 부서 정보
+export interface DepartmentInfo {
+  id: number;
+  name: string;
+  sortOrder?: number;
+  code?: string;
+  alias?: string;
+  emailId?: string;
+  deletedAt?: string;
+  departmentPath?: string;
+}
+
+// 다우오피스 로그인 사용자 정보 (postMessage로 전달)
+export interface MeDataState {
+  id?: number;
+  name?: string;
+  loginId?: string;
+  email?: string;
+  departmentInfo?: Pick<
+    DepartmentInfo,
+    "id" | "name" | "emailId" | "alias" | "departmentPath"
+  >;
+  gradeName?: string;
+  status?: string;
+  companyId?: string;
+  companyGroupId?: string | number;
+  companyUuid?: string;
+  companyName?: string;
+  siteUrl?: string;
+  profileImageUrl?: string;
+  /** 경영업무포털 접근 가능 여부 */
+  isBusinessPortalAccessible?: boolean;
+  /** 통합설정 접근 가능 여부 */
+  isSettingAccessible?: boolean;
+  /** 아카이빙 접근 가능 여부 */
+  isAccessibleArchivingService?: boolean;
+  locale?: string;
+  /** GNB 사용자화 선택 가능 여부 */
+  enableGnbControl?: boolean;
+  icon?: string;
+  /** 회사 도메인 정보 */
+  domain?: string;
+  /** 직위 */
+  positionName?: string;
+  /** 부서 리스트 */
+  departments?: DepartmentInfo[];
+}
+
 export interface UrlDataState {
   queryParams: Record<string, string>;
   protocol: string;
@@ -37,7 +85,16 @@ export interface AppDataState {
   workflows: Record<string, any>;
   pageSlug: Record<string, { isPersisting: boolean; isError: boolean }>;
   pageSlugValidation: { isValidating: boolean; isValid: boolean };
+  // 다우오피스 로그인 사용자 정보 (postMessage로 전달)
+  me: MeDataState;
 }
+
+/**
+ * 기본 me 데이터 반환 (postMessage로 실제 데이터 수신 전까지 사용)
+ */
+const getDefaultMeData = (): MeDataState => {
+  return {};
+};
 
 const initialState: AppDataState = {
   user: {
@@ -63,6 +120,7 @@ const initialState: AppDataState = {
   workflows: {},
   pageSlug: {},
   pageSlugValidation: { isValidating: false, isValid: true },
+  me: getDefaultMeData(),
 };
 
 const appReducer = createReducer(initialState, {
@@ -189,6 +247,19 @@ const appReducer = createReducer(initialState, {
       pageSlugValidation: {
         isValidating: false,
         isValid: action.payload.isValid,
+      },
+    };
+  },
+  // 다우오피스 사용자 정보 설정 (postMessage로 부모 창에서 전달받음)
+  [ReduxActionTypes.SET_ME_DATA]: (
+    state: AppDataState,
+    action: ReduxAction<Partial<MeDataState>>,
+  ) => {
+    return {
+      ...state,
+      me: {
+        ...state.me,
+        ...action.payload,
       },
     };
   },

@@ -26,7 +26,13 @@ import {
   Positioning,
   ResponsiveBehavior,
 } from "layoutSystems/common/utils/constants";
-import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
+import {
+  PACKAGE_MODULE_WIDGET_TYPE,
+  type ModuleInputSection,
+  type ModuleOutputSection,
+  type ModuleInstanceInputs,
+} from "constants/PackageModuleConstants";
+import { getInputsFormByModuleUUID } from "pages/Editor/widgetSidebar/usePackageModules";
 import { DynamicHeight } from "utils/WidgetFeatures";
 import { RenderModes } from "constants/WidgetConstants";
 import type { PackageModuleContainerStyle } from "../component";
@@ -44,6 +50,9 @@ export class PackageModuleWidget extends BaseWidget<
     super(props);
     this.renderChildWidget = this.renderChildWidget.bind(this);
   }
+
+  // inputs 동기화는 ModuleInstanceSagas의 handleWidgetPropertyRequestForModuleInputs에서 처리
+  // componentDidUpdate는 더 이상 필요하지 않음 - selector가 위젯 props에서 직접 읽음
 
   static getConfig(): WidgetBaseConfiguration {
     return {
@@ -110,6 +119,11 @@ export class PackageModuleWidget extends BaseWidget<
       // 모듈 인스턴스 정보 (페이지 로드 시 복원용)
       moduleInstanceId: "",
       moduleInstanceData: null,
+      // Input 값 (페이지에서 모듈로 전달하는 파라미터)
+      inputs: {},
+      // Input/Output 폼 정의 (모듈 JSON에서 가져옴)
+      inputsForm: [],
+      outputsForm: [],
     };
   }
 
@@ -158,6 +172,16 @@ export class PackageModuleWidget extends BaseWidget<
         "!type": "string",
         "!doc": "The name of the package",
       },
+      inputs: {
+        "!type": "object",
+        "!doc":
+          "Input values passed to the module. Access inside module via this.params.inputName",
+      },
+      outputs: {
+        "!type": "object",
+        "!doc":
+          "Output values exposed from the module. Access from parent page via ModuleWidget.outputs.outputName",
+      },
     };
   }
 
@@ -173,6 +197,40 @@ export class PackageModuleWidget extends BaseWidget<
   }
 
   static getPropertyPaneContentConfig() {
+    /**
+     * inputsForm에 하나라도 input이 있는지 확인
+     */
+    const hasAnyInputs = (props: PackageModuleWidgetProps): boolean => {
+      let inputsForm = props.inputsForm;
+
+      // inputsForm이 없거나 빈 배열이면 moduleUUID로 조회
+      if (
+        (!inputsForm ||
+          !Array.isArray(inputsForm) ||
+          inputsForm.length === 0) &&
+        props.moduleUUID
+      ) {
+        inputsForm = getInputsFormByModuleUUID(props.moduleUUID);
+      }
+
+      if (!inputsForm || !Array.isArray(inputsForm)) {
+        return false;
+      }
+
+      // 섹션 내의 children 수 확인
+      for (const section of inputsForm) {
+        if (
+          section.children &&
+          Array.isArray(section.children) &&
+          section.children.length > 0
+        ) {
+          return true;
+        }
+      }
+
+      return false;
+    };
+
     return [
       {
         sectionName: "Module Info",
@@ -192,6 +250,23 @@ export class PackageModuleWidget extends BaseWidget<
             isBindProperty: false,
             isTriggerProperty: false,
             isDisabled: true, // 읽기 전용
+          },
+        ],
+      },
+      {
+        sectionName: "Module Inputs",
+        // 섹션 전체를 inputsForm이 있는 모듈에만 표시
+        hidden: (props: PackageModuleWidgetProps) => !hasAnyInputs(props),
+        children: [
+          {
+            // MODULE_INPUTS_CONTROL: inputsForm을 읽어 동적으로 입력 필드 렌더링
+            propertyName: "inputs",
+            label: "",
+            controlType: "MODULE_INPUTS_CONTROL",
+            isBindProperty: false,
+            isTriggerProperty: false,
+            // widgetProperties에 inputsForm, moduleUUID를 포함시키기 위해 dependencies 추가
+            dependencies: ["inputsForm", "moduleUUID", "inputs"],
           },
         ],
       },
@@ -368,8 +443,6 @@ export class PackageModuleWidget extends BaseWidget<
       borderWidth,
       boxShadow,
       containerStyle,
-      moduleName,
-      packageName,
       renderMode,
       widgetId,
     } = this.props;
@@ -387,8 +460,6 @@ export class PackageModuleWidget extends BaseWidget<
         boxShadow={boxShadow}
         containerStyle={containerStyle}
         isReadOnly={isReadOnly}
-        moduleName={moduleName}
-        packageName={packageName}
         widgetId={widgetId}
       >
         <WidgetsMultiSelectBox
@@ -428,6 +499,9 @@ export interface ModuleInstanceData {
     body: string;
     variables?: unknown[];
   }>;
+  // Input/Output 정의 (모듈 설정)
+  inputsForm?: ModuleInputSection[];
+  outputsForm?: ModuleOutputSection[];
 }
 
 export interface PackageModuleWidgetProps extends WidgetProps {
@@ -447,6 +521,11 @@ export interface PackageModuleWidgetProps extends WidgetProps {
   // 모듈 인스턴스 정보 (페이지 로드 시 복원용)
   moduleInstanceId?: string;
   moduleInstanceData?: ModuleInstanceData | null;
+  // Input/Output 정의 (Property Pane에서 직접 접근용)
+  inputsForm?: ModuleInputSection[];
+  outputsForm?: ModuleOutputSection[];
+  // Input 값 (페이지에서 모듈로 전달하는 파라미터)
+  inputs?: ModuleInstanceInputs;
 }
 
 export default PackageModuleWidget;

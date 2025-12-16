@@ -3,7 +3,14 @@
  *
  * 모듈 인스턴스의 Query/JS 실행을 담당하는 saga들
  */
-import { all, call, put, select, takeEvery } from "redux-saga/effects";
+import {
+  all,
+  call,
+  put,
+  select,
+  takeEvery,
+  debounce,
+} from "redux-saga/effects";
 import type { ReduxAction } from "actions/ReduxActionTypes";
 import {
   ReduxActionTypes,
@@ -11,6 +18,7 @@ import {
 } from "ee/constants/ReduxActionConstants";
 import type {
   ModuleInstance,
+  ModuleInstancesState,
   RegisterModuleInstancePayload,
 } from "reducers/entityReducers/moduleInstancesReducer";
 import {
@@ -25,6 +33,17 @@ import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
 import { getCurrentPageId } from "selectors/editorSelectors";
 import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import DatasourcesApi from "ee/api/DatasourcesApi";
+import { getDataTree } from "selectors/dataTreeSelectors";
+import type { DataTree } from "entities/DataTree/dataTreeTypes";
+import type {
+  ModuleInstanceOutputs,
+  ModuleOutputSection,
+} from "constants/PackageModuleConstants";
+import {
+  getOutputsFormByModuleUUID,
+  getInputsFormByModuleUUID,
+} from "pages/Editor/widgetSidebar/usePackageModules";
+import { objectKeys } from "@appsmith/utils";
 
 /**
  * 모듈 인스턴스 등록 후 executeOnLoad Action들을 자동 실행
@@ -34,8 +53,21 @@ function* handleModuleInstanceRegistered(
 ) {
   const { actions, instanceId } = action.payload;
 
-  // executeOnLoad가 true인 Action들 찾기
-  const executeOnLoadActions = actions.filter((act) => act.executeOnLoad);
+  // executeOnLoad가 true이거나, runBehaviour가 AUTOMATIC/ON_PAGE_LOAD인 Action들 찾기
+  // (기존 저장된 데이터에서 executeOnLoad가 false여도 runBehaviour로 판단)
+  const executeOnLoadActions = actions.filter((act) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const actWithBehaviour = act as any;
+    const runBehaviour = actWithBehaviour.runBehaviour;
+
+    // runBehaviour가 있으면 우선 사용 (런타임 체크)
+    if (runBehaviour) {
+      return runBehaviour === "AUTOMATIC" || runBehaviour === "ON_PAGE_LOAD";
+    }
+
+    // runBehaviour가 없으면 executeOnLoad 필드 사용 (이전 버전 호환)
+    return act.executeOnLoad === true;
+  });
 
   if (executeOnLoadActions.length === 0) {
     return;
@@ -220,6 +252,18 @@ function* handlePageLoadModuleRestore() {
     const widgetAny = widget as any;
     const moduleInstanceData = widgetAny.moduleInstanceData;
     const moduleInstanceId = widgetAny.moduleInstanceId;
+    const moduleUUID = widgetAny.moduleUUID;
+
+    // inputsForm/outputsForm 조회: 위젯 -> moduleInstanceData -> preloaded modules (fallback)
+    const inputsForm =
+      widgetAny.inputsForm ||
+      moduleInstanceData?.inputsForm ||
+      (moduleUUID ? getInputsFormByModuleUUID(moduleUUID) : undefined);
+
+    const outputsForm =
+      widgetAny.outputsForm ||
+      moduleInstanceData?.outputsForm ||
+      (moduleUUID ? getOutputsFormByModuleUUID(moduleUUID) : undefined);
 
     if (!moduleInstanceData || !moduleInstanceId) {
       continue;
@@ -230,18 +274,35 @@ function* handlePageLoadModuleRestore() {
       continue;
     }
 
+    // 디버그: 페이지 로드 시 복원되는 모듈 데이터 로깅
+    // eslint-disable-next-line no-console
+    console.log(
+      `[handlePageLoadModuleRestore] Restoring module instance:`,
+      `\n  instanceId: ${moduleInstanceId}`,
+      `\n  moduleName: ${widgetAny.moduleName}`,
+      `\n  jsObjects:`,
+      moduleInstanceData.jsObjects?.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (js: any) => `${js.name} (original: ${js.originalName})`,
+      ),
+    );
+
     // 모듈 인스턴스 등록
     yield put({
       type: ReduxActionTypes.REGISTER_MODULE_INSTANCE,
       payload: {
         instanceId: moduleInstanceId,
-        moduleId: widgetAny.moduleUUID || "",
+        moduleId: moduleUUID || "",
         moduleName: widgetAny.moduleName || "",
         packageName: widgetAny.packageName || "",
         widgetId: widget.widgetId,
         pageId,
         actions: moduleInstanceData.actions || [],
         jsObjects: moduleInstanceData.jsObjects || [],
+        // Input/Output 정의 및 초기값 전달 (fallback 포함)
+        inputsForm,
+        outputsForm,
+        initialInputs: widgetAny.inputs,
       } as RegisterModuleInstancePayload,
     });
   }
@@ -347,6 +408,194 @@ function* unregisterModuleInstanceForWidget(widget: FlattenedWidgetProps) {
 }
 
 /**
+ * 바인딩 표현식에서 값을 추출
+ * 예: "{{Select1.selectedOptionValue}}" -> Select1.selectedOptionValue의 값
+ *
+ * 모듈 내부 위젯의 경우, 원본 이름을 인스턴스 접두사가 붙은 이름으로 변환해야 함
+ * 예: Select1 -> mod_xxx_Select1
+ *
+ * @param bindingExpression 바인딩 표현식 (예: "{{Select1.selectedOptionValue}}")
+ * @param dataTree 평가된 DataTree
+ * @param instancePrefix 모듈 인스턴스 접두사 (예: "mod_xxx")
+ */
+function extractBindingValue(
+  bindingExpression: string,
+  dataTree: DataTree,
+  instancePrefix?: string,
+): unknown {
+  // {{...}} 패턴 추출
+  const match = bindingExpression.match(/\{\{(.+?)\}\}/);
+
+  if (!match) return bindingExpression; // 바인딩이 아니면 원래 값 반환
+
+  let path = match[1].trim();
+
+  // instancePrefix가 있으면 엔티티 이름에 접두사 추가
+  // 예: Select1.selectedOptionValue -> mod_xxx_Select1.selectedOptionValue
+  if (instancePrefix) {
+    const parts = path.split(".");
+
+    if (parts.length > 0) {
+      const entityName = parts[0];
+      // 이미 접두사가 붙어있지 않은 경우에만 추가
+      // appsmith, storeValue 등 글로벌 엔티티는 제외
+      const globalEntities = [
+        "appsmith",
+        "storeValue",
+        "navigateTo",
+        "showAlert",
+        "showModal",
+        "closeModal",
+        "copyToClipboard",
+        "resetWidget",
+        "setInterval",
+        "clearInterval",
+        "setTimeout",
+        "clearTimeout",
+      ];
+
+      if (
+        !entityName.startsWith(instancePrefix) &&
+        !globalEntities.includes(entityName)
+      ) {
+        parts[0] = `${instancePrefix}_${entityName}`;
+        path = parts.join(".");
+      }
+    }
+  }
+
+  // DataTree에서 값 추출 (예: mod_xxx_Select1.selectedOptionValue)
+  const parts = path.split(".");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let value: any = dataTree;
+
+  for (const part of parts) {
+    if (value === undefined || value === null) return undefined;
+
+    value = value[part];
+  }
+
+  return value;
+}
+
+/**
+ * DataTree 평가 완료 후 모듈 인스턴스의 outputs 계산
+ * outputsForm에 정의된 바인딩 표현식을 평가하여 outputs 업데이트
+ */
+function* handleComputeModuleOutputs(): Generator<unknown, void, unknown> {
+  const moduleInstances = (yield select(
+    getModuleInstances,
+  )) as ModuleInstancesState;
+  const dataTree = (yield select(getDataTree)) as DataTree;
+
+  // 모듈 인스턴스가 없으면 종료
+  if (objectKeys(moduleInstances).length === 0) return;
+
+  // 각 모듈 인스턴스의 outputs 계산
+  for (const instance of Object.values(moduleInstances)) {
+    if (!instance.outputsForm) {
+      continue;
+    }
+
+    const newOutputs: ModuleInstanceOutputs = {};
+    let hasChanges = false;
+
+    // outputsForm의 각 섹션과 필드를 순회
+    for (const section of instance.outputsForm as ModuleOutputSection[]) {
+      for (const output of section.children) {
+        const outputName =
+          output.label || output.propertyName?.split(".").pop();
+
+        if (!outputName) continue;
+
+        // value 필드에서 바인딩 표현식 추출 (ModuleOutputDefinition은 value 필드 사용)
+        const bindingValue = output.value;
+
+        if (bindingValue && typeof bindingValue === "string") {
+          // instanceId가 접두사 역할을 함 (예: "mod_xxx")
+          const computedValue = extractBindingValue(
+            bindingValue,
+            dataTree,
+            instance.instanceId,
+          );
+
+          newOutputs[outputName] = computedValue;
+
+          // 값이 변경되었는지 확인
+          if (instance.outputs[outputName] !== computedValue) {
+            hasChanges = true;
+          }
+        }
+      }
+    }
+
+    // 변경이 있으면 outputs 업데이트
+    if (hasChanges) {
+      yield put({
+        type: ReduxActionTypes.UPDATE_MODULE_INSTANCE_OUTPUTS,
+        payload: {
+          instanceId: instance.instanceId,
+          outputs: newOutputs,
+        },
+      });
+    }
+  }
+}
+
+/**
+ * 위젯 속성 업데이트 요청 시 모듈 인스턴스 inputs 동기화
+ *
+ * UPDATE_WIDGET_PROPERTY_REQUEST가 dispatch되면 위젯 속성이 업데이트되기 전에
+ * 모듈 인스턴스의 inputs를 먼저 업데이트하여 평가 사이클에서 올바른 값을 사용하도록 함.
+ *
+ * 기존 componentDidUpdate 방식은 평가 사이클 이후에 실행되어 타이밍 문제 발생.
+ */
+function* handleWidgetPropertyRequestForModuleInputs(
+  action: ReduxAction<{
+    widgetId: string;
+    propertyPath: string;
+    propertyValue: unknown;
+  }>,
+): Generator<unknown, void, unknown> {
+  const { propertyPath, propertyValue, widgetId } = action.payload;
+
+  // inputs.xxx 형태의 속성 변경인 경우만 처리
+  if (!propertyPath.startsWith("inputs.")) {
+    return;
+  }
+
+  // 위젯 정보 확인
+  const widgets = (yield select(getWidgets)) as CanvasWidgetsReduxState;
+  const widget = widgets[widgetId];
+
+  if (!widget || widget.type !== PACKAGE_MODULE_WIDGET_TYPE) {
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const moduleWidget = widget as any;
+  const moduleInstanceId = moduleWidget.moduleInstanceId;
+
+  if (!moduleInstanceId) {
+    return;
+  }
+
+  // input 이름 추출 (예: "inputs.defaultSelected" -> "defaultSelected")
+  const inputName = propertyPath.substring("inputs.".length);
+
+  // 모듈 인스턴스의 input 업데이트 (개별 input)
+  // 이 액션은 동기적으로 reducer를 실행하여 상태를 업데이트함
+  yield put({
+    type: ReduxActionTypes.UPDATE_MODULE_INSTANCE_INPUT,
+    payload: {
+      instanceId: moduleInstanceId,
+      inputName,
+      value: propertyValue,
+    },
+  });
+}
+
+/**
  * Module Instance Sagas Root
  */
 export default function* moduleInstanceSagas() {
@@ -366,6 +615,18 @@ export default function* moduleInstanceSagas() {
     takeEvery(
       WidgetReduxActionTypes.WIDGET_DELETE,
       handleWidgetDeleteForModuleInstance,
+    ),
+    // DataTree 평가 완료 후 모듈 outputs 계산 (debounce로 성능 최적화)
+    debounce(
+      100, // 100ms debounce
+      ReduxActionTypes.SET_EVALUATED_TREE,
+      handleComputeModuleOutputs,
+    ),
+    // 위젯 속성 업데이트 요청 시 모듈 inputs 동기화
+    // REQUEST 단계에서 처리하여 실제 속성 업데이트 및 평가 사이클 전에 inputs가 업데이트되도록 함
+    takeEvery(
+      ReduxActionTypes.UPDATE_WIDGET_PROPERTY_REQUEST,
+      handleWidgetPropertyRequestForModuleInputs,
     ),
   ]);
 }

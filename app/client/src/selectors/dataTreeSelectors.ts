@@ -49,6 +49,7 @@ import { objectKeys } from "@appsmith/utils";
 import { getModuleInstances as getCustomModuleInstances } from "selectors/moduleInstanceSelectors";
 import type { ModuleInstancesState } from "reducers/entityReducers/moduleInstancesReducer";
 import { EvaluationSubstitutionType } from "constants/EvaluationConstants";
+import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
 
 export const getLoadingEntities = (state: DefaultRootState) =>
   state.evaluations.loadingEntities;
@@ -57,12 +58,26 @@ export const getLoadingEntities = (state: DefaultRootState) =>
  * 커스텀 모듈 인스턴스의 Action/JSObject 데이터를 DataTree 형식으로 변환
  * - Action: mod_xxx_Query1.data, mod_xxx_Query1.isLoading 등의 바인딩 지원
  * - JSObject: mod_xxx_JSObject1.functionName.data 등의 바인딩 지원
+ * - params: __mod_xxx_params__ 엔티티로 this.params 바인딩 지원
+ * - outputs: __mod_xxx_outputs__ 엔티티로 모듈 출력값 접근 지원
+ * - widgetDataAugmentation: widgetId -> { inputs, outputs } 매핑
+ *
+ * 위젯 props의 inputs를 직접 읽어 타이밍 문제 해결:
+ * - moduleInstances.inputs는 UPDATE_MODULE_INSTANCE_INPUT 후에만 업데이트됨
+ * - widgets[widgetId].inputs는 UPDATE_WIDGET_PROPERTY 후 즉시 업데이트됨
+ * - 두 소스를 병합하여 최신 값을 사용 (위젯 props 우선)
  */
 const getCustomModuleInstancesDataTree = createSelector(
   getCustomModuleInstances,
-  (moduleInstances: ModuleInstancesState) => {
+  getWidgets,
+  (moduleInstances: ModuleInstancesState, widgets) => {
     const dataTree: UnEvalTree = {};
     const configTree: ConfigTree = {};
+    // widgetId -> { inputs, outputs } 매핑 (위젯 엔티티에 추가할 데이터)
+    const widgetDataAugmentation: Record<
+      string,
+      { inputs: Record<string, unknown>; outputs: Record<string, unknown> }
+    > = {};
 
     // 각 모듈 인스턴스 순회
     Object.values(moduleInstances).forEach((instance) => {
@@ -203,9 +218,95 @@ const getCustomModuleInstancesDataTree = createSelector(
           dynamicTriggerPathList: functionNames.map((name) => ({ key: name })),
         };
       });
+
+      // 모듈 인스턴스의 params 엔티티 생성 (this.params 바인딩 지원)
+      // __mod_xxx_params__ 형태로 생성하여 모듈 내부 바인딩에서 접근 가능
+      const paramsEntityName = `__${instance.instanceId}_params__`;
+      const paramsBindingPaths: Record<string, EvaluationSubstitutionType> = {};
+      const paramsReactivePaths: Record<string, EvaluationSubstitutionType> =
+        {};
+
+      // 위젯에서 최신 inputs 값 가져오기 (타이밍 문제 해결)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const moduleWidget = widgets[instance.widgetId] as any;
+      const widgetInputs = moduleWidget?.inputs || {};
+
+      // inputs 병합: instance.inputs (기본값) + widgetInputs (최신값, 우선)
+      const mergedInputs: Record<string, unknown> = {
+        ...instance.inputs,
+        ...widgetInputs,
+      };
+
+      // 각 input에 대해 binding path 생성
+      Object.keys(mergedInputs).forEach((inputName) => {
+        paramsBindingPaths[inputName] = EvaluationSubstitutionType.TEMPLATE;
+        paramsReactivePaths[inputName] = EvaluationSubstitutionType.TEMPLATE;
+      });
+
+      // params 엔티티 생성 (mergedInputs 사용)
+      dataTree[paramsEntityName] = {
+        ...mergedInputs,
+        ENTITY_TYPE: ENTITY_TYPE.APPSMITH, // Special entity type
+        __moduleInstanceId__: instance.instanceId,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (configTree as any)[paramsEntityName] = {
+        name: paramsEntityName,
+        ENTITY_TYPE: ENTITY_TYPE.APPSMITH,
+        bindingPaths: paramsBindingPaths,
+        reactivePaths: paramsReactivePaths,
+        dependencyMap: {},
+        logBlackList: {},
+        dynamicBindingPathList: Object.keys(mergedInputs).map((key) => ({
+          key,
+        })),
+      };
+
+      // 모듈 인스턴스의 outputs 엔티티 생성
+      // __mod_xxx_outputs__ 형태로 생성하여 부모 페이지에서 접근 가능
+      const outputsEntityName = `__${instance.instanceId}_outputs__`;
+      const outputsBindingPaths: Record<string, EvaluationSubstitutionType> =
+        {};
+      const outputsReactivePaths: Record<string, EvaluationSubstitutionType> =
+        {};
+
+      // 각 output에 대해 binding path 생성
+      Object.keys(instance.outputs).forEach((outputName) => {
+        outputsBindingPaths[outputName] = EvaluationSubstitutionType.TEMPLATE;
+        outputsReactivePaths[outputName] = EvaluationSubstitutionType.TEMPLATE;
+      });
+
+      // outputs 엔티티 생성
+      dataTree[outputsEntityName] = {
+        ...instance.outputs,
+        ENTITY_TYPE: ENTITY_TYPE.APPSMITH,
+        __moduleInstanceId__: instance.instanceId,
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (configTree as any)[outputsEntityName] = {
+        name: outputsEntityName,
+        ENTITY_TYPE: ENTITY_TYPE.APPSMITH,
+        bindingPaths: outputsBindingPaths,
+        reactivePaths: outputsReactivePaths,
+        dependencyMap: {},
+        logBlackList: {},
+        dynamicBindingPathList: Object.keys(instance.outputs).map((key) => ({
+          key,
+        })),
+      };
+
+      // 위젯 엔티티에 추가할 inputs/outputs 데이터 저장
+      // widgetId로 매핑하여 나중에 위젯 엔티티에 병합
+      // mergedInputs를 사용하여 최신 값 반영
+      widgetDataAugmentation[instance.widgetId] = {
+        inputs: mergedInputs,
+        outputs: instance.outputs,
+      };
     });
 
-    return { dataTree, configTree };
+    return { dataTree, configTree, widgetDataAugmentation };
   },
 );
 
@@ -404,6 +505,55 @@ export const getUnevaluatedDataTree = createSelector(
     } as AppsmithEntity;
     dataTree = { ...dataTree, ...metaWidgets.dataTree };
     configTree = { ...configTree, ...metaWidgets.configTree };
+
+    // PackageModuleWidget 엔티티에 inputs/outputs 속성 추가
+    // 이를 통해 PackageModule1.outputs.selectedMember 형식의 바인딩 지원
+    const { widgetDataAugmentation } = customModuleInstances;
+
+    Object.entries(dataTree).forEach(([entityName, entity]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const entityAny = entity as any;
+
+      // PackageModuleWidget 타입인 경우에만 처리
+      if (
+        entityAny?.type === PACKAGE_MODULE_WIDGET_TYPE &&
+        entityAny?.widgetId
+      ) {
+        const augmentation = widgetDataAugmentation[entityAny.widgetId];
+
+        if (augmentation) {
+          // inputs와 outputs 속성 추가
+          entityAny.inputs = augmentation.inputs;
+          entityAny.outputs = augmentation.outputs;
+
+          // configTree에도 binding paths 추가
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const configEntity = configTree[entityName] as any;
+
+          if (configEntity) {
+            // inputs의 각 key에 대해 binding path 추가
+            Object.keys(augmentation.inputs).forEach((inputKey) => {
+              const path = `inputs.${inputKey}`;
+
+              configEntity.bindingPaths[path] =
+                EvaluationSubstitutionType.TEMPLATE;
+              configEntity.reactivePaths[path] =
+                EvaluationSubstitutionType.TEMPLATE;
+            });
+
+            // outputs의 각 key에 대해 binding path 추가
+            Object.keys(augmentation.outputs).forEach((outputKey) => {
+              const path = `outputs.${outputKey}`;
+
+              configEntity.bindingPaths[path] =
+                EvaluationSubstitutionType.TEMPLATE;
+              configEntity.reactivePaths[path] =
+                EvaluationSubstitutionType.TEMPLATE;
+            });
+          }
+        }
+      }
+    });
 
     return { unEvalTree: dataTree, configTree };
   },

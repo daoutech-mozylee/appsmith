@@ -64,16 +64,70 @@ export interface ModuleConfig {
   deleted: boolean;
 }
 
+/**
+ * 모듈 Input 정의
+ * 페이지에서 모듈에 전달하는 파라미터
+ *
+ * 실제 JSON 구조:
+ * {
+ *   "id": "bzkrhnmnap",
+ *   "label": "defaultSelected",  // input 이름
+ *   "propertyName": "inputs.defaultSelected",
+ *   "controlType": "INPUT_TEXT",
+ *   "defaultValue": "[]"
+ * }
+ */
+export interface ModuleInputDefinition {
+  id: string;
+  label: string; // input 이름 (예: "defaultSelected", "label", "disabled")
+  name?: string; // 대체 이름 필드 (호환성)
+  propertyName?: string; // "inputs.defaultSelected" 형태
+  controlType?: string; // "INPUT_TEXT", "SWITCH" 등
+  defaultValue: unknown;
+  type?: "string" | "number" | "boolean" | "array" | "object";
+}
+
 export interface ModuleInputSection {
   id: string;
   sectionName: string;
-  children: unknown[];
+  children: ModuleInputDefinition[];
+}
+
+/**
+ * 모듈 Output 정의
+ * 모듈에서 페이지로 노출하는 데이터
+ *
+ * 실제 JSON 구조:
+ * {
+ *   "id": "kjtucgtyfb",
+ *   "label": "selectedMember",  // output 이름
+ *   "propertyName": "outputs.selectedMember",
+ *   "value": "{{MultiSelect1.selectedOptionValues}}"
+ * }
+ */
+export interface ModuleOutputDefinition {
+  id: string;
+  label: string; // output 이름
+  name?: string; // 대체 이름 필드 (호환성)
+  propertyName?: string; // "outputs.selectedMember" 형태
+  value: string; // 바인딩 표현식, 예: "{{MultiSelect1.selectedOptionValues}}"
 }
 
 export interface ModuleOutputSection {
   id: string;
   sectionName: string;
-  children: unknown[];
+  children: ModuleOutputDefinition[];
+}
+
+/**
+ * 모듈 인스턴스의 Input/Output 런타임 값
+ */
+export interface ModuleInstanceInputs {
+  [inputName: string]: unknown;
+}
+
+export interface ModuleInstanceOutputs {
+  [outputName: string]: unknown;
 }
 
 export interface ModuleLayout {
@@ -200,6 +254,9 @@ export interface PackageModuleCard extends WidgetCardProps {
   actions: ActionConfig[];
   actionCollections: ActionCollectionConfig[];
   datasources: DatasourceConfig[];
+  // Input/Output 정의
+  inputsForm?: ModuleInputSection[];
+  outputsForm?: ModuleOutputSection[];
 }
 
 /**
@@ -225,6 +282,12 @@ export interface ModuleInstance {
   actions: ActionConfig[];
   actionCollections: ActionCollectionConfig[];
   isReadOnly: boolean;
+  // Input/Output 정의
+  inputsForm?: ModuleInputSection[];
+  outputsForm?: ModuleOutputSection[];
+  // 런타임 Input/Output 값
+  inputs?: ModuleInstanceInputs;
+  outputs?: ModuleInstanceOutputs;
 }
 
 /**
