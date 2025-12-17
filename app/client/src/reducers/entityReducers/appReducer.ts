@@ -87,6 +87,8 @@ export interface AppDataState {
   pageSlugValidation: { isValidating: boolean; isValid: boolean };
   // 다우오피스 로그인 사용자 정보 (postMessage로 전달)
   me: MeDataState;
+  // iframe 인증 에러 상태
+  iframeAuthError: boolean;
 }
 
 /**
@@ -121,6 +123,7 @@ const initialState: AppDataState = {
   pageSlug: {},
   pageSlugValidation: { isValidating: false, isValid: true },
   me: getDefaultMeData(),
+  iframeAuthError: false,
 };
 
 const appReducer = createReducer(initialState, {
@@ -261,6 +264,16 @@ const appReducer = createReducer(initialState, {
         ...state.me,
         ...action.payload,
       },
+    };
+  },
+  // iframe 인증 에러 설정
+  [ReduxActionTypes.SET_IFRAME_AUTH_ERROR]: (
+    state: AppDataState,
+    action: ReduxAction<boolean>,
+  ) => {
+    return {
+      ...state,
+      iframeAuthError: action.payload,
     };
   },
 });

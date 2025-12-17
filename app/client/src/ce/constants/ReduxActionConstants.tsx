@@ -290,6 +290,8 @@ const EvaluationActionTypes = {
   SET_APP_MODE: "SET_APP_MODE",
   // 다우오피스 사용자 정보 (postMessage로 부모 창에서 전달받음)
   SET_ME_DATA: "SET_ME_DATA",
+  // iframe 인증 타임아웃 에러
+  SET_IFRAME_AUTH_ERROR: "SET_IFRAME_AUTH_ERROR",
   UPDATE_APP_STORE: "UPDATE_APP_STORE",
   SET_EVALUATED_TREE: "SET_EVALUATED_TREE",
   SET_EVALUATION_INVERSE_DEPENDENCY_MAP:

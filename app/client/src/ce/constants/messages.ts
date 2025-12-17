@@ -495,6 +495,9 @@ export const PAGE_SERVER_TIMEOUT_DESCRIPTION = () =>
 export const PAGE_CLIENT_ERROR_TITLE = () => "Whoops something went wrong!";
 export const PAGE_CLIENT_ERROR_DESCRIPTION = () =>
   "This is embarrassing, please contact Appsmith support for help";
+export const IFRAME_AUTH_ERROR_TITLE = () => "잘못된 접근입니다";
+export const IFRAME_AUTH_ERROR_DESCRIPTION = () =>
+  "인증 정보를 받아올 수 없습니다. 올바른 경로로 접근해주세요.";
 
 export const PAGE_SERVER_UNAVAILABLE_ERROR_CODE = () => "503";
 
