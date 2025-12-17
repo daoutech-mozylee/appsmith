@@ -45,6 +45,17 @@ const OUTGOING_MESSAGE_TYPES = {
 const AUTH_TIMEOUT_MS = 5000;
 
 /**
+ * 인증 체크를 건너뛸 경로 패턴
+ * 로그인, 회원가입 등 인증 전 접근이 필요한 페이지
+ */
+const AUTH_BYPASS_PATHS = [
+  "/user/login",
+  "/user/signup",
+  "/user/forgotPassword",
+  "/user/resetPassword",
+];
+
+/**
  * iframe 내부에서 실행 중인지 확인
  */
 function isInIframe(): boolean {
@@ -154,6 +165,15 @@ function* handleIframeAuth(channel: EventChannel<PostMessageEvent>) {
 }
 
 /**
+ * 현재 경로가 인증 체크를 건너뛸 경로인지 확인
+ */
+function shouldBypassAuthCheck(): boolean {
+  const currentPath = window.location.pathname;
+
+  return AUTH_BYPASS_PATHS.some((path) => currentPath.startsWith(path));
+}
+
+/**
  * iframe이 아닐 때 Appsmith 인증 확인
  * 인증되지 않은 직접 접근은 에러 페이지 표시
  */
@@ -161,6 +181,15 @@ function* handleNonIframeAccess() {
   log.info(
     "[PostMessageSaga] Not running inside iframe, checking Appsmith auth",
   );
+
+  // 로그인/회원가입 페이지는 인증 체크 건너뛰기
+  if (shouldBypassAuthCheck()) {
+    log.info(
+      "[PostMessageSaga] Auth bypass path detected, skipping auth check",
+    );
+
+    return true;
+  }
 
   // 사용자 정보 로드 완료 대기
   yield take(ReduxActionTypes.FETCH_USER_DETAILS_SUCCESS);
