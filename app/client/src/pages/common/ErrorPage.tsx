@@ -7,6 +7,7 @@ import ServerUnavailable from "pages/common/ErrorPages/ServerUnavailable";
 import ClientError from "pages/common/ErrorPages/ClientError";
 import GenericError from "./ErrorPages/GenericError";
 import StackTrace from "./ErrorPages/StackTrace";
+import IframeAuthError from "./ErrorPages/IframeAuthError";
 
 interface ErrorPageProps {
   code: ERROR_CODES;
@@ -26,6 +27,8 @@ function ErrorPage(props: ErrorPageProps) {
       return <ClientError />;
     case ERROR_CODES.CYPRESS_DEBUG:
       return <StackTrace />;
+    case ERROR_CODES.IFRAME_AUTH_ERROR:
+      return <IframeAuthError />;
     default:
       return <GenericError errorCode={code} />;
   }
