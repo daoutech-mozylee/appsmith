@@ -29,7 +29,9 @@ export interface TApplicationParams {
 
 type TApplicationParamsOrNull = TApplicationParams | null;
 
-export const cachedApiUrlRegex = new RegExp("/api/v1/consolidated-api/");
+export const cachedApiUrlRegex = new RegExp(
+  "/all-apps/api/v1/consolidated-api/",
+);
 
 /**
  * Function to match the path with the builder path
@@ -117,7 +119,7 @@ export const getConsolidatedApiPrefetchRequest = (
       branchName,
     });
 
-    const request = new Request(`${origin}/api/${requestUrl}`, {
+    const request = new Request(`${origin}/all-apps/api/${requestUrl}`, {
       method: "GET",
     });
 
@@ -132,7 +134,7 @@ export const getConsolidatedApiPrefetchRequest = (
       branchName,
     });
 
-    const request = new Request(`${origin}/api/${requestUri}`, {
+    const request = new Request(`${origin}/all-apps/api/${requestUri}`, {
       method: "GET",
     });
 

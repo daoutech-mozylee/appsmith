@@ -3,6 +3,7 @@
 // All solutions from closed issues on their repo have been tried. Ref: https://github.com/pillarjs/path-to-regexp/issues/193
 
 import { matchPath } from "react-router";
+import { ROUTE_PREFIX } from "constants/routes/baseRoutes";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { match } = require("path-to-regexp");
@@ -16,8 +17,8 @@ const UUID_REGEX =
 
 export const ID_EXTRACTION_REGEX = `(${MONGO_OBJECT_ID_REGEX}|${UUID_REGEX})`;
 
-export const BUILDER_BASE_PATH_DEPRECATED = "/applications";
-export const BUILDER_VIEWER_PATH_PREFIX = "/app/";
+export const BUILDER_BASE_PATH_DEPRECATED = `${ROUTE_PREFIX}/applications`;
+export const BUILDER_VIEWER_PATH_PREFIX = `${ROUTE_PREFIX}/app/`;
 export const BUILDER_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:applicationSlug/:pageSlug(.*\-):basePageId${ID_EXTRACTION_REGEX}/edit`;
 export const BUILDER_CUSTOM_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:customSlug(.*\-):basePageId${ID_EXTRACTION_REGEX}/edit`;
 export const VIEWER_PATH = `${BUILDER_VIEWER_PATH_PREFIX}:applicationSlug/:pageSlug(.*\-):basePageId${ID_EXTRACTION_REGEX}`;
@@ -35,10 +36,10 @@ export const getViewerPath = (
   `${BUILDER_VIEWER_PATH_PREFIX}${applicationSlug}/${pageSlug}-${basePageId}`;
 export const getViewerCustomPath = (customSlug: string, basePageId: string) =>
   `${BUILDER_VIEWER_PATH_PREFIX}${customSlug}-${basePageId}`;
-export const BUILDER_PATH_DEPRECATED = `/applications/:baseApplicationId${ID_EXTRACTION_REGEX}/pages/:basePageId${ID_EXTRACTION_REGEX}/edit`;
-export const VIEWER_PATH_DEPRECATED = `/applications/:baseApplicationId${ID_EXTRACTION_REGEX}/pages/:basePageId${ID_EXTRACTION_REGEX}`;
+export const BUILDER_PATH_DEPRECATED = `${ROUTE_PREFIX}/applications/:baseApplicationId${ID_EXTRACTION_REGEX}/pages/:basePageId${ID_EXTRACTION_REGEX}/edit`;
+export const VIEWER_PATH_DEPRECATED = `${ROUTE_PREFIX}/applications/:baseApplicationId${ID_EXTRACTION_REGEX}/pages/:basePageId${ID_EXTRACTION_REGEX}`;
 export const VIEWER_PATH_DEPRECATED_REGEX =
-  /\/applications\/[^/]+\/pages\/[^/]+/;
+  /\/all-apps\/applications\/[^/]+\/pages\/[^/]+/;
 
 export const VIEWER_FORK_PATH = `/fork`;
 export const INTEGRATION_EDITOR_PATH = `/datasources/:selectedTab`;

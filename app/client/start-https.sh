@@ -292,11 +292,37 @@ $(if [[ $use_https == 1 ]]; then echo "
             $substitutions
         }
 
+        # /all-apps/api -> strip prefix -> /api
+        location /all-apps/api {
+            rewrite ^/all-apps(/api/.*)\$ \$1 break;
+            proxy_pass $backend;
+            add_header Cache-Control '' always;
+            proxy_pass_header Cache-Control;
+        }
+
+        location /all-apps/oauth2 {
+            rewrite ^/all-apps(/oauth2.*)\$ \$1 break;
+            proxy_pass $backend;
+        }
+
+        location /all-apps/login {
+            rewrite ^/all-apps(/login.*)\$ \$1 break;
+            proxy_pass $backend;
+        }
+
+        location /all-apps/rts {
+            rewrite ^/all-apps(/rts.*)\$ \$1 break;
+            proxy_pass $rts;
+            proxy_http_version 1.1;
+            proxy_set_header Host \$host;
+            proxy_set_header Connection upgrade;
+            proxy_set_header Upgrade \$http_upgrade;
+        }
+
+        # Legacy routes
         location /api {
             proxy_pass $backend;
-            # Delete the Cache-Control header set in the server block above.
             add_header Cache-Control '' always;
-            # Proxy pass the Cache-Control header from the upstream.
             proxy_pass_header Cache-Control;
         }
 

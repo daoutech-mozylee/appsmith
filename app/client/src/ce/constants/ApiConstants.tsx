@@ -9,8 +9,11 @@ export const DEFAULT_TEST_DATA_SOURCE_TIMEOUT_MS = 30000;
 export const DEFAULT_APPSMITH_AI_QUERY_TIMEOUT_MS = 60000;
 export const FILE_UPLOAD_TRIGGER_TIMEOUT_MS = 60000;
 
+// API prefix matches server-side routing
+export const API_PREFIX = "/all-apps";
+
 export const DEFAULT_AXIOS_CONFIG: CreateAxiosDefaults = {
-  baseURL: "/api/",
+  baseURL: `${API_PREFIX}/api/`,
   timeout: REQUEST_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
@@ -91,7 +94,7 @@ export const getExportAppAPIRoute = (
   applicationId: string,
   branchName: string | null = null,
 ) => {
-  let exportUrl = `/api/v1/applications/export/${applicationId}`;
+  let exportUrl = `${API_PREFIX}/api/v1/applications/export/${applicationId}`;
 
   if (branchName) {
     exportUrl += `?branchName=${branchName}`;
