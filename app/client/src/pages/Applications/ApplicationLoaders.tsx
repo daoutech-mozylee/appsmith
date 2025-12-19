@@ -2,6 +2,7 @@ import { Classes } from "@blueprintjs/core";
 import type { Theme } from "constants/DefaultTheme";
 import React from "react";
 import styled, { createGlobalStyle } from "styled-components";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 
 export const LoadingAnimation = createGlobalStyle<{ theme: Theme }>`
 	&&&& .${Classes.SKELETON} {
@@ -63,7 +64,7 @@ export const loadingUserWorkspaces = [
         },
       ],
       slug: "d60b8e5f",
-      logoUrl: "/api/v1/assets/null",
+      logoUrl: `${API_PREFIX}/api/v1/assets/null`,
       new: false,
     },
     applications: [
@@ -143,7 +144,7 @@ export const loadingUserWorkspaces = [
         },
       ],
       slug: "aaf8723f",
-      logoUrl: "/api/v1/assets/null",
+      logoUrl: `${API_PREFIX}/api/v1/assets/null`,
       new: false,
     },
     applications: [

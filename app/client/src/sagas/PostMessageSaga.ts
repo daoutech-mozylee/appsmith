@@ -49,10 +49,11 @@ const AUTH_TIMEOUT_MS = 5000;
  * 로그인, 회원가입 등 인증 전 접근이 필요한 페이지
  */
 const AUTH_BYPASS_PATHS = [
-  "/user/login",
-  "/user/signup",
-  "/user/forgotPassword",
-  "/user/resetPassword",
+  "/all-apps/user/login",
+  "/all-apps/user/signup",
+  "/all-apps/user/forgotPassword",
+  "/all-apps/user/resetPassword",
+  "/all-apps/setup/welcome",
 ];
 
 /**

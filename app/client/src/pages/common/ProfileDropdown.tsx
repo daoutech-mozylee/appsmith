@@ -1,6 +1,7 @@
 import React from "react";
 import type { CommonComponentProps } from "@appsmith/ads-old";
 import { getInitials } from "utils/AppsmithUtils";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import {
   Menu,
   MenuItem,
@@ -73,7 +74,9 @@ export default function ProfileDropdown(props: TagProps) {
       <Avatar
         className="t--profile-menu-icon cursor-pointer"
         firstLetter={getInitials(props.name || props.userName)}
-        image={!!props.photoId ? `/api/v1/assets/${props.photoId}` : ""}
+        image={
+          !!props.photoId ? `${API_PREFIX}/api/v1/assets/${props.photoId}` : ""
+        }
         label={label || ""}
         size="md"
       />

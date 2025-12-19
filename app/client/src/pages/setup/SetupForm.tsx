@@ -91,7 +91,7 @@ const validate = (values: DetailsFormValues) => {
 };
 
 function SetupForm(props: SetupFormProps) {
-  const signupURL = `/api/v1/${SUPER_USER_SUBMIT_PATH}`;
+  const signupURL = `/all-apps/api/v1/${SUPER_USER_SUBMIT_PATH}`;
   const [isFirstPage, setIsFirstPage] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
   const isAirgappedFlag = isAirgapped();

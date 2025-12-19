@@ -5,12 +5,12 @@ import {
   apiFailureResponseInterceptor,
   apiSuccessResponseInterceptor,
 } from "./interceptors";
-import { REQUEST_TIMEOUT_MS } from "ee/constants/ApiConstants";
+import { REQUEST_TIMEOUT_MS, API_PREFIX } from "ee/constants/ApiConstants";
 import { convertObjectToQueryParams } from "utils/URLUtils";
 import { startAndEndSpanForFn } from "instrumentation/generateTraces";
 
 export const apiRequestConfig = {
-  baseURL: "/api/",
+  baseURL: `${API_PREFIX}/api/`,
   timeout: REQUEST_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",

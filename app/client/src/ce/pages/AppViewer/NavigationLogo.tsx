@@ -5,6 +5,7 @@ import type { NavigationSetting } from "constants/AppConstants";
 import { NAVIGATION_SETTINGS } from "constants/AppConstants";
 import styled from "styled-components";
 import classNames from "classnames";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import {
   getAppMode,
   getCurrentApplication,
@@ -71,7 +72,7 @@ function NavigationLogo(props: NavigationLogoProps) {
     >
       <StyledImage
         alt="Application's logo"
-        src={getAssetUrl(`/api/v1/assets/${logoAssetId}`)}
+        src={getAssetUrl(`${API_PREFIX}/api/v1/assets/${logoAssetId}`)}
       />
     </Link>
   );

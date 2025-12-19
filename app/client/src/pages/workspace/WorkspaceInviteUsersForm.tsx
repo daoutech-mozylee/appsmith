@@ -8,6 +8,7 @@ import { Avatar, Icon, Spinner, Text, Tooltip } from "@appsmith/ads";
 import { getInitialsFromName } from "utils/AppsmithUtils";
 import ManageUsers from "pages/workspace/ManageUsers";
 import { USER_PHOTO_ASSET_URL } from "constants/userConstants";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import { importSvg } from "@appsmith/ads-old";
 import type { WorkspaceUserRoles } from "ee/constants/workspaceConstants";
 import InviteUsersForm from "ee/pages/workspace/InviteUsersForm";
@@ -196,7 +197,7 @@ function WorkspaceInviteUsers(props: any) {
                             firstLetter={user.initials}
                             image={
                               user.photoId
-                                ? `/api/${USER_PHOTO_ASSET_URL}/${user.photoId}`
+                                ? `${API_PREFIX}/api/${USER_PHOTO_ASSET_URL}/${user.photoId}`
                                 : undefined
                             }
                             isTooltipEnabled={false}

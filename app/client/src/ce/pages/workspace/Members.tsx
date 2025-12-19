@@ -23,6 +23,7 @@ import DeleteConfirmationModal from "pages/workspace/DeleteConfirmationModal";
 import { useMediaQuery } from "react-responsive";
 import { Card } from "@blueprintjs/core";
 import { USER_PHOTO_ASSET_URL } from "constants/userConstants";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import type { WorkspaceUser } from "ee/constants/workspaceConstants";
 import {
   createMessage,
@@ -342,7 +343,7 @@ export default function MemberSettings(props: PageProps) {
                 firstLetter={getInitials(member.username)}
                 image={
                   member.photoId
-                    ? `/api/${USER_PHOTO_ASSET_URL}/${member.photoId}`
+                    ? `${API_PREFIX}/api/${USER_PHOTO_ASSET_URL}/${member.photoId}`
                     : undefined
                 }
                 label={member.username}
@@ -536,7 +537,7 @@ export default function MemberSettings(props: PageProps) {
                       firstLetter={getInitials(member.username)}
                       image={
                         member.photoId
-                          ? `/api/${USER_PHOTO_ASSET_URL}/${member.photoId}`
+                          ? `${API_PREFIX}/api/${USER_PHOTO_ASSET_URL}/${member.photoId}`
                           : undefined
                       }
                       label={member.username}

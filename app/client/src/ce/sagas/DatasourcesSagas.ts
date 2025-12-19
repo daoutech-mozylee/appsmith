@@ -728,7 +728,7 @@ export function* redirectAuthorizationCodeSaga(
     const currentEnvironment: string = yield select(
       getCurrentEditingEnvironmentId,
     );
-    let windowLocation = `/api/v1/datasources/${datasourceId}/pages/${contextId}/code?environmentId=${currentEnvironment}`;
+    let windowLocation = `/all-apps/api/v1/datasources/${datasourceId}/pages/${contextId}/code?environmentId=${currentEnvironment}`;
 
     if (!!branchName) {
       windowLocation = windowLocation + `&branchName=` + branchName;

@@ -829,7 +829,7 @@ class DatasourceRestAPIEditor extends React.Component<Props> {
     const { formData } = this.props;
 
     const redirectURL =
-      window.location.origin + "/api/v1/datasources/authorize";
+      window.location.origin + "/all-apps/api/v1/datasources/authorize";
 
     return (
       <>

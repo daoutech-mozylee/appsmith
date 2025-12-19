@@ -76,6 +76,8 @@ export function Routes() {
 
   return (
     <Switch>
+      {/* Redirect root path to BASE_URL when using ROUTE_PREFIX */}
+      <Redirect exact from="/" to={BASE_URL} />
       <SentryRoute component={LandingScreen} exact path={BASE_URL} />
       <Redirect exact from={BASE_LOGIN_URL} to={AUTH_LOGIN_URL} />
       <Redirect exact from={BASE_SIGNUP_URL} to={SIGN_UP_URL} />

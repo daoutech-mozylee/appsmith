@@ -26,6 +26,7 @@ mongodb:
   auth:
     rootUser: root
     rootPassword: password
+    replicaSetKey: "password"
   replicaCount: 2
   architecture: "replicaset"
   replicaSetName: rs0
@@ -72,13 +73,11 @@ externalSecrets:
   refreshInterval: 1m
   remoteNameSecret: "" # name of the secret in Secret provider
 
-
 ## prometheus paramaters
 prometheus:
   enabled: false
   image:
     tag: v0.74.0
-
 
 ## @section Global parameters
 ## Global Docker image parameters
@@ -115,7 +114,8 @@ strategyType: RollingUpdate
 ##
 ## Init containers for redis & mongodb
 ##
-initContainer: {}
+initContainer:
+  {}
   # redis:
   #   image: docker.io/redis:7.0.15
   # mongodb:
@@ -157,7 +157,8 @@ podSecurityContext: {}
 #  - name: net.ipv4.ip_unprivileged_port_start
 #    value: "80"
 
-securityContext: {}
+securityContext:
+  {}
   # For non-root user
   # runAsNonRoot: true
   # runAsUser: 1000
@@ -199,12 +200,14 @@ ingress:
   ## @param ingress.annotations Additional custom annotations for the ingress record
   ## NOTE: If `ingress.certManager=true`, annotation `kubernetes.io/tls-acme: "true"` will automatically be added
   ##
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  hosts: []
+  hosts:
+    []
     # - host: appsmith-domain.me
   ## @param ingress.tls Enable TLS configuration for the host defined at `ingress.hosts` parameter
   ## You can:
@@ -268,8 +271,8 @@ resources:
   #   memory: 128Mi
   limits: {}
   requests:
-     cpu: 500m
-     memory: 3000Mi
+    cpu: 500m
+    memory: 3000Mi
 
 ## @param workload.kind Select workload resource type: Deployment or StatefulSet
 ## When set to Deployment, the chart creates a Deployment instead of a StatefulSet.

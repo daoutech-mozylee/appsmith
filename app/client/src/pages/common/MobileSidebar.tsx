@@ -4,6 +4,7 @@ import { Colors } from "constants/Colors";
 import { MenuItem } from "@appsmith/ads-old";
 import { Text, Avatar } from "@appsmith/ads";
 import { getInitials } from "utils/AppsmithUtils";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import {
   DropdownOnSelectActions,
   getOnSelectAction,
@@ -96,7 +97,11 @@ export default function MobileSideBar(props: MobileSideBarProps) {
         <Avatar
           className="t--profile-menu-icon"
           firstLetter={getInitials(props.name || props.userName)}
-          image={!!props.photoId ? `/api/v1/assets/${props.photoId}` : ""}
+          image={
+            !!props.photoId
+              ? `${API_PREFIX}/api/v1/assets/${props.photoId}`
+              : ""
+          }
           label={props.name || props.userName || ""}
           size="md"
         />

@@ -55,23 +55,20 @@ server {
         sub_filter __APPSMITH_FRONTEND_TRACING_URL__ '${APPSMITH_FRONTEND_TRACING_URL}';
     }
 
-    # Strip /all-apps prefix and proxy to server
+    # Proxy /all-apps to server (no rewrite - backend expects /all-apps prefix)
     location /all-apps/api {
-        rewrite ^/all-apps(/api/.*)$ $1 break;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_pass __APPSMITH_SERVER_PROXY_PASS__;
     }
 
     location /all-apps/oauth2 {
-        rewrite ^/all-apps(/oauth2.*)$ $1 break;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_pass __APPSMITH_SERVER_PROXY_PASS__;
     }
 
     location /all-apps/login {
-        rewrite ^/all-apps(/login.*)$ $1 break;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Host $host;
         proxy_pass __APPSMITH_SERVER_PROXY_PASS__;

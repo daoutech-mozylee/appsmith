@@ -151,7 +151,7 @@ export function SignUp(props: SignUpFormProps) {
   }
 
   const signupURL = new URL(
-    `/api/v1/` + SIGNUP_SUBMIT_PATH,
+    `/all-apps/api/v1/` + SIGNUP_SUBMIT_PATH,
     window.location.origin,
   );
   const appId = queryParams.get("appId");

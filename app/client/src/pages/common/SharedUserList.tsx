@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { AvatarGroup } from "@appsmith/ads";
 import { useIsMobileDevice } from "utils/hooks/useDeviceDetect";
 import { USER_PHOTO_ASSET_URL } from "constants/userConstants";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import { getAllUsersOfWorkspace } from "ee/selectors/selectedWorkspaceSelectors";
 
 const UserImageContainer = styled.div<{ isMobile?: boolean }>`
@@ -35,7 +36,7 @@ export default function SharedUserList() {
           user.username +
           (user.username === currentUser?.username ? " (You)" : ""),
         image: user.photoId
-          ? `/api/${USER_PHOTO_ASSET_URL}/${user.photoId}`
+          ? `${API_PREFIX}/api/${USER_PHOTO_ASSET_URL}/${user.photoId}`
           : undefined,
         firstLetter: name.charAt(0),
         className: "t--workspace-share-user-icons",

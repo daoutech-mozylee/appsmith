@@ -81,7 +81,7 @@ export enum ERROR_CODES {
   IFRAME_AUTH_ERROR = "IFRAME_AUTH_ERROR",
 }
 
-export const OAuthURL = "/oauth2/authorization";
+export const OAuthURL = `${API_PREFIX}/oauth2/authorization`;
 export const GoogleOAuthURL = `${OAuthURL}/google`;
 export const GithubOAuthURL = `${OAuthURL}/github`;
 
@@ -104,4 +104,4 @@ export const getExportAppAPIRoute = (
 };
 
 export const getSnapShotAPIRoute = (applicationId: string) =>
-  `/v1/applications/snapshot/${applicationId}`;
+  `${API_PREFIX}/api/v1/applications/snapshot/${applicationId}`;

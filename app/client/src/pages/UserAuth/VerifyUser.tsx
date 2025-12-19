@@ -40,7 +40,7 @@ const VerifyUser = (
   }, [token, email]);
 
   const submitUrl = new URL(
-    `/api/v1/` + EMAIL_VERIFICATION_PATH,
+    `/all-apps/api/v1/` + EMAIL_VERIFICATION_PATH,
     window.location.origin,
   ).toString();
 

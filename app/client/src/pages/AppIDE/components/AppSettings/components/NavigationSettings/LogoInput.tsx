@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ImageInput } from "./ImageInput";
 import { Text } from "@appsmith/ads";
 import { createMessage, APP_NAVIGATION_SETTING } from "ee/constants/messages";
+import { API_PREFIX } from "ee/constants/ApiConstants";
 import type { UpdateSetting } from "../../types";
 import { useDispatch, useSelector } from "react-redux";
 import { getCurrentApplicationId } from "selectors/editorSelectors";
@@ -34,7 +35,7 @@ const LogoInput = ({ navigationSetting }: ButtonGroupSettingProps) => {
 
   useEffect(() => {
     if (logoAssetId?.length) {
-      setLogoUrl(`/api/v1/assets/${logoAssetId}`);
+      setLogoUrl(`${API_PREFIX}/api/v1/assets/${logoAssetId}`);
 
       return;
     } else if (cloudHosting) {
