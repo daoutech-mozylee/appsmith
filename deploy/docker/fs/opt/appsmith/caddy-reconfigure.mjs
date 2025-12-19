@@ -77,6 +77,7 @@ parts.push(`
 
   # skip logs for health check
   log_skip /api/v1/health
+  log_skip /all-apps/api/v1/health
 
   # skip logs for sourcemap files
   @source-map-files {
@@ -103,6 +104,10 @@ parts.push(`
   }
 
   header /static/* {
+    Cache-Control "public, max-age=31536000, immutable"
+  }
+
+  header /all-apps/static/* {
     Cache-Control "public, max-age=31536000, immutable"
   }
 
@@ -139,6 +144,26 @@ parts.push(`
 
   handle /rts/* {
     import reverse_proxy 8091
+  }
+
+  handle /all-apps/rts/* {
+    uri strip_prefix /all-apps
+    import reverse_proxy 8091
+  }
+
+  # Handle /all-apps prefix for static files (must come after API/RTS handlers)
+  handle_path /all-apps/* {
+    root * /opt/appsmith/editor
+    @staticFile file
+    handle @staticFile {
+      import file_server
+    }
+    # fallback to index.html for SPA routing
+    handle {
+      root * {$WWW_PATH}
+      try_files /loading.html /index.html
+      import file_server
+    }
   }
 
   redir /supervisor /supervisor/

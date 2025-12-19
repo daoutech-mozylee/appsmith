@@ -16,6 +16,7 @@ fi
 # build cra app
 export REACT_APP_SENTRY_RELEASE=$GIT_SHA
 export REACT_APP_CLIENT_LOG_LEVEL=ERROR
+export PUBLIC_URL=/all-apps
 node --max-old-space-size=8192 scripts/build.js
 
 echo "build finished"
