@@ -132,7 +132,7 @@ parts.push(`
     import file_server
   }
 
-  @backend path /api/* /oauth2/* /login/*
+  @backend path /api/* /oauth2/* /login/* /all-apps/api/* /all-apps/oauth2/* /all-apps/login/*
   handle @backend {
     import reverse_proxy 8080
   }
