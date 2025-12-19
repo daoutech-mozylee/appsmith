@@ -402,6 +402,25 @@ metrics:
   enabled: false
   port: 2019
 
+## Health check probes configuration
+## @param probes - Configure startup, liveness, and readiness probes
+probes:
+  startupProbe:
+    api: "/all-apps/api/v1/health"
+    port: "80"
+    failureThreshold: 3
+    periodSeconds: 60
+  livenessProbe:
+    api: "/all-apps/api/v1/health"
+    port: "80"
+    failureThreshold: 3
+    periodSeconds: 60
+  readinessProbe:
+    api: "/all-apps/api/v1/health"
+    port: "80"
+    failureThreshold: 3
+    periodSeconds: 60
+
 keda:
   enabled: false
   pollingInterval: 30
