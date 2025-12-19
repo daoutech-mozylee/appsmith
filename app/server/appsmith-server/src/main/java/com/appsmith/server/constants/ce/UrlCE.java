@@ -3,7 +3,7 @@ package com.appsmith.server.constants.ce;
 import com.appsmith.server.constants.Entity;
 
 public class UrlCE {
-    static final String BASE_URL = "/api";
+    static final String BASE_URL = "/all-apps/api";
     static final String VERSION = "/v1";
     public static final String HEALTH_CHECK = BASE_URL + VERSION + "/health";
     public static final String LOGIN_URL = BASE_URL + VERSION + "/login";
