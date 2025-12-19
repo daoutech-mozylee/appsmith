@@ -217,6 +217,15 @@ function* handleNonIframeAccess() {
  * 부모 창에서 전달받은 메시지를 Redux 액션으로 변환
  */
 function* watchPostMessages() {
+  // bypass 경로면 인증 체크 건너뛰기 (iframe 여부 관계없이)
+  if (shouldBypassAuthCheck()) {
+    log.info(
+      "[PostMessageSaga] Auth bypass path detected, skipping all auth checks",
+    );
+
+    return;
+  }
+
   // iframe이 아닌 경우: Appsmith 인증 확인 후 종료 (postMessage 리스닝 불필요)
   if (!isInIframe()) {
     yield* handleNonIframeAccess();
