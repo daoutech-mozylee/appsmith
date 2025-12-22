@@ -1,0 +1,110 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "SEND_MAIL_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'send_mail'}}"
+    },
+    "children": [
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "SEND_MAIL_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "메일 유형",
+                    "propertyName": "mail_type",
+                    "controlType": "DROP_DOWN",
+                    "initialValue": "internal",
+                    "options": [
+                        {
+                            "label": "내부 메일 전송",
+                            "value": "internal"
+                        },
+                        {
+                            "label": "외부 메일 전송",
+                            "value": "external"
+                        }
+                    ],
+                    "configProperty": "actionConfiguration.formData.mail_type.data"
+                },
+                {
+                    "label": "외부 메일 주소",
+                    "propertyName": "externalEmail",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.externalEmail.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'external'}}"
+                    }
+                },
+                {
+                    "label": "보내는 사람 이름",
+                    "propertyName": "senderName",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.senderName.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                },
+                {
+                    "label": "보내는 사람 메일 주소",
+                    "propertyName": "senderEmail",
+                    "controlType": "INPUT_TEXT",
+                    "isRequired": true,
+                    "configProperty": "actionConfiguration.formData.senderEmail.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                },
+                {
+                    "label": "받는 사람 (이메일 배열)",
+                    "propertyName": "to",
+                    "controlType": "INPUT_TEXT",
+                    "isRequired": true,
+                    "placeholderText": "email1@example.com, email2@example.com",
+                    "configProperty": "actionConfiguration.formData.to.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                },
+                {
+                    "label": "제목",
+                    "propertyName": "subject",
+                    "controlType": "INPUT_TEXT",
+                    "isRequired": true,
+                    "configProperty": "actionConfiguration.formData.subject.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                },
+                {
+                    "label": "본문 내용",
+                    "propertyName": "contents",
+                    "controlType": "INPUT_TEXT",
+                    "inputType": "TEXT_MULTI_LINE",
+                    "configProperty": "actionConfiguration.formData.contents.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                },
+                {
+                    "label": "알림 사용 여부",
+                    "propertyName": "withoutNoti",
+                    "controlType": "SWITCH",
+                    "initialValue": false,
+                    "configProperty": "actionConfiguration.formData.withoutNoti.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                },
+                {
+                    "label": "반송 메일 주소 (Optional)",
+                    "propertyName": "envFromAddr",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.envFromAddr.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                    }
+                }
+            ]
+        }
+    ]
+}

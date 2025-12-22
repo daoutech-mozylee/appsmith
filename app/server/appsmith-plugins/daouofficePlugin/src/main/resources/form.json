@@ -4,42 +4,11 @@
       "sectionName": "다우오피스 인증",
       "children": [
         {
-          "label": "Authentication type",
-          "configProperty": "datasourceConfiguration.authentication.authenticationType",
-          "controlType": "INPUT_TEXT",
-          "isRequired": false,
-          "hidden": true,
-          "initialValue": "NONE"
-        },
-        {
-          "label": "Client ID key",
-          "configProperty": "datasourceConfiguration.properties[0].key",
-          "controlType": "INPUT_TEXT",
-          "hidden": true,
-          "initialValue": "clientId"
-        },
-        {
-          "label": "Client ID",
+          "label": "Daouoffice 플러그인입니다",
           "configProperty": "datasourceConfiguration.properties[0].value",
-          "controlType": "INPUT_TEXT",
-          "isRequired": true,
-          "placeholderText": "다우오피스에서 발급받은 Client ID를 입력하세요."
-        },
-        {
-          "label": "Client Secret key",
-          "configProperty": "datasourceConfiguration.properties[1].key",
-          "controlType": "INPUT_TEXT",
-          "hidden": true,
-          "initialValue": "clientSecret"
-        },
-        {
-          "label": "Client Secret",
-          "configProperty": "datasourceConfiguration.properties[1].value",
-          "controlType": "INPUT_TEXT",
-          "isRequired": true,
-          "dataType": "PASSWORD",
-          "encrypted": true,
-          "placeholderText": "Client Secret을 입력하세요."
+          "controlType": "LABEL",
+          "isBindProperty": false,
+          "isTriggerProperty": false
         }
       ]
     }

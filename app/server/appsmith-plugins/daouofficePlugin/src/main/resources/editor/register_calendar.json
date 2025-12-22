@@ -1,0 +1,20 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "CALENDAR_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'register_calendar'}}"
+    },
+    "children": [
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "캘린더 등록 설정 (미구현)",
+                    "controlType": "LABEL",
+                    "configProperty": "actionConfiguration.formData.calendar_dummy.data"
+                }
+            ]
+        }
+    ]
+}
