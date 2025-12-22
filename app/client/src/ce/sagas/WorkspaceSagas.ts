@@ -300,7 +300,7 @@ export function* deleteWorkspaceSaga(action: ReduxAction<string>) {
       toast.show(createMessage(DELETE_WORKSPACE_SUCCESSFUL), {
         kind: "success",
       });
-      history.push("/applications");
+      history.push(APPLICATIONS_URL);
     }
   } catch (error) {
     yield put({

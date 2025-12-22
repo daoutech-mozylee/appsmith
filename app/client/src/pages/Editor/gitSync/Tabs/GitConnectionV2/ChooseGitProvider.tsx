@@ -28,6 +28,7 @@ import { setIsGitSyncModalOpen } from "actions/gitSyncActions";
 import { GitSyncModalTab } from "entities/GitSync";
 import { getCurrentAppWorkspace } from "ee/selectors/selectedWorkspaceSelectors";
 import history from "utils/history";
+import { APPLICATIONS_URL } from "constants/routes";
 import noop from "lodash/noop";
 import { hasCreateNewAppPermission } from "ee/utils/permissionHelpers";
 import { useIsMobileDevice } from "utils/hooks/useDeviceDetect";
@@ -77,7 +78,7 @@ function ChooseGitProvider({
 
   const dispatch = useDispatch();
   const handleImport = () => {
-    history.push("/applications");
+    history.push(APPLICATIONS_URL);
 
     dispatch({
       type: ReduxActionTypes.GIT_INFO_INIT,

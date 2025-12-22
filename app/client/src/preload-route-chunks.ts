@@ -1,10 +1,11 @@
 import { getBaseURL } from "ee/utils/preloadHelpers";
+import { BUILDER_VIEWER_PATH_PREFIX } from "ee/constants/routes/appRoutes";
 // This file preloads chunks for the edit and view modes ahead of the import()
 // call that will actually require them. This puts these chunks into HTTP cache
-// (so they can be executed immediately) but doesn’t execute them (so that the
+// (so they can be executed immediately) but doesn't execute them (so that the
 // `retryPromise()` logic around the import() calls can still work).
 //
-// The list of chunks to be preloaded is taken from `index.html`, as it’s only
+// The list of chunks to be preloaded is taken from `index.html`, as it's only
 // available from webpack stats in the end of the build.
 
 declare global {
@@ -56,11 +57,17 @@ function getPreloadValueForFile(fileName: string) {
 function getModeForPathname(
   pathname: string,
 ): keyof NonNullable<Window["__APPSMITH_CHUNKS_TO_PRELOAD"]> | null {
-  if (/^\/app\/[^\/]+\/[^\/]+\/edit\b/.test(pathname)) {
+  // Create regex pattern from BUILDER_VIEWER_PATH_PREFIX (e.g., /all-apps/app/)
+  const appPathPrefix = BUILDER_VIEWER_PATH_PREFIX.replace(/\//g, "\\/");
+  const editModeRegex = new RegExp(
+    `^${appPathPrefix}[^\\/]+\\/[^\\/]+\\/edit\\b`,
+  );
+
+  if (editModeRegex.test(pathname)) {
     return "edit-mode";
   }
 
-  if (pathname.startsWith("/app/")) {
+  if (pathname.startsWith(BUILDER_VIEWER_PATH_PREFIX)) {
     return "view-mode";
   }
 

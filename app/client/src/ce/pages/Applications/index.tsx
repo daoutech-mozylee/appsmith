@@ -44,6 +44,7 @@ import {
   thinScrollbar,
   truncateTextUsingEllipsis,
 } from "constants/DefaultTheme";
+import { APPLICATIONS_URL, LICENSE_CHECK_PATH } from "constants/routes";
 import type { User } from "constants/userConstants";
 import {
   Button,
@@ -1113,8 +1114,8 @@ export const ApplictionsMainPage = (props: any) => {
   const fetchedWorkflows = useSelector(getWorkflowsList);
   const fetchedWorkspaceId = useSelector(getCurrentWorkspaceId);
   const showBanner = useSelector(shouldShowLicenseBanner);
-  const isHomePage = useRouteMatch("/applications")?.isExact;
-  const isLicensePage = useRouteMatch("/license")?.isExact;
+  const isHomePage = useRouteMatch(APPLICATIONS_URL)?.isExact;
+  const isLicensePage = useRouteMatch(LICENSE_CHECK_PATH)?.isExact;
   const isBannerVisible = showBanner && (isHomePage || isLicensePage);
   const organizations = useSelector(getMyOrganizations);
   const isFetchingOrganizations = useSelector(getIsFetchingMyOrganizations);
@@ -1208,7 +1209,7 @@ export const ApplictionsMainPage = (props: any) => {
               <WorkspaceSelectorWrapper>
                 <Select
                   onSelect={(val) =>
-                    history.push(`/applications?workspaceId=${val}`)
+                    history.push(`${APPLICATIONS_URL}?workspaceId=${val}`)
                   }
                   value={activeWorkspaceId}
                 >

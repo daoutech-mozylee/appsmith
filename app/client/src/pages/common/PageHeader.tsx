@@ -12,6 +12,7 @@ import { shouldShowLicenseBanner } from "ee/selectors/organizationSelectors";
 import { Banner } from "ee/utils/licenseHelpers";
 import bootIntercom from "utils/bootIntercom";
 import EntitySearchBar from "pages/common/SearchBar/EntitySearchBar";
+import { APPLICATIONS_URL, LICENSE_CHECK_PATH } from "constants/routes";
 
 const StyledPageHeader = styled(StyledHeader)<{
   hideShadow?: boolean;
@@ -59,8 +60,8 @@ export function PageHeader(props: PageHeaderProps) {
   }, [user?.email]);
 
   const showBanner = useSelector(shouldShowLicenseBanner);
-  const isHomePage = useRouteMatch("/applications")?.isExact;
-  const isLicensePage = useRouteMatch("/license")?.isExact;
+  const isHomePage = useRouteMatch(APPLICATIONS_URL)?.isExact;
+  const isLicensePage = useRouteMatch(LICENSE_CHECK_PATH)?.isExact;
 
   return (
     <>

@@ -6,6 +6,7 @@ import ApplicationSearchItem from "pages/common/SearchBar/ApplicationSearchItem"
 import PackageSearchItem from "ee/pages/common/PackageSearchItem";
 import WorkflowSearchItem from "ee/pages/common/WorkflowSearchItem";
 import { useRouteMatch } from "react-router";
+import { APPLICATIONS_URL } from "constants/routes";
 
 const SearchListContainer = styled.div`
   width: 100%;
@@ -53,7 +54,7 @@ function MobileEntitySearchField(props: any) {
     workspacesList,
   } = props;
 
-  const isHomePage = useRouteMatch("/applications")?.isExact;
+  const isHomePage = useRouteMatch(APPLICATIONS_URL)?.isExact;
 
   if (!isHomePage) return null;
 

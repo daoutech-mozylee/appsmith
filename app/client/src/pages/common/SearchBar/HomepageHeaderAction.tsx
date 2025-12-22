@@ -30,6 +30,7 @@ import {
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouteMatch } from "react-router";
+import { APPLICATIONS_URL } from "constants/routes";
 import { howMuchTimeBeforeText } from "utils/helpers";
 import { useFeatureFlag } from "utils/hooks/useFeatureFlag";
 import {
@@ -66,7 +67,7 @@ const HomepageHeaderAction = ({
   const isCreateNewAppFlow = useSelector(
     getCurrentApplicationIdForCreateNewApp,
   );
-  const isHomePage = useRouteMatch("/applications")?.isExact;
+  const isHomePage = useRouteMatch(APPLICATIONS_URL)?.isExact;
   const isAirgappedInstance = isAirgapped();
   const { appVersion } = getAppsmithConfigs();
   const howMuchTimeBefore = howMuchTimeBeforeText(appVersion.releaseDate);

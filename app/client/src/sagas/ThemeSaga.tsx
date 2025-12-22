@@ -5,6 +5,11 @@ import localStorage from "utils/localStorage";
 import type { ThemeMode } from "selectors/themeSelectors";
 import { getCurrentThemeDetails } from "selectors/themeSelectors";
 import { trimTrailingSlash } from "utils/helpers";
+import {
+  APPLICATIONS_URL,
+  PROFILE,
+  SIGNUP_SUCCESS_URL,
+} from "constants/routes";
 
 export interface BackgroundTheme {
   colors: { homepageBackground: string; appBackground: string };
@@ -12,10 +17,10 @@ export interface BackgroundTheme {
 
 export function changeAppBackground(currentTheme: BackgroundTheme) {
   if (
-    trimTrailingSlash(window.location.pathname) === "/applications" ||
+    trimTrailingSlash(window.location.pathname) === APPLICATIONS_URL ||
     window.location.pathname.indexOf("/settings/") !== -1 ||
-    trimTrailingSlash(window.location.pathname) === "/profile" ||
-    trimTrailingSlash(window.location.pathname) === "/signup-success"
+    trimTrailingSlash(window.location.pathname) === PROFILE ||
+    trimTrailingSlash(window.location.pathname) === SIGNUP_SUCCESS_URL
   ) {
     document.body.style.backgroundColor =
       currentTheme.colors.homepageBackground;

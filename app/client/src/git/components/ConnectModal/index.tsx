@@ -8,6 +8,7 @@ import AnalyticsUtil from "ee/utils/AnalyticsUtil";
 import useSSHKey from "git/hooks/useSSHKey";
 import useImport from "git/hooks/useImport";
 import history from "utils/history";
+import { APPLICATIONS_URL } from "constants/routes";
 
 function ConnectModal() {
   const { artifactDef, isConnectPermitted, setImportWorkspaceId } =
@@ -48,7 +49,7 @@ function ConnectModal() {
 
   const onOpenImport = useCallback(() => {
     toggleConnectModal(false);
-    history.push("/applications");
+    history.push(APPLICATIONS_URL);
     setImportWorkspaceId();
     toggleImportModal(true);
     AnalyticsUtil.logEvent("GS_IMPORT_VIA_GIT_DURING_GC");

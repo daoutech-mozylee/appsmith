@@ -25,7 +25,7 @@ import type {
   LeaveWorkspaceRequest,
 } from "ee/api/UserApi";
 import UserApi from "ee/api/UserApi";
-import { AUTH_LOGIN_URL, SETUP } from "constants/routes";
+import { APPLICATIONS_URL, AUTH_LOGIN_URL, SETUP } from "constants/routes";
 import history from "utils/history";
 import type { ApiResponse } from "api/ApiResponses";
 import type { ErrorActionPayload } from "sagas/ErrorSagas";
@@ -691,7 +691,7 @@ export function* leaveWorkspaceSaga(
       toast.show(`You have successfully left the workspace`, {
         kind: "success",
       });
-      history.push("/applications");
+      history.push(APPLICATIONS_URL);
     }
   } catch (error) {
     // do nothing as it's already handled globally

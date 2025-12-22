@@ -3,6 +3,7 @@ import { Icon, Text } from "@appsmith/ads";
 import React, { useState } from "react";
 import { useHistory } from "react-router";
 import styled from "styled-components";
+import { APPLICATIONS_URL } from "constants/routes";
 
 export const SearchListItem = styled.div`
   display: flex;
@@ -51,7 +52,7 @@ const WorkspaceItem = ({
       data-testid={workspace.name}
       onClick={() => {
         setIsDropdownOpen(false);
-        history.push(`/applications?workspaceId=${workspace?.id}`);
+        history.push(`${APPLICATIONS_URL}?workspaceId=${workspace?.id}`);
       }}
     >
       {hasLogo ? (
