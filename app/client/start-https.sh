@@ -141,14 +141,17 @@ fi
 frontend_host=${frontend_host-$upstream_host}
 backend_host=${backend_host-$upstream_host}
 rts_host=${rts_host-$upstream_host}
+relay_host=${relay_host-$upstream_host}
 
 frontend_port=${frontend_port-3000}
 backend_port=${backend_port-8080}
 rts_port=${rts_port-8091}
+relay_port=${relay_port-8090}
 
 backend="${backend-http://$backend_host:$backend_port}"
 frontend="http://$frontend_host:$frontend_port"
 rts="http://$rts_host:$rts_port"
+relay="http://$relay_host:$relay_port"
 
 http_listen_port="${http_listen_port-80}"
 https_listen_port="${https_listen_port-443}"
@@ -313,6 +316,16 @@ $(if [[ $use_https == 1 ]]; then echo "
             proxy_set_header Host \$host;
             proxy_set_header Connection upgrade;
             proxy_set_header Upgrade \$http_upgrade;
+        }
+
+        # Relay Service (all-apps-server)
+        location /relay {
+            proxy_pass $relay;
+        }
+
+        location /all-apps/relay {
+            rewrite ^/all-apps(.*)\$ \$1 break;
+            proxy_pass $relay;
         }
 
         # Legacy routes

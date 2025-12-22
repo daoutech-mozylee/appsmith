@@ -117,7 +117,16 @@ if ! ./build.sh > /dev/null; then
   echo RTS build failed >&2
   exit 1
 fi
-pretty_print "RTS build successful. Starting Docker build ..."
+pretty_print "RTS build successful. Starting Relay Service build ..."
+
+popd
+pushd app/all-apps-server > /dev/null
+if ! ./gradlew build -x test > /dev/null; then
+  echo Relay Service build failed >&2
+  exit 1
+fi
+cp build/libs/all-apps-server.jar ../../deploy/docker/fs/opt/appsmith/relay/
+pretty_print "Relay Service build successful. Starting Docker build ..."
 
 popd
 bash "$(dirname "$0")/generate_info_json.sh"

@@ -78,6 +78,8 @@ parts.push(`
   # skip logs for health check
   log_skip /api/v1/health
   log_skip /all-apps/api/v1/health
+  log_skip /relay/api/health
+  log_skip /all-apps/relay/api/health
 
   # skip logs for sourcemap files
   @source-map-files {
@@ -135,6 +137,16 @@ parts.push(`
     root * /opt/appsmith
     rewrite * /info.json
     import file_server
+  }
+
+  # Relay Service (all-apps-server) - RTS와 동일 패턴
+  handle /relay/* {
+    import reverse_proxy 8090
+  }
+
+  handle /all-apps/relay/* {
+    uri strip_prefix /all-apps
+    import reverse_proxy 8090
   }
 
   @backend path /api/* /oauth2/* /login/* /all-apps/api/* /all-apps/oauth2/* /all-apps/login/*

@@ -1,0 +1,27 @@
+server:
+  port: 8090
+  servlet:
+    context-path: /relay
+
+spring:
+  application:
+    name: all-apps-server
+  data:
+    redis:
+      # Appsmith과 동일한 환경 변수 사용 (APPSMITH_REDIS_URL)
+      # 형식: redis://[password@]host:port
+      url: ${APPSMITH_REDIS_URL:redis://localhost:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.daou.allapps: DEBUG
