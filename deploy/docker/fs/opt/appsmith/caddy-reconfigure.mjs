@@ -69,6 +69,7 @@ parts.push(`
     header_up X-Appsmith-Request-Id {http.request.uuid}
     header_up X-Auth-Info {header.X-Auth-Info}
     header_up X-User-Info {header.X-User-Info}
+    header_up X-Anon-Info {header.X-Anon-Info}
   }
 }
 
@@ -141,17 +142,12 @@ parts.push(`
     import file_server
   }
 
-  # Relay Service (all-apps-server) - RTS와 동일 패턴
-  handle /relay/* {
-    import reverse_proxy 8090
-  }
-
+  # Relay Service (all-apps-server) - context-path: /all-apps/relay
   handle /all-apps/relay/* {
-    uri strip_prefix /all-apps
     import reverse_proxy 8090
   }
 
-  @backend path /api/* /oauth2/* /login/* /all-apps/api/* /all-apps/oauth2/* /all-apps/login/*
+  @backend path /all-apps/api/* /all-apps/oauth2/* /all-apps/login/*
   handle @backend {
     import reverse_proxy 8080
   }
