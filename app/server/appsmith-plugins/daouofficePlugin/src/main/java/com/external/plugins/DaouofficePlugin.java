@@ -93,12 +93,14 @@ public class DaouofficePlugin extends BasePlugin {
             // Dispatch based on action
             if (ACTION_SEND_MAIL.equals(action)) {
                 String mailType = getDataValueSafelyFromFormData(
-                        actionConfiguration.getFormData(), "mail_type", STRING_TYPE, "internal");
+                        actionConfiguration.getFormData(), "mail_type", STRING_TYPE, "leadRegistrationMail");
 
-                if ("internal".equals(mailType)) {
+                if ("leadRegistrationMail".equals(mailType)) {
                     return executeMailSendRequest(connection, actionConfiguration);
-                } else if ("external".equals(mailType)) {
-                    return Mono.just(createPlaceholderResult("send_mail_external"));
+                } else if ("leadAssignmentMail".equals(mailType)) {
+                    return Mono.just(createPlaceholderResult("send_mail_assignment"));
+                } else if ("leadStatusUpdateMail".equals(mailType)) {
+                    return Mono.just(createPlaceholderResult("send_mail_status_update"));
                 }
             } else if (ACTION_ORGANIZATION.equals(action) ||
                     ACTION_SEND_NOTIFICATION.equals(action) ||
@@ -139,23 +141,18 @@ public class DaouofficePlugin extends BasePlugin {
             ActionExecutionResult result = new ActionExecutionResult();
 
             try {
-                String senderEmail = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "senderEmail",
-                        STRING_TYPE, "");
-                String senderName = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "senderName",
-                        STRING_TYPE, "");
+                String senderName = "다우오피스";
+                String senderEmail = "noreply@daouoffice.com";
                 String toStrRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "to", STRING_TYPE,
                         "");
                 String subjectRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "subject",
-                        STRING_TYPE, "");
-                String contentsRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "contents",
                         STRING_TYPE, "");
 
                 // Default logic
                 final String finalTo = StringUtils.hasText(toStrRaw) ? toStrRaw
                         : "mrlhs@hyunggil01.dev-dopweb.daouoffice.com";
                 final String finalSubject = StringUtils.hasText(subjectRaw) ? subjectRaw : "";
-                final String finalContents = StringUtils.hasText(contentsRaw) ? contentsRaw
-                        : getLeadAssignmentHtmlTemplate();
+                final String finalContents = getLeadRegistrationHtmlTemplate();
 
                 // "editmode" defaults to "html"
                 String editmode = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "editmode",
@@ -243,7 +240,7 @@ public class DaouofficePlugin extends BasePlugin {
                     "  </div>" +
                     "  <div style='padding: 30px; background-color: #ffffff;'>" +
                     "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>" +
-                    "    <p style='font-size: 16px; color: #333;'>새로운 리드가 담당자로 배정되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
+                    "    <p style='font-size: 16px; color: #333;'>새로운 리드의 담당자로 배정되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
                     +
                     "    <div style='margin-top: 30px; text-align: center;'>" +
                     "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>리드 확인하기</a>"
@@ -256,5 +253,28 @@ public class DaouofficePlugin extends BasePlugin {
                     "  </div>" +
                     "</div>";
         }
+
+        private String getLeadRegistrationHtmlTemplate() {
+            return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>"
+                +
+                "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>" +
+                "    <h1 style='margin: 0; font-size: 24px;'>리드 등록 알림</h1>" +
+                "  </div>" +
+                "  <div style='padding: 30px; background-color: #ffffff;'>" +
+                "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>" +
+                "    <p style='font-size: 16px; color: #333;'>새로운 리드가 등록되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
+                +
+                "    <div style='margin-top: 30px; text-align: center;'>" +
+                "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>등록된 리드 확인하기</a>"
+                +
+                "    </div>" +
+                "  </div>" +
+                "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
+                +
+                "    © 2024 DaouOffice Lead Management" +
+                "  </div>" +
+                "</div>";
+        }
+
     }
 }

@@ -13,45 +13,39 @@
                     "label": "메일 유형",
                     "propertyName": "mail_type",
                     "controlType": "DROP_DOWN",
-                    "initialValue": "internal",
+                    "initialValue": "leadRegistrationMail",
                     "options": [
                         {
-                            "label": "내부 메일 전송",
-                            "value": "internal"
+                            "label": "리드 등록 알림 메일",
+                            "value": "leadRegistrationMail"
                         },
                         {
-                            "label": "외부 메일 전송",
-                            "value": "external"
+                            "label": "리드 담당자 배정 메일",
+                            "value": "leadAssignmentMail"
+                        },
+                        {
+                            "label": "리드 상태 변경 메일",
+                            "value": "leadStatusUpdateMail"
                         }
                     ],
                     "configProperty": "actionConfiguration.formData.mail_type.data"
                 },
                 {
-                    "label": "외부 메일 주소",
-                    "propertyName": "externalEmail",
+                    "label": "리드 담당자 메일 주소",
+                    "propertyName": "leadAssignmentEmail",
                     "controlType": "INPUT_TEXT",
-                    "configProperty": "actionConfiguration.formData.externalEmail.data",
+                    "configProperty": "actionConfiguration.formData.leadAssignmentEmail.data",
                     "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'external'}}"
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadAssignmentMail'}}"
                     }
                 },
                 {
-                    "label": "보내는 사람 이름",
-                    "propertyName": "senderName",
+                    "label": "리드 상태 변경 메일",
+                    "propertyName": "leadStatusUpdateEmail",
                     "controlType": "INPUT_TEXT",
-                    "configProperty": "actionConfiguration.formData.senderName.data",
+                    "configProperty": "actionConfiguration.formData.leadStatusUpdateEmail.data",
                     "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
-                    }
-                },
-                {
-                    "label": "보내는 사람 메일 주소",
-                    "propertyName": "senderEmail",
-                    "controlType": "INPUT_TEXT",
-                    "isRequired": true,
-                    "configProperty": "actionConfiguration.formData.senderEmail.data",
-                    "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                      "show": "{{actionConfiguration.formData.mail_type.data === 'leadStatusUpdateMail'}}"
                     }
                 },
                 {
@@ -59,10 +53,11 @@
                     "propertyName": "to",
                     "controlType": "INPUT_TEXT",
                     "isRequired": true,
+                    "initialValue": "{{this.params.mailTo}}",
                     "placeholderText": "email1@example.com, email2@example.com",
                     "configProperty": "actionConfiguration.formData.to.data",
                     "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
                     }
                 },
                 {
@@ -70,19 +65,10 @@
                     "propertyName": "subject",
                     "controlType": "INPUT_TEXT",
                     "isRequired": true,
+                    "initialValue": "리드가 등록되었습니다.",
                     "configProperty": "actionConfiguration.formData.subject.data",
                     "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
-                    }
-                },
-                {
-                    "label": "본문 내용",
-                    "propertyName": "contents",
-                    "controlType": "INPUT_TEXT",
-                    "inputType": "TEXT_MULTI_LINE",
-                    "configProperty": "actionConfiguration.formData.contents.data",
-                    "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
                     }
                 },
                 {
@@ -92,7 +78,7 @@
                     "initialValue": false,
                     "configProperty": "actionConfiguration.formData.withoutNoti.data",
                     "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
                     }
                 },
                 {
@@ -101,7 +87,7 @@
                     "controlType": "INPUT_TEXT",
                     "configProperty": "actionConfiguration.formData.envFromAddr.data",
                     "conditionals": {
-                        "show": "{{actionConfiguration.formData.mail_type.data === 'internal'}}"
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
                     }
                 }
             ]
