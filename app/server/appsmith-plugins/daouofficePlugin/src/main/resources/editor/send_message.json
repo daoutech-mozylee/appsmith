@@ -6,13 +6,63 @@
     },
     "children": [
         {
-            "controlType": "SINGLE_COLUMN_ZONE",
+            "controlType": "DOUBLE_COLUMN_ZONE",
             "identifier": "MESSAGE_SETTINGS-Z1",
             "children": [
                 {
-                    "label": "메시지 전송 설정 (미구현)",
-                    "controlType": "LABEL",
-                    "configProperty": "actionConfiguration.formData.message_dummy.data"
+                    "label": "Platform User ID",
+                    "propertyName": "platformUserId",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.platformUserId.data",
+                    "isRequired": true
+                },
+                {
+                    "label": "To User ID",
+                    "propertyName": "toUserId",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.toUserId.data",
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "MESSAGE_SETTINGS-Z2",
+            "children": [
+                {
+                    "label": "Company UUID",
+                    "propertyName": "companyUuid",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.companyUuid.data",
+                    "isRequired": true
+                },
+                {
+                    "label": "CMID",
+                    "propertyName": "cmid",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.cmid.data",
+                    "isRequired": false
+                }
+            ]
+        },
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "MESSAGE_SETTINGS-Z3",
+            "children": [
+                {
+                    "label": "Message",
+                    "propertyName": "message",
+                    "controlType": "INPUT_TEXT",
+                    "inputType": "TEXT_MULTI_LINE",
+                    "configProperty": "actionConfiguration.formData.message.data",
+                    "isRequired": true
+                },
+                {
+                    "label": "File Path List (Comma separated)",
+                    "propertyName": "filePathList",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.filePathList.data",
+                    "placeholderText": "file1.jpg, file2.jpg"
                 }
             ]
         }

@@ -37,9 +37,10 @@ public class DaouofficePlugin extends BasePlugin {
 
         private static final ObjectMapper objectMapper = new ObjectMapper();
 
-        // Internal Mail Service Constants
+        // Internal Service Constants
         private static final String MAIL_SEND_PATH = "/api/mail/internal/noti/send";
-        private static final String MAIL_SERVICE_URL = "http://dop-service-gateway.dop-platform.svc.cluster.local:20719";
+        private static final String MESSAGE_SEND_PATH = "/api/chat/internal/message/user";
+        private static final String SERVICE_GATEWAY_URL = "http://dop-service-gateway.dop-platform.svc.cluster.local:20719";
 
         // Action Identifiers (Must match root.json)
         private static final String ACTION_ORGANIZATION = "organization";
@@ -102,9 +103,10 @@ public class DaouofficePlugin extends BasePlugin {
                 } else if ("leadStatusUpdateMail".equals(mailType)) {
                     return Mono.just(createPlaceholderResult("send_mail_status_update"));
                 }
+            } else if (ACTION_SEND_MESSAGE.equals(action)) {
+                return executeMessageSendRequest(connection, actionConfiguration);
             } else if (ACTION_ORGANIZATION.equals(action) ||
                     ACTION_SEND_NOTIFICATION.equals(action) ||
-                    ACTION_SEND_MESSAGE.equals(action) ||
                     ACTION_REGISTER_CALENDAR.equals(action)) {
                 return Mono.just(createPlaceholderResult(action));
             }
@@ -164,7 +166,7 @@ public class DaouofficePlugin extends BasePlugin {
                         OBJECT_TYPE, "false");
                 String withoutNotiStr = String.valueOf(withoutNotiObj);
 
-                String targetUrl = MAIL_SERVICE_URL + MAIL_SEND_PATH;
+                String targetUrl = SERVICE_GATEWAY_URL + MAIL_SEND_PATH;
 
                 log.debug("Daouoffice Mail Send Request: {}", targetUrl);
 
@@ -232,6 +234,84 @@ public class DaouofficePlugin extends BasePlugin {
             }
         }
 
+        private Mono<ActionExecutionResult> executeMessageSendRequest(
+                WebClient connection, ActionConfiguration actionConfiguration) {
+
+            ActionExecutionResult result = new ActionExecutionResult();
+
+            try {
+                String platformUserId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
+                        "platformUserId", STRING_TYPE, "");
+                String toUserId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "toUserId",
+                        STRING_TYPE, "");
+                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid",
+                        STRING_TYPE, "");
+                String cmid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "cmid", STRING_TYPE,
+                        "");
+                String message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message",
+                        STRING_TYPE, "");
+                String filePathListStr = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
+                        "filePathList", STRING_TYPE, "");
+
+                ObjectNode requestBody = objectMapper.createObjectNode();
+                requestBody.put("platformUserId", platformUserId);
+                requestBody.put("toUserId", toUserId);
+                requestBody.put("companyUuid", companyUuid);
+                requestBody.put("cmid", cmid);
+                requestBody.put("message", message);
+
+                var fileArray = requestBody.putArray("filePathList");
+                if (StringUtils.hasText(filePathListStr)) {
+                    for (String path : filePathListStr.split(",")) {
+                        if (StringUtils.hasText(path.trim())) {
+                            fileArray.add(path.trim());
+                        }
+                    }
+                }
+
+                String targetUrl = SERVICE_GATEWAY_URL + MESSAGE_SEND_PATH;
+                log.debug("Daouoffice Message Send Request: {}", targetUrl);
+
+                return connection
+                        .post()
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("http")
+                                .host("dop-service-gateway.dop-platform.svc.cluster.local")
+                                .port(20719)
+                                .path(MESSAGE_SEND_PATH)
+                                .build())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .map(responseBody -> {
+                            try {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(objectMapper.readTree(responseBody));
+                                return result;
+                            } catch (Exception e) {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(responseBody);
+                                return result;
+                            }
+                        })
+                        .onErrorResume(error -> {
+                            log.error("Message send failed", error);
+                            result.setIsExecutionSuccess(false);
+                            result.setErrorInfo(new AppsmithPluginException(
+                                    AppsmithPluginError.PLUGIN_ERROR, "Message Send Failed: " + error.getMessage()));
+                            return Mono.just(result);
+                        });
+
+            } catch (Exception e) {
+                log.error("Error preparing message request", e);
+                result.setIsExecutionSuccess(false);
+                result.setErrorInfo(new AppsmithPluginException(
+                        AppsmithPluginError.PLUGIN_ERROR, "Error preparing message request: " + e.getMessage()));
+                return Mono.just(result);
+            }
+        }
+
         private String getLeadAssignmentHtmlTemplate() {
             return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>"
                     +
@@ -256,24 +336,24 @@ public class DaouofficePlugin extends BasePlugin {
 
         private String getLeadRegistrationHtmlTemplate() {
             return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>"
-                +
-                "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>" +
-                "    <h1 style='margin: 0; font-size: 24px;'>리드 등록 알림</h1>" +
-                "  </div>" +
-                "  <div style='padding: 30px; background-color: #ffffff;'>" +
-                "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>" +
-                "    <p style='font-size: 16px; color: #333;'>새로운 리드가 등록되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
-                +
-                "    <div style='margin-top: 30px; text-align: center;'>" +
-                "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>등록된 리드 확인하기</a>"
-                +
-                "    </div>" +
-                "  </div>" +
-                "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
-                +
-                "    © 2024 DaouOffice Lead Management" +
-                "  </div>" +
-                "</div>";
+                    +
+                    "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>" +
+                    "    <h1 style='margin: 0; font-size: 24px;'>리드 등록 알림</h1>" +
+                    "  </div>" +
+                    "  <div style='padding: 30px; background-color: #ffffff;'>" +
+                    "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>" +
+                    "    <p style='font-size: 16px; color: #333;'>새로운 리드가 등록되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
+                    +
+                    "    <div style='margin-top: 30px; text-align: center;'>" +
+                    "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>등록된 리드 확인하기</a>"
+                    +
+                    "    </div>" +
+                    "  </div>" +
+                    "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
+                    +
+                    "    © 2024 DaouOffice Lead Management" +
+                    "  </div>" +
+                    "</div>";
         }
 
     }
