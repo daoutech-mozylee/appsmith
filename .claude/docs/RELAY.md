@@ -31,6 +31,25 @@ Appsmith 컨테이너 내에서 실행되는 중계 서비스(Relay Service) 구
 
 ### 파일: `deploy/docker/fs/opt/appsmith/caddy-reconfigure.mjs`
 
+### Reverse Proxy 헤더 설정
+
+```javascript
+(reverse_proxy) {
+  reverse_proxy {
+    to 127.0.0.1:{args[0]}
+    header_up -Forwarded
+    header_up X-Appsmith-Request-Id {http.request.uuid}
+    header_up X-Auth-Info {header.X-Auth-Info}        // 인증 정보
+    header_up X-User-Info {header.X-User-Info}        // 사용자 정보
+  }
+}
+```
+
+**주의사항**:
+- Caddy는 명시적으로 `header_up`에 추가하지 않은 커스텀 헤더를 백엔드로 전달하지 않음
+- `X-Auth-Info`, `X-User-Info` 등 커스텀 헤더는 반드시 명시 필요
+- `-Forwarded`: RFC 7239 표준 헤더 제거 (rate limiting 키에서 사용)
+
 ### 라우팅 패턴 (RTS와 동일)
 
 ```javascript
@@ -304,6 +323,45 @@ handle /all-apps/relay/* {
   uri strip_prefix /all-apps  // /all-apps/relay/* → /relay/*
   import reverse_proxy 8090
 }
+```
+
+### 커스텀 헤더 누락 문제
+
+#### 증상
+
+- 클라이언트에서 전송한 커스텀 헤더(`X-Auth-Info`, `X-User-Info` 등)가 백엔드에 도달하지 않음
+- Spring Controller에서 `request.getHeader("X-Auth-Info")` 결과가 `null`
+
+#### 원인
+
+Caddy의 `reverse_proxy` 지시어는 명시적으로 `header_up`에 추가하지 않은 헤더를 전달하지 않음
+
+#### 해결
+
+`caddy-reconfigure.mjs`의 `(reverse_proxy)` 스니펫에 커스텀 헤더 추가:
+
+```javascript
+(reverse_proxy) {
+  reverse_proxy {
+    to 127.0.0.1:{args[0]}
+    header_up -Forwarded
+    header_up X-Appsmith-Request-Id {http.request.uuid}
+    header_up X-Auth-Info {header.X-Auth-Info}        // 추가
+    header_up X-User-Info {header.X-User-Info}        // 추가
+  }
+}
+```
+
+#### 검증
+
+```bash
+# TestController로 헤더 확인
+curl -H "X-Auth-Info: test-auth" \
+     -H "X-User-Info: test-user" \
+     http://localhost:8080/api/my-info
+
+# 로그에서 확인
+docker logs -f <container> | grep "Header: X-"
 ```
 
 ### 로그 디렉토리 오류

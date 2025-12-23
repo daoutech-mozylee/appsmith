@@ -182,6 +182,106 @@ spec:
 
 ---
 
+## 커스텀 서비스 추가 (Supervisor)
+
+Appsmith 컨테이너에 추가 서비스(예: Spring Boot BE)를 포함시키는 방법.
+
+### 동작 원리
+
+```dockerfile
+# Dockerfile 핵심 라인
+COPY deploy/docker/fs /
+CMD ["/usr/bin/supervisord", "-n"]
+```
+
+- `deploy/docker/fs/` 디렉토리 전체가 컨테이너 루트(`/`)로 복사됨
+- Supervisor가 `templates/supervisord/application_process/*.conf` 파일들을 로드하여 프로세스 관리
+
+### 파일 구조
+
+```
+deploy/docker/fs/
+└── opt/appsmith/
+    ├── your-service/
+    │   └── app.jar                         # 서비스 실행 파일
+    ├── run-your-service.sh                 # 실행 스크립트
+    └── templates/supervisord/
+        └── application_process/
+            ├── backend.conf                # Appsmith BE
+            ├── rts.conf                    # RTS
+            ├── editor.conf                 # Frontend
+            └── your-service.conf           # 추가 서비스 설정
+```
+
+### Step 1: 실행 스크립트 생성
+
+```bash
+# deploy/docker/fs/opt/appsmith/run-your-service.sh
+#!/bin/bash
+exec /opt/java/bin/java -jar /opt/appsmith/your-service/app.jar
+```
+
+### Step 2: Supervisor 설정 추가
+
+```ini
+# deploy/docker/fs/opt/appsmith/templates/supervisord/application_process/your-service.conf
+[program:your-service]
+command=/opt/appsmith/run-with-env.sh /opt/appsmith/run-your-service.sh
+autorestart=true
+autostart=true
+priority=25
+startretries=3
+startsecs=10
+stderr_logfile=%(ENV_APPSMITH_LOG_DIR)s/%(program_name)s/%(ENV_HOSTNAME)s-stderr.log
+stderr_logfile_backups=0
+stderr_logfile_maxbytes=30MB
+stdout_logfile=%(ENV_APPSMITH_LOG_DIR)s/%(program_name)s/%(ENV_HOSTNAME)s-stdout.log
+stdout_logfile_backups=0
+stdout_logfile_maxbytes=30MB
+```
+
+### Step 3: 서비스 파일 배치
+
+```bash
+# 디렉토리 생성
+mkdir -p deploy/docker/fs/opt/appsmith/your-service
+
+# jar 파일 복사
+cp your-app.jar deploy/docker/fs/opt/appsmith/your-service/app.jar
+
+# 실행 스크립트 권한 부여
+chmod +x deploy/docker/fs/opt/appsmith/run-your-service.sh
+```
+
+### Step 4: 빌드 및 배포
+
+```bash
+# 빌드
+./scripts/local_testing.sh -l 1.0.3
+
+# 푸시
+docker push asia-northeast3-docker.pkg.dev/daouoffice-dop-dev/dev-dop-images/appsmith-do-edition:1.0.3
+```
+
+### 주의사항
+
+| 항목 | 설명 |
+|-----|------|
+| Java 버전 | 컨테이너에 Java 17 설치됨 (`/opt/java/bin/java`) |
+| 포트 충돌 | 기존 서비스 포트(80, 443, 8080 등) 피해서 설정 |
+| 로그 경로 | `%(ENV_APPSMITH_LOG_DIR)s` 환경변수 사용 권장 |
+| 프로세스 관리 | Supervisor가 자동 재시작 처리 |
+
+### 장단점
+
+| 장점 | 단점 |
+|-----|-----|
+| 빠른 테스트/PoC 가능 | 개별 스케일링 불가 |
+| 같은 컨테이너 내 localhost 통신 | 컨테이너 재시작 시 모든 서비스 재시작 |
+| 별도 Dockerfile 수정 불필요 | 서비스 간 리소스 경합 가능 |
+
+---
+
 ## 배포 이력
 
 | 버전 | 날짜 | 플랫폼 | 비고 |
