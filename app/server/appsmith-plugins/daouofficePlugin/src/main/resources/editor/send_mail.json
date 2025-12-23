@@ -1,0 +1,96 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "SEND_MAIL_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'send_mail'}}"
+    },
+    "children": [
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "SEND_MAIL_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "메일 유형",
+                    "propertyName": "mail_type",
+                    "controlType": "DROP_DOWN",
+                    "initialValue": "leadRegistrationMail",
+                    "options": [
+                        {
+                            "label": "리드 등록 알림 메일",
+                            "value": "leadRegistrationMail"
+                        },
+                        {
+                            "label": "리드 담당자 배정 메일",
+                            "value": "leadAssignmentMail"
+                        },
+                        {
+                            "label": "리드 상태 변경 메일",
+                            "value": "leadStatusUpdateMail"
+                        }
+                    ],
+                    "configProperty": "actionConfiguration.formData.mail_type.data"
+                },
+                {
+                    "label": "리드 담당자 메일 주소",
+                    "propertyName": "leadAssignmentEmail",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.leadAssignmentEmail.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadAssignmentMail'}}"
+                    }
+                },
+                {
+                    "label": "리드 상태 변경 메일",
+                    "propertyName": "leadStatusUpdateEmail",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.leadStatusUpdateEmail.data",
+                    "conditionals": {
+                      "show": "{{actionConfiguration.formData.mail_type.data === 'leadStatusUpdateMail'}}"
+                    }
+                },
+                {
+                    "label": "받는 사람 (이메일 배열)",
+                    "propertyName": "to",
+                    "controlType": "INPUT_TEXT",
+                    "isRequired": true,
+                    "initialValue": "{{this.params.mailTo}}",
+                    "placeholderText": "email1@example.com, email2@example.com",
+                    "configProperty": "actionConfiguration.formData.to.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
+                    }
+                },
+                {
+                    "label": "제목",
+                    "propertyName": "subject",
+                    "controlType": "INPUT_TEXT",
+                    "isRequired": true,
+                    "initialValue": "리드가 등록되었습니다.",
+                    "configProperty": "actionConfiguration.formData.subject.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
+                    }
+                },
+                {
+                    "label": "알림 사용 여부",
+                    "propertyName": "withoutNoti",
+                    "controlType": "SWITCH",
+                    "initialValue": false,
+                    "configProperty": "actionConfiguration.formData.withoutNoti.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
+                    }
+                },
+                {
+                    "label": "반송 메일 주소 (Optional)",
+                    "propertyName": "envFromAddr",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.envFromAddr.data",
+                    "conditionals": {
+                        "show": "{{actionConfiguration.formData.mail_type.data === 'leadRegistrationMail'}}"
+                    }
+                }
+            ]
+        }
+    ]
+}

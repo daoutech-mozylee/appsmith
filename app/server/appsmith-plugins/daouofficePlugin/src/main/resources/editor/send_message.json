@@ -1,0 +1,20 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "MESSAGE_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'send_message'}}"
+    },
+    "children": [
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "MESSAGE_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "메시지 전송 설정 (미구현)",
+                    "controlType": "LABEL",
+                    "configProperty": "actionConfiguration.formData.message_dummy.data"
+                }
+            ]
+        }
+    ]
+}

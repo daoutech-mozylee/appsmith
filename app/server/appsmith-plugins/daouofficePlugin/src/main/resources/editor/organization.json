@@ -1,0 +1,20 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "ORGANIZATION_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'organization'}}"
+    },
+    "children": [
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "ORGANIZATION_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "조직도 조회 설정 (설정 없음)",
+                    "controlType": "LABEL",
+                    "configProperty": "actionConfiguration.formData.organization_dummy.data"
+                }
+            ]
+        }
+    ]
+}

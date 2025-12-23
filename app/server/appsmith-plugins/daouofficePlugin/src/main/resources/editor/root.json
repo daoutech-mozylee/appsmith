@@ -9,138 +9,47 @@
           "identifier": "DAOUOFFICE_SELECTOR-Z1",
           "children": [
             {
-              "label": "요청 경로",
-              "tooltipText": "다우오피스 API 경로를 선택하세요.",
-              "description": "사용자/부서 정보 중 원하는 API를 선택해 호출합니다.",
+              "label": "Action",
+              "tooltipText": "수행할 동작을 선택하세요.",
+              "description": "메일 전송, 조직도 조회 등 원하는 동작을 선택합니다.",
               "propertyName": "daouoffice_endpoint",
               "configProperty": "actionConfiguration.formData.endpoint.data",
               "controlType": "DROP_DOWN",
-              "initialValue": "/public/v1/account",
+              "initialValue": "organization",
               "isRequired": true,
               "options": [
                 {
-                  "label": "사용자 정보 조회",
-                  "value": "/public/v1/account"
+                  "label": "조직도",
+                  "value": "organization"
                 },
                 {
-                  "label": "부서 정보 조회",
-                  "value": "/public/v1/dept"
+                  "label": "메일 전송",
+                  "value": "send_mail"
                 },
                 {
-                  "label": "메일 발송 (Internal)",
-                  "value": "/api/mail/internal/noti/send"
+                  "label": "알림 전송",
+                  "value": "send_notification"
+                },
+                {
+                  "label": "메시지 전송",
+                  "value": "send_message"
+                },
+                {
+                  "label": "캘린더 등록",
+                  "value": "register_calendar"
                 }
               ]
-            },
-            {
-              "label": "보내는 사람 이름",
-              "propertyName": "senderName",
-              "controlType": "INPUT_TEXT",
-              "configProperty": "actionConfiguration.formData.senderName.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "보내는 사람 메일 주소",
-              "propertyName": "senderEmail",
-              "controlType": "INPUT_TEXT",
-              "isRequired": true,
-              "configProperty": "actionConfiguration.formData.senderEmail.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "받는 사람 (이메일 배열)",
-              "propertyName": "to",
-              "controlType": "INPUT_TEXT",
-              "isRequired": true,
-              "placeholderText": "email1@example.com, email2@example.com",
-              "configProperty": "actionConfiguration.formData.to.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "제목",
-              "propertyName": "subject",
-              "controlType": "INPUT_TEXT",
-              "isRequired": true,
-              "configProperty": "actionConfiguration.formData.subject.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "본문 내용",
-              "propertyName": "contents",
-              "controlType": "INPUT_TEXT",
-              "inputType": "TEXT_MULTI_LINE",
-              "configProperty": "actionConfiguration.formData.contents.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "전송 모드 (html/text)",
-              "propertyName": "editmode",
-              "controlType": "DROP_DOWN",
-              "initialValue": "html",
-              "options": [
-                {
-                  "label": "HTML",
-                  "value": "html"
-                },
-                {
-                  "label": "Text",
-                  "value": "text"
-                }
-              ],
-              "configProperty": "actionConfiguration.formData.editmode.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "알림 미사용 여부",
-              "propertyName": "withoutNoti",
-              "controlType": "SWITCH",
-              "initialValue": false,
-              "configProperty": "actionConfiguration.formData.withoutNoti.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
-            },
-            {
-              "label": "반송 메일 주소 (Optional)",
-              "propertyName": "envFromAddr",
-              "controlType": "INPUT_TEXT",
-              "configProperty": "actionConfiguration.formData.envFromAddr.data",
-              "hidden": {
-                "comparison": "NOT_EQUALS",
-                "path": "actionConfiguration.formData.endpoint.data",
-                "value": "/api/mail/internal/noti/send"
-              }
             }
           ]
         }
       ]
     }
   ],
-  "files": []
+  "files": [
+    "organization.json",
+    "send_mail.json",
+    "send_notification.json",
+    "send_message.json",
+    "register_calendar.json"
+  ]
 }
