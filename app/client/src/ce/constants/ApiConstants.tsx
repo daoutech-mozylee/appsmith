@@ -104,4 +104,4 @@ export const getExportAppAPIRoute = (
 };
 
 export const getSnapShotAPIRoute = (applicationId: string) =>
-  `${API_PREFIX}/api/v1/applications/snapshot/${applicationId}`;
+  `v1/applications/snapshot/${applicationId}`;
