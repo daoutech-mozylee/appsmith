@@ -176,7 +176,20 @@ const getCustomModuleInstancesDataTree = createSelector(
 
         (variables as Array<{ name: string; value: unknown }>).forEach(
           (variable) => {
-            variableList[variable.name] = variable.value;
+            // 변수 값이 문자열인 경우 JSON.parse 시도 (JSON에서 로드된 값은 문자열임)
+            // 예: "[]" -> [], "null" -> null, "123" -> 123
+            let parsedValue = variable.value;
+
+            if (typeof variable.value === "string") {
+              try {
+                parsedValue = JSON.parse(variable.value);
+              } catch {
+                // JSON 파싱 실패 시 원래 문자열 값 유지
+                parsedValue = variable.value;
+              }
+            }
+
+            variableList[variable.name] = parsedValue;
             listVariables.push(variable.name);
             bindingPaths[variable.name] =
               EvaluationSubstitutionType.SMART_SUBSTITUTE;
@@ -187,10 +200,26 @@ const getCustomModuleInstancesDataTree = createSelector(
         );
 
         // this. 참조를 JSObject 이름으로 변환
-        const transformedBody = jsObject.body.replace(
+        let transformedBody = jsObject.body.replace(
           /this\./g,
           `${jsObjectName}.`,
         );
+
+        // 모듈 인스턴스 JSObject의 변수 초기화 표현식을 실제 값으로 교체
+        // eval worker가 body를 파싱할 때 바인딩으로 래핑하는 것을 방지
+        // 예: "selectedMembers: inputs?.defaultSelected || []" -> "selectedMembers: []"
+        for (const [varName, varValue] of Object.entries(variableList)) {
+          // 변수 선언 패턴: varName: <expression> (뒤에 , 또는 } 또는 줄바꿈이 올 수 있음)
+          const varPattern = new RegExp(
+            `(${varName}\\s*:\\s*)([^,}\\n]+)(?=[,}\\n])`,
+            "g",
+          );
+
+          transformedBody = transformedBody.replace(
+            varPattern,
+            `$1${JSON.stringify(varValue)}`,
+          );
+        }
 
         // JSObject 엔티티 생성 (mod_xxx_JSObject1)
         dataTree[jsObjectName] = {
@@ -237,15 +266,47 @@ const getCustomModuleInstancesDataTree = createSelector(
         ...widgetInputs,
       };
 
+      // 간단한 바인딩 문자열을 실제 값으로 파싱
+      // 예: "{{[]}}" -> [], "{{true}}" -> true, "{{123}}" -> 123
+      const parsedInputs: Record<string, unknown> = {};
+
+      for (const [key, value] of Object.entries(mergedInputs)) {
+        if (typeof value === "string") {
+          // {{...}} 형태의 바인딩 문자열 확인
+          const bindingMatch = value.match(/^\{\{(.+)\}\}$/s);
+
+          if (bindingMatch) {
+            let innerValue = bindingMatch[1].trim();
+
+            // trailing comma 제거 (JSON 표준에서 허용 안됨)
+            // 예: [1, 2,] -> [1, 2], {"a": 1,} -> {"a": 1}
+            innerValue = innerValue.replace(/,(\s*[}\]])/g, "$1");
+
+            // 간단한 리터럴 값만 파싱 시도 ([], {}, true, false, 숫자, 문자열)
+            try {
+              // JSON으로 파싱 가능한 경우
+              parsedInputs[key] = JSON.parse(innerValue);
+            } catch {
+              // JSON 파싱 실패 시 원래 값 유지 (복잡한 바인딩은 eval worker가 처리)
+              parsedInputs[key] = value;
+            }
+          } else {
+            parsedInputs[key] = value;
+          }
+        } else {
+          parsedInputs[key] = value;
+        }
+      }
+
       // 각 input에 대해 binding path 생성
-      Object.keys(mergedInputs).forEach((inputName) => {
+      Object.keys(parsedInputs).forEach((inputName) => {
         paramsBindingPaths[inputName] = EvaluationSubstitutionType.TEMPLATE;
         paramsReactivePaths[inputName] = EvaluationSubstitutionType.TEMPLATE;
       });
 
-      // params 엔티티 생성 (mergedInputs 사용)
+      // params 엔티티 생성 (parsedInputs 사용 - 바인딩 파싱된 값)
       dataTree[paramsEntityName] = {
-        ...mergedInputs,
+        ...parsedInputs,
         ENTITY_TYPE: ENTITY_TYPE.APPSMITH, // Special entity type
         __moduleInstanceId__: instance.instanceId,
       };
@@ -258,7 +319,7 @@ const getCustomModuleInstancesDataTree = createSelector(
         reactivePaths: paramsReactivePaths,
         dependencyMap: {},
         logBlackList: {},
-        dynamicBindingPathList: Object.keys(mergedInputs).map((key) => ({
+        dynamicBindingPathList: Object.keys(parsedInputs).map((key) => ({
           key,
         })),
       };

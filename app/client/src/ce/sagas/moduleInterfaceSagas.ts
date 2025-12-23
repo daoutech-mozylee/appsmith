@@ -133,13 +133,17 @@ function transformThisParamsBindings(
 
   let transformed = value;
 
-  // 1. this.params.xxx 또는 this.params['xxx'] 패턴을 변환
-  transformed = transformed.replace(/this\.params(?=[.\[])/g, paramsEntityName);
-
-  // 2. inputs.xxx 패턴도 변환 (모듈 JSON에서 사용하는 형식)
-  // 단어 경계를 사용하여 정확한 매칭 (예: myInputs는 매칭하지 않음)
+  // 1. this.params.xxx, this.params['xxx'], this.params?.xxx 패턴을 변환
   transformed = transformed.replace(
-    /(?<![a-zA-Z0-9_])inputs(?=[.\[])/g,
+    /this\.params(?=[\?.\[])/g,
+    paramsEntityName,
+  );
+
+  // 2. inputs.xxx, inputs['xxx'], inputs?.xxx 패턴도 변환 (모듈 JSON에서 사용하는 형식)
+  // 단어 경계를 사용하여 정확한 매칭 (예: myInputs는 매칭하지 않음)
+  // optional chaining(?.)도 지원
+  transformed = transformed.replace(
+    /(?<![a-zA-Z0-9_])inputs(?=[\?.\[])/g,
     paramsEntityName,
   );
 
@@ -248,21 +252,6 @@ function transformWidgetBindings(
       );
 
       // 디버그: 바인딩 변환 로깅 (trigger path인 경우)
-      if (
-        key === "onItemClick" ||
-        key === "onClick" ||
-        key === "onRowSelected"
-      ) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[transformWidgetBindings] ${widget.widgetName}.${key}:`,
-          `\n  Original: ${value}`,
-          `\n  Transformed: ${newValue}`,
-          `\n  EntityMapping:`,
-          Object.fromEntries(entityNameMapping),
-        );
-      }
-
       transformed[key] = newValue;
     } else if (typeof value === "object" && value !== null) {
       // 중첩 객체도 처리 (예: primaryColumns)
@@ -426,6 +415,8 @@ function prepareModuleActions(
       [key: string]: unknown;
     };
     executeOnLoad?: boolean;
+    // 런타임 체크를 위해 원본 runBehaviour 저장
+    runBehaviour?: string;
   }> = [];
 
   for (const action of actions) {
@@ -486,17 +477,50 @@ function prepareModuleActions(
 
 /**
  * 모듈 JSObjects를 인스턴스용으로 변환
+ * @param actionCollections JSObject 컬렉션 배열
+ * @param actions 개별 액션 배열 (JS 함수의 runBehaviour 추출용)
+ * @param instancePrefix 인스턴스 접두사
+ * @param entityNameMapping 엔티티 이름 매핑
  */
 function prepareModuleJSObjects(
   actionCollections: ModuleActionCollection[],
+  actions: ModuleAction[],
   instancePrefix: string,
   entityNameMapping: Map<string, string>,
 ) {
+  // JS 함수별 runBehaviour 매핑 생성 (fullyQualifiedName -> runBehaviour)
+  // 예: "OrgChartJS.init" -> "ON_PAGE_LOAD"
+  const jsFunctionRunBehaviourMap = new Map<string, string>();
+
+  for (const action of actions) {
+    if (
+      action.pluginType === "JS" &&
+      action.unpublishedAction.fullyQualifiedName
+    ) {
+      const runBehaviour = action.unpublishedAction.runBehaviour;
+
+      if (runBehaviour) {
+        jsFunctionRunBehaviourMap.set(
+          action.unpublishedAction.fullyQualifiedName,
+          runBehaviour,
+        );
+      }
+    }
+  }
+
   const moduleJSObjects: Array<{
     name: string;
     originalName: string;
     body: string;
     variables?: unknown[];
+    // 개별 함수의 runBehaviour 정보
+    functions: {
+      [functionName: string]: {
+        name: string;
+        originalName: string;
+        runBehaviour?: string;
+      };
+    };
   }> = [];
 
   for (const collection of actionCollections) {
@@ -506,11 +530,40 @@ function prepareModuleJSObjects(
     // 엔티티 이름 매핑 추가
     entityNameMapping.set(originalName, newName);
 
+    // 해당 JSObject의 함수들의 runBehaviour 추출
+    const functions: {
+      [functionName: string]: {
+        name: string;
+        originalName: string;
+        runBehaviour?: string;
+      };
+    } = {};
+
+    // jsFunctionRunBehaviourMap에서 이 JSObject의 함수들 찾기
+    for (const [
+      fullyQualifiedName,
+      runBehaviour,
+    ] of jsFunctionRunBehaviourMap) {
+      // fullyQualifiedName: "OrgChartJS.init" -> JSObject: "OrgChartJS", function: "init"
+      const parts = fullyQualifiedName.split(".");
+
+      if (parts.length === 2 && parts[0] === originalName) {
+        const functionName = parts[1];
+
+        functions[functionName] = {
+          name: `${newName}.${functionName}`,
+          originalName: functionName,
+          runBehaviour,
+        };
+      }
+    }
+
     moduleJSObjects.push({
       name: newName,
       originalName,
       body: collection.unpublishedCollection.body,
       variables: collection.unpublishedCollection.variables,
+      functions,
     });
   }
 
@@ -677,6 +730,7 @@ export function* handleModuleWidgetCreationSaga(
   const moduleJSObjects = moduleData.actionCollections
     ? prepareModuleJSObjects(
         moduleData.actionCollections,
+        moduleData.actions || [],
         instancePrefix,
         entityNameMapping,
       )

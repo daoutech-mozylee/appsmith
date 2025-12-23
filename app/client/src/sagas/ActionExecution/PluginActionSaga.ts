@@ -40,6 +40,8 @@ import {
   getJSCollectionFromAllEntities,
   getPlugin,
 } from "ee/selectors/entitiesSelector";
+import { getModuleInstances } from "selectors/moduleInstanceSelectors";
+import type { ModuleInstancesState } from "reducers/entityReducers/moduleInstancesReducer";
 import {
   getAppMode,
   getCurrentApplication,
@@ -560,10 +562,66 @@ export default function* executePluginActionTriggerSaga(
     actionId: actionId,
   });
 
-  const action = shouldBeDefined<Action>(
-    yield select(getAction, actionId),
-    `Action not found for id - ${actionId}`,
-  );
+  // 먼저 일반 액션에서 찾기
+  const action: Action | undefined = yield select(getAction, actionId);
+
+  // 일반 액션을 찾지 못하면 모듈 액션인지 확인
+  if (!action) {
+    const moduleInstances: ModuleInstancesState =
+      yield select(getModuleInstances);
+
+    // actionId에서 인스턴스 ID와 액션 이름 추출
+    // 형식: mod_xxx_ActionName -> instanceId: mod_xxx, actionName: mod_xxx_ActionName
+    const match = actionId.match(/^(mod_[a-zA-Z0-9]+)_(.+)$/);
+
+    if (match) {
+      const instanceId = match[1];
+      const instance = moduleInstances[instanceId];
+
+      if (instance && instance.actions[actionId]) {
+        // 모듈 액션 실행 (ModuleInstanceSagas에서 처리)
+        yield put({
+          type: ReduxActionTypes.EXECUTE_MODULE_ACTION_REQUEST,
+          payload: { instanceId, actionName: actionId, params },
+        });
+
+        // 실행 완료 대기
+        const result: ReduxAction<{
+          instanceId: string;
+          actionName: string;
+          data?: unknown[];
+          error?: string;
+        }> = yield take([
+          ReduxActionTypes.EXECUTE_MODULE_ACTION_SUCCESS,
+          ReduxActionTypes.EXECUTE_MODULE_ACTION_ERROR,
+        ]);
+
+        endSpan(span);
+
+        if (result.type === ReduxActionTypes.EXECUTE_MODULE_ACTION_ERROR) {
+          throw new Error(
+            result.payload?.error || "Module action execution failed",
+          );
+        }
+
+        // 일반 액션과 동일한 형식으로 반환 [data, params, executionInfo]
+        // 이 형식이 evaluateAndExecuteDynamicTrigger를 통해 await Member.run()의 결과로 전달됨
+        return [
+          result.payload?.data,
+          params,
+          {
+            isExecutionSuccess: true,
+            statusCode: "200 OK",
+            headers: {},
+          },
+        ];
+      }
+    }
+
+    // 모듈 액션도 아니면 에러
+    throw new Error(`Action not found for id - ${actionId}`);
+  }
+
   // TODO: Fix this the next time the file is edited
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const datasourceId: string = (action?.datasource as any)?.id;

@@ -44,17 +44,20 @@ import {
   getInputsFormByModuleUUID,
 } from "pages/Editor/widgetSidebar/usePackageModules";
 import { objectKeys } from "@appsmith/utils";
+import { evaluateAndExecuteDynamicTrigger } from "sagas/EvaluationsSaga";
+import { EventType } from "constants/AppsmithActionConstants/ActionConstants";
+import { TriggerKind } from "constants/AppsmithActionConstants/ActionConstants";
+import { ENTITY_TYPE } from "ee/entities/AppsmithConsole/utils";
 
 /**
- * 모듈 인스턴스 등록 후 executeOnLoad Action들을 자동 실행
+ * 모듈 인스턴스 등록 후 executeOnLoad Action/JSFunction들을 자동 실행
  */
 function* handleModuleInstanceRegistered(
   action: ReduxAction<RegisterModuleInstancePayload>,
 ) {
-  const { actions, instanceId } = action.payload;
+  const { actions, instanceId, jsObjects } = action.payload;
 
-  // executeOnLoad가 true이거나, runBehaviour가 AUTOMATIC/ON_PAGE_LOAD인 Action들 찾기
-  // (기존 저장된 데이터에서 executeOnLoad가 false여도 runBehaviour로 판단)
+  // 1. DB/SAAS Action 중 executeOnLoad가 true이거나, runBehaviour가 AUTOMATIC/ON_PAGE_LOAD인 것들 실행
   const executeOnLoadActions = actions.filter((act) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const actWithBehaviour = act as any;
@@ -69,13 +72,47 @@ function* handleModuleInstanceRegistered(
     return act.executeOnLoad === true;
   });
 
-  if (executeOnLoadActions.length === 0) {
-    return;
-  }
-
-  // 각 Action을 순차적으로 실행
+  // 각 DB/SAAS Action을 순차적으로 실행
   for (const moduleAction of executeOnLoadActions) {
     yield call(executeModuleAction, instanceId, moduleAction.name);
+  }
+
+  // 2. JSObject의 함수 중 runBehaviour가 AUTOMATIC/ON_PAGE_LOAD인 것들 실행
+  const executeOnLoadJSFunctions: Array<{
+    jsObjectName: string;
+    functionName: string;
+  }> = [];
+
+  for (const jsObj of jsObjects) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[handleModuleInstanceRegistered] Checking jsObj: ${jsObj.name}, functions:`,
+      jsObj.functions,
+    );
+
+    if (jsObj.functions) {
+      for (const [functionName, funcInfo] of Object.entries(jsObj.functions)) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[handleModuleInstanceRegistered] Function: ${functionName}, runBehaviour: ${funcInfo.runBehaviour}`,
+        );
+
+        if (
+          funcInfo.runBehaviour === "AUTOMATIC" ||
+          funcInfo.runBehaviour === "ON_PAGE_LOAD"
+        ) {
+          executeOnLoadJSFunctions.push({
+            jsObjectName: jsObj.name,
+            functionName,
+          });
+        }
+      }
+    }
+  }
+
+  // 각 JS 함수를 순차적으로 실행
+  for (const { functionName, jsObjectName } of executeOnLoadJSFunctions) {
+    yield call(executeModuleJSFunction, instanceId, jsObjectName, functionName);
   }
 }
 
@@ -217,6 +254,97 @@ function* executeModuleAction(
       payload: {
         instanceId,
         actionName,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
+  }
+}
+
+/**
+ * 모듈 JS 함수 실행
+ * evaluateAndExecuteDynamicTrigger를 사용하여 JS 함수를 실행
+ */
+function* executeModuleJSFunction(
+  instanceId: string,
+  jsObjectName: string,
+  functionName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Generator<unknown, void, any> {
+  try {
+    // 실행 시작
+    yield put({
+      type: ReduxActionTypes.EXECUTE_MODULE_JS_FUNCTION_INIT,
+      payload: { instanceId, jsObjectName, functionName },
+    });
+
+    // 함수 호출 문자열 생성 (예: "mod_xxx_OrgChartJS.init()")
+    const functionCall = `${jsObjectName}.${functionName}()`;
+
+    // triggerMeta 설정
+    const triggerMeta = {
+      source: {
+        id: instanceId,
+        name: `${jsObjectName}.${functionName}`,
+        type: ENTITY_TYPE.JSACTION,
+      },
+      triggerPropertyName: `${jsObjectName}.${functionName}`,
+      triggerKind: TriggerKind.JS_FUNCTION_EXECUTION,
+      onPageLoad: true,
+    };
+
+    // evaluateAndExecuteDynamicTrigger를 사용하여 실행
+    const response: { errors: unknown[]; result: unknown } = yield call(
+      evaluateAndExecuteDynamicTrigger,
+      functionCall,
+      EventType.ON_JS_FUNCTION_EXECUTE,
+      triggerMeta,
+    );
+
+    const { errors, result } = response;
+
+    if (errors && errors.length > 0) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[executeModuleJSFunction] Errors in ${jsObjectName}.${functionName}:`,
+        errors,
+      );
+
+      yield put({
+        type: ReduxActionTypes.EXECUTE_MODULE_JS_FUNCTION_ERROR,
+        payload: {
+          instanceId,
+          jsObjectName,
+          functionName,
+          error: JSON.stringify(errors),
+        },
+      });
+
+      return;
+    }
+
+    // 실행 성공
+    yield put({
+      type: ReduxActionTypes.EXECUTE_MODULE_JS_FUNCTION_SUCCESS,
+      payload: {
+        instanceId,
+        jsObjectName,
+        functionName,
+        data: result,
+      },
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `[executeModuleJSFunction] Error ${jsObjectName}.${functionName}:`,
+      error,
+    );
+
+    yield put({
+      type: ReduxActionTypes.EXECUTE_MODULE_JS_FUNCTION_ERROR,
+      payload: {
+        instanceId,
+        jsObjectName,
+        functionName,
         error: error instanceof Error ? error.message : "Unknown error",
       },
     });
@@ -596,10 +724,38 @@ function* handleWidgetPropertyRequestForModuleInputs(
 }
 
 /**
+ * 모듈 액션 실행 요청 처리
+ * PluginActionSaga에서 모듈 액션 감지 시 호출됨
+ */
+function* handleExecuteModuleActionRequest(
+  action: ReduxAction<{
+    instanceId: string;
+    actionName: string;
+    params?: Record<string, unknown>;
+  }>,
+) {
+  const { actionName, instanceId } = action.payload;
+
+  try {
+    yield call(executeModuleAction, instanceId, actionName);
+    // 성공은 executeModuleAction 내부에서 EXECUTE_MODULE_ACTION_SUCCESS dispatch
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error(`[ModuleInstanceSaga] Error executing module action:`, error);
+    // 에러는 executeModuleAction 내부에서 EXECUTE_MODULE_ACTION_ERROR dispatch
+  }
+}
+
+/**
  * Module Instance Sagas Root
  */
 export default function* moduleInstanceSagas() {
   yield all([
+    // 모듈 액션 실행 요청 처리
+    takeEvery(
+      ReduxActionTypes.EXECUTE_MODULE_ACTION_REQUEST,
+      handleExecuteModuleActionRequest,
+    ),
     // 모듈 인스턴스 등록 시 executeOnLoad 실행
     takeEvery(
       ReduxActionTypes.REGISTER_MODULE_INSTANCE,

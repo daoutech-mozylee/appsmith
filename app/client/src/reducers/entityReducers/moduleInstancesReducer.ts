@@ -42,10 +42,12 @@ export interface ModuleInstanceJSObject {
   originalName: string;
   body: string;
   variables?: unknown[];
+  // 개별 함수의 runBehaviour 정보
   functions?: {
     [functionName: string]: {
       name: string;
-      body: string;
+      originalName: string;
+      runBehaviour?: string;
     };
   };
 }
