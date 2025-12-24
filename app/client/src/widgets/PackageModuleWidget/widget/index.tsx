@@ -265,8 +265,13 @@ export class PackageModuleWidget extends BaseWidget<
             controlType: "MODULE_INPUTS_CONTROL",
             isBindProperty: false,
             isTriggerProperty: false,
-            // widgetProperties에 inputsForm, moduleUUID를 포함시키기 위해 dependencies 추가
-            dependencies: ["inputsForm", "moduleUUID", "inputs"],
+            // widgetProperties에 inputsForm, moduleUUID, dynamicPropertyPathList를 포함시키기 위해 dependencies 추가
+            dependencies: [
+              "inputsForm",
+              "moduleUUID",
+              "inputs",
+              "dynamicPropertyPathList",
+            ],
           },
         ],
       },

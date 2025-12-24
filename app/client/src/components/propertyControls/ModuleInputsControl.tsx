@@ -1,5 +1,9 @@
 import React from "react";
 import styled from "styled-components";
+import { connect } from "react-redux";
+import type { Dispatch } from "redux";
+import classNames from "classnames";
+import { ToggleButton, Tooltip } from "@appsmith/ads";
 import type { ControlProps } from "./BaseControl";
 import BaseControl from "./BaseControl";
 import { InputText } from "./InputTextControl";
@@ -8,6 +12,10 @@ import type {
   ModuleInputDefinition,
 } from "constants/PackageModuleConstants";
 import { getInputsFormByModuleUUID } from "pages/Editor/widgetSidebar/usePackageModules";
+import { setWidgetDynamicProperty } from "actions/controlActions";
+import type { DynamicPath } from "utils/DynamicBindingUtils";
+import { isDynamicValue } from "utils/DynamicBindingUtils";
+import { JS_TOGGLE_SWITCH_JS_MESSAGE } from "ee/constants/messages";
 
 const InputsContainer = styled.div`
   display: flex;
@@ -19,6 +27,12 @@ const InputWrapper = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
+`;
+
+const LabelRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 `;
 
 const InputLabel = styled.label`
@@ -37,12 +51,51 @@ const HelpText = styled.span`
  *
  * 패키지 모듈 위젯의 inputsForm을 기반으로 동적으로 입력 필드를 렌더링하는 커스텀 컨트롤
  * inputsForm의 각 child에 대해 INPUT_TEXT 컨트롤을 생성하여 표시
+ * JS 토글 버튼을 통해 {{...}} 바인딩 표현식 입력을 지원
  */
 export interface ModuleInputsControlProps extends ControlProps {
   // widgetProperties에서 inputsForm을 읽어옴
+  setWidgetDynamicProperty: (
+    widgetId: string,
+    propertyPath: string,
+    isDynamic: boolean,
+  ) => void;
 }
 
 class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
+  /**
+   * 특정 프로퍼티가 동적 프로퍼티(JS 모드)인지 확인
+   * dynamicPropertyPathList에 있거나, 값에 {{...}} 바인딩이 포함된 경우 true
+   */
+  isPropertyDynamic(propertyPath: string, value: string): boolean {
+    const { widgetProperties } = this.props;
+    const dynamicPropertyPathList: DynamicPath[] =
+      widgetProperties?.dynamicPropertyPathList || [];
+
+    // dynamicPropertyPathList에 있거나 값에 바인딩 표현식이 있으면 동적
+    const isInDynamicList = dynamicPropertyPathList.some(
+      (path) => path.key === propertyPath,
+    );
+    const hasBindingValue = typeof value === "string" && isDynamicValue(value);
+
+    return isInDynamicList || hasBindingValue;
+  }
+
+  /**
+   * JS 토글 버튼 클릭 핸들러
+   */
+  handleJSToggle = (propertyPath: string, isDynamic: boolean) => {
+    const { widgetProperties } = this.props;
+
+    if (widgetProperties?.widgetId) {
+      this.props.setWidgetDynamicProperty(
+        widgetProperties.widgetId,
+        propertyPath,
+        !isDynamic,
+      );
+    }
+  };
+
   /**
    * inputsForm에서 모든 input children을 플랫하게 추출
    */
@@ -141,22 +194,54 @@ class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
         {inputChildren.map((inputDef, index) => {
           const inputName = inputDef.label || inputDef.name || `input_${index}`;
           const value = this.getInputValue(inputDef);
+          const propertyPath = `inputs.${inputName}`;
           const dataTreePath = widgetProperties?.widgetName
-            ? `${widgetProperties.widgetName}.inputs.${inputName}`
+            ? `${widgetProperties.widgetName}.${propertyPath}`
             : undefined;
+          const isDynamic = this.isPropertyDynamic(propertyPath, value);
+
+          // JS 토글 툴팁 메시지
+          const jsToggleTooltip = isDynamic ? "" : JS_TOGGLE_SWITCH_JS_MESSAGE;
 
           return (
             <InputWrapper key={inputDef.id || index}>
-              <InputLabel>{inputName}</InputLabel>
-              <HelpText>모듈 내부에서 this.params.{inputName}로 접근</HelpText>
+              <LabelRow>
+                <InputLabel>{inputName}</InputLabel>
+                <Tooltip
+                  content={jsToggleTooltip}
+                  isDisabled={!jsToggleTooltip}
+                >
+                  <span>
+                    <ToggleButton
+                      className={classNames({
+                        "t--js-toggle": true,
+                        "is-active": isDynamic,
+                      })}
+                      icon="js-toggle-v2"
+                      isSelected={isDynamic}
+                      onClick={() =>
+                        this.handleJSToggle(propertyPath, isDynamic)
+                      }
+                      size="sm"
+                    />
+                  </span>
+                </Tooltip>
+              </LabelRow>
+              <HelpText>
+                {isDynamic
+                  ? `바인딩 표현식을 입력하세요 (예: {{JSObject1.data}})`
+                  : `모듈 내부에서 this.params.${inputName}로 접근`}
+              </HelpText>
               <InputText
                 dataTreePath={dataTreePath}
                 label={inputName}
                 onChange={this.handleInputChange(inputDef)}
                 placeholder={
-                  inputDef.defaultValue !== undefined
-                    ? String(inputDef.defaultValue)
-                    : ""
+                  isDynamic
+                    ? "{{...}}"
+                    : inputDef.defaultValue !== undefined
+                      ? String(inputDef.defaultValue)
+                      : ""
                 }
                 theme={this.props.theme}
                 value={value}
@@ -173,4 +258,12 @@ class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
   }
 }
 
-export default ModuleInputsControl;
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+  setWidgetDynamicProperty: (
+    widgetId: string,
+    propertyPath: string,
+    isDynamic: boolean,
+  ) => dispatch(setWidgetDynamicProperty(widgetId, propertyPath, isDynamic)),
+});
+
+export default connect(null, mapDispatchToProps)(ModuleInputsControl);
