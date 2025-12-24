@@ -8,6 +8,7 @@ import {
   call,
   put,
   select,
+  take,
   takeEvery,
   debounce,
 } from "redux-saga/effects";
@@ -84,19 +85,8 @@ function* handleModuleInstanceRegistered(
   }> = [];
 
   for (const jsObj of jsObjects) {
-    // eslint-disable-next-line no-console
-    console.log(
-      `[handleModuleInstanceRegistered] Checking jsObj: ${jsObj.name}, functions:`,
-      jsObj.functions,
-    );
-
     if (jsObj.functions) {
       for (const [functionName, funcInfo] of Object.entries(jsObj.functions)) {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[handleModuleInstanceRegistered] Function: ${functionName}, runBehaviour: ${funcInfo.runBehaviour}`,
-        );
-
         if (
           funcInfo.runBehaviour === "AUTOMATIC" ||
           funcInfo.runBehaviour === "ON_PAGE_LOAD"
@@ -105,6 +95,34 @@ function* handleModuleInstanceRegistered(
             jsObjectName: jsObj.name,
             functionName,
           });
+        }
+      }
+    }
+  }
+
+  // ON_PAGE_LOAD JS 함수가 있는 경우, DataTree 평가가 완료될 때까지 대기
+  // 페이지 새로고침 시 모듈 인스턴스가 등록되지만 DataTree에 아직 반영되지 않아서
+  // JSObject가 undefined인 상태에서 함수를 호출하면 ReferenceError 발생
+  if (executeOnLoadJSFunctions.length > 0) {
+    // DataTree에서 첫 번째 JSObject가 존재하는지 확인
+    const firstJsObj = executeOnLoadJSFunctions[0];
+    const dataTree = (yield select(getDataTree)) as DataTree;
+
+    // JSObject가 DataTree에 아직 없으면 SET_EVALUATED_TREE를 기다림
+    if (!dataTree[firstJsObj.jsObjectName]) {
+      // 평가 완료까지 대기 (최대 3번의 평가 사이클 대기)
+      let waitCount = 0;
+      const maxWait = 3;
+
+      while (waitCount < maxWait) {
+        yield take(ReduxActionTypes.SET_EVALUATED_TREE);
+        waitCount++;
+
+        // 다시 DataTree 확인
+        const updatedDataTree = (yield select(getDataTree)) as DataTree;
+
+        if (updatedDataTree[firstJsObj.jsObjectName]) {
+          break;
         }
       }
     }
@@ -401,19 +419,6 @@ function* handlePageLoadModuleRestore() {
     if (existingInstances[moduleInstanceId]) {
       continue;
     }
-
-    // 디버그: 페이지 로드 시 복원되는 모듈 데이터 로깅
-    // eslint-disable-next-line no-console
-    console.log(
-      `[handlePageLoadModuleRestore] Restoring module instance:`,
-      `\n  instanceId: ${moduleInstanceId}`,
-      `\n  moduleName: ${widgetAny.moduleName}`,
-      `\n  jsObjects:`,
-      moduleInstanceData.jsObjects?.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (js: any) => `${js.name} (original: ${js.originalName})`,
-      ),
-    );
 
     // 모듈 인스턴스 등록
     yield put({

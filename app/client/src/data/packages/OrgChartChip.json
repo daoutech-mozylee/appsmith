@@ -11,7 +11,7 @@
       "color": "#9747FF1A"
     },
     "lastPublishedBy": "lgkrwn@naver.com",
-    "checksum": "f08efaf5-1c1b-46bb-8c85-2ce165e7414e",
+    "checksum": "53870ea6-3ef7-414c-a079-d452aaffa1f9",
     "deleted": false
   },
   "datasourceList": [
@@ -58,6 +58,20 @@
                 "propertyName": "inputs.defaultSelected",
                 "controlType": "INPUT_TEXT",
                 "defaultValue": "{{[]}}"
+              },
+              {
+                "id": "diwmcqciru",
+                "label": "disabled",
+                "propertyName": "inputs.disabled",
+                "controlType": "INPUT_TEXT",
+                "defaultValue": "{{false}}"
+              },
+              {
+                "id": "eqxgcpxxop",
+                "label": "label",
+                "propertyName": "inputs.label",
+                "controlType": "INPUT_TEXT",
+                "defaultValue": "조직도"
               }
             ]
           }
@@ -110,7 +124,7 @@
                   "suppressDebuggerError": false,
                   "isCanvas": true,
                   "topRow": 3.0,
-                  "bottomRow": 27.0,
+                  "bottomRow": 23.0,
                   "isRenameDisabled": true,
                   "parentRowSpace": 10.0,
                   "dragDisabled": true,
@@ -133,7 +147,7 @@
                       "mobileBottomRow": 100.0,
                       "widgetName": "ModuleContainerCanvas",
                       "topRow": 0.0,
-                      "bottomRow": 240.0,
+                      "bottomRow": 200.0,
                       "parentRowSpace": 1.0,
                       "type": "CANVAS_WIDGET",
                       "canExtend": true,
@@ -155,15 +169,15 @@
                           "onAddClick": "{{showModal(Modal1.name);}}",
                           "srcDoc": {
                             "html": "<!-- no need to write html, head, body tags, it is handled by the widget -->\n<div id=\"root\"></div>\n",
-                            "css": ".chips-container {\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n  padding: 12px;\n  height: 100%;\n  overflow: auto;\n}\n\n.chips-header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 12px;\n}\n\n.header-actions {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.chips-label {\n  font-size: 14px;\n  font-weight: 600;\n  color: #1f2937;\n}\n\n.add-btn {\n  width: 28px;\n  height: 28px;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  border-radius: 50%;\n  cursor: pointer;\n  font-size: 18px;\n  font-weight: 500;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  transition: all 0.2s;\n}\n\n.add-btn:hover {\n  background: #2563eb;\n  transform: scale(1.1);\n}\n\n.empty-container {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px;\n  height: 100%;\n}\n\n.clear-all-btn {\n  padding: 4px 10px;\n  background: #fee2e2;\n  color: #dc2626;\n  border: 1px solid #fecaca;\n  border-radius: 6px;\n  cursor: pointer;\n  font-size: 12px;\n  transition: all 0.2s;\n}\n\n.clear-all-btn:hover {\n  background: #fecaca;\n}\n\n.chips-list {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n\n.member-chip {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  background: #f0fdf4;\n  border: 1px solid #86efac;\n  padding: 6px 8px 6px 10px;\n  border-radius: 20px;\n  font-size: 13px;\n  transition: all 0.2s;\n}\n\n.member-chip:hover {\n  background: #dcfce7;\n  border-color: #4ade80;\n}\n\n.chip-avatar {\n  font-size: 14px;\n}\n\n.chip-info {\n  display: flex;\n  flex-direction: column;\n  gap: 1px;\n}\n\n.chip-name {\n  color: #166534;\n  font-weight: 500;\n  line-height: 1.2;\n}\n\n.chip-dept {\n  font-size: 11px;\n  color: #4ade80;\n  line-height: 1.2;\n}\n\n.chip-remove {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 18px;\n  height: 18px;\n  background: #dcfce7;\n  border: none;\n  border-radius: 50%;\n  color: #166534;\n  font-size: 10px;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.chip-remove:hover {\n  background: #dc2626;\n  color: white;\n}\n\n.empty-state {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  min-height: 60px;\n  color: #9ca3af;\n  font-size: 14px;\n}",
-                            "js": "import React from \"https://esm.sh/react@18.2.0\";\nimport ReactDOM from \"https://esm.sh/react-dom@18.2.0\";\nfunction App({\n  selectedMembers = [],\n  placeholder\n}) {\n  const handleRemove = member => {\n    const newSelection = selectedMembers.filter(m => m.id !== member.id);\n    console.log(\"handleRemove\", member, newSelection);\n    // model에 저장 후 이벤트 트리거\n    appsmith.updateModel({\n      newSelection\n    });\n    appsmith.triggerEvent(\"onSelectionChange\");\n  };\n  const handleClearAll = () => {\n    console.log(\"handleClearAll\");\n    appsmith.updateModel({\n      newSelection: []\n    });\n    appsmith.triggerEvent(\"onSelectionChange\");\n  };\n  const handleAdd = () => {\n    console.log(\"handleAdd\");\n    appsmith.triggerEvent(\"onAddClick\");\n  };\n  if (!selectedMembers || selectedMembers.length === 0) {\n    return React.createElement(\"div\", {\n      className: \"empty-container\"\n    }, React.createElement(\"div\", {\n      className: \"empty-state\"\n    }, placeholder || \"선택된 멤버가 없습니다.\"), React.createElement(\"button\", {\n      className: \"add-btn\",\n      onClick: handleAdd\n    }, \"+\"));\n  }\n  return React.createElement(\"div\", {\n    className: \"chips-container\"\n  }, React.createElement(\"div\", {\n    className: \"chips-header\"\n  }, React.createElement(\"span\", {\n    className: \"chips-label\"\n  }, `선택된 멤버 (${selectedMembers.length}명)`), React.createElement(\"div\", {\n    className: \"header-actions\"\n  }, React.createElement(\"button\", {\n    className: \"clear-all-btn\",\n    onClick: handleClearAll\n  }, \"전체 해제\"), React.createElement(\"button\", {\n    className: \"add-btn\",\n    onClick: handleAdd\n  }, \"+\"))), React.createElement(\"div\", {\n    className: \"chips-list\"\n  }, selectedMembers.map(member => React.createElement(\"span\", {\n    key: member.id,\n    className: \"member-chip\"\n  }, React.createElement(\"span\", {\n    className: \"chip-avatar\"\n  }, \"\uD83D\uDC64\"), React.createElement(\"span\", {\n    className: \"chip-info\"\n  }, React.createElement(\"span\", {\n    className: \"chip-name\"\n  }, member.name), member.departmentName && React.createElement(\"span\", {\n    className: \"chip-dept\"\n  }, member.departmentName)), React.createElement(\"button\", {\n    className: \"chip-remove\",\n    onClick: e => {\n      e.stopPropagation();\n      e.preventDefault();\n      handleRemove(member);\n    }\n  }, \"✕\")))));\n}\nfunction render(model) {\n  ReactDOM.render(React.createElement(App, {\n    selectedMembers: model?.selectedMembers || [],\n    placeholder: model?.placeholder\n  }), document.getElementById(\"root\"));\n}\nappsmith.onReady(() => {\n  render(appsmith.model);\n});\nappsmith.onModelChange(newModel => {\n  render(newModel);\n});"
+                            "css": ".chips-container {\n  font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n  padding: 12px;\n  height: 100%;\n  overflow: auto;\n}\n\n.chips-container.disabled {\n  background: #f3f3f3;\n}\n\n.chips-header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 12px;\n}\n\n.header-actions {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.chips-label {\n  font-size: 14px;\n  font-weight: 600;\n  color: #1f2937;\n}\n\n.disabled .chips-label {\n  color: #9ca3af;\n}\n\n.add-btn {\n  width: 28px;\n  height: 28px;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  border-radius: 50%;\n  cursor: pointer;\n  font-size: 18px;\n  font-weight: 500;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  transition: all 0.2s;\n}\n\n.add-btn:hover:not(.disabled) {\n  background: #2563eb;\n  transform: scale(1.1);\n}\n\n.add-btn.disabled {\n  background: #d1d5db;\n  cursor: not-allowed;\n}\n\n.clear-all-btn {\n  padding: 4px 10px;\n  background: #fee2e2;\n  color: #dc2626;\n  border: 1px solid #fecaca;\n  border-radius: 6px;\n  cursor: pointer;\n  font-size: 12px;\n  transition: all 0.2s;\n}\n\n.clear-all-btn:hover:not(.disabled) {\n  background: #fecaca;\n}\n\n.clear-all-btn.disabled {\n  background: #e5e7eb;\n  color: #9ca3af;\n  border-color: #d1d5db;\n  cursor: not-allowed;\n}\n\n.empty-container {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px;\n  height: 100%;\n}\n\n.empty-container.disabled {\n  background: #f3f3f3;\n}\n\n.chips-list {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n\n.member-chip {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  background: #f0fdf4;\n  border: 1px solid #86efac;\n  padding: 6px 8px 6px 10px;\n  border-radius: 20px;\n  font-size: 13px;\n  transition: all 0.2s;\n}\n\n.member-chip:hover:not(.disabled) {\n  background: #dcfce7;\n  border-color: #4ade80;\n}\n\n.member-chip.disabled {\n  background: #e5e7eb;\n  border-color: #d1d5db;\n  padding-right: 10px;\n}\n\n.chip-avatar {\n  font-size: 14px;\n}\n\n.chip-info {\n  display: flex;\n  flex-direction: column;\n  gap: 1px;\n}\n\n.chip-name {\n  color: #166534;\n  font-weight: 500;\n  line-height: 1.2;\n}\n\n.disabled .chip-name {\n  color: #6b7280;\n}\n\n.chip-dept {\n  font-size: 11px;\n  color: #4ade80;\n  line-height: 1.2;\n}\n\n.disabled .chip-dept {\n  color: #9ca3af;\n}\n\n.chip-remove {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 18px;\n  height: 18px;\n  background: #dcfce7;\n  border: none;\n  border-radius: 50%;\n  color: #166534;\n  font-size: 10px;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.chip-remove:hover {\n  background: #dc2626;\n  color: white;\n}\n\n.empty-state {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  min-height: 60px;\n  color: #9ca3af;\n  font-size: 14px;\n}",
+                            "js": "import React from \"https://esm.sh/react@18.2.0\";\nimport ReactDOM from \"https://esm.sh/react-dom@18.2.0\";\nfunction App({\n  selectedMembers = [],\n  placeholder,\n  disabled = false\n}) {\n  const handleRemove = member => {\n    if (disabled) return;\n    const newSelection = selectedMembers.filter(m => m.id !== member.id);\n    console.log(\"handleRemove\", member, newSelection);\n    appsmith.updateModel({\n      newSelection\n    });\n    appsmith.triggerEvent(\"onSelectionChange\");\n  };\n  const handleClearAll = () => {\n    if (disabled) return;\n    console.log(\"handleClearAll\");\n    appsmith.updateModel({\n      newSelection: []\n    });\n    appsmith.triggerEvent(\"onSelectionChange\");\n  };\n  const handleAdd = () => {\n    if (disabled) return;\n    console.log(\"handleAdd\");\n    appsmith.triggerEvent(\"onAddClick\");\n  };\n  if (!selectedMembers || selectedMembers.length === 0) {\n    return React.createElement(\"div\", {\n      className: `empty-container ${disabled ? \"disabled\" : \"\"}`\n    }, React.createElement(\"div\", {\n      className: \"empty-state\"\n    }, placeholder || \"선택된 멤버가 없습니다.\"), React.createElement(\"button\", {\n      className: `add-btn ${disabled ? \"disabled\" : \"\"}`,\n      onClick: handleAdd,\n      disabled: disabled\n    }, \"+\"));\n  }\n  return React.createElement(\"div\", {\n    className: `chips-container ${disabled ? \"disabled\" : \"\"}`\n  }, React.createElement(\"div\", {\n    className: \"chips-header\"\n  }, React.createElement(\"span\", {\n    className: \"chips-label\"\n  }, `선택된 멤버 (${selectedMembers.length}명)`), React.createElement(\"div\", {\n    className: \"header-actions\"\n  }, React.createElement(\"button\", {\n    className: `clear-all-btn ${disabled ? \"disabled\" : \"\"}`,\n    onClick: handleClearAll,\n    disabled: disabled\n  }, \"전체 해제\"), React.createElement(\"button\", {\n    className: `add-btn ${disabled ? \"disabled\" : \"\"}`,\n    onClick: handleAdd,\n    disabled: disabled\n  }, \"+\"))), React.createElement(\"div\", {\n    className: \"chips-list\"\n  }, selectedMembers.map(member => React.createElement(\"span\", {\n    key: member.id,\n    className: `member-chip ${disabled ? \"disabled\" : \"\"}`\n  }, React.createElement(\"span\", {\n    className: \"chip-avatar\"\n  }, \"\uD83D\uDC64\"), React.createElement(\"span\", {\n    className: \"chip-info\"\n  }, React.createElement(\"span\", {\n    className: \"chip-name\"\n  }, member.name), member.departmentName && React.createElement(\"span\", {\n    className: \"chip-dept\"\n  }, member.departmentName)), !disabled && React.createElement(\"button\", {\n    className: \"chip-remove\",\n    onClick: e => {\n      e.stopPropagation();\n      e.preventDefault();\n      handleRemove(member);\n    }\n  }, \"✕\")))));\n}\nlet prevDefaultSelectedString = null;\nfunction render(model) {\n  ReactDOM.render(React.createElement(App, {\n    selectedMembers: model?.selectedMembers || [],\n    placeholder: model?.placeholder,\n    disabled: model?.disabled || false\n  }), document.getElementById(\"root\"));\n}\nappsmith.onReady(() => {\n  const model = appsmith.model || {};\n  const defaultSelected = model.defaultSelected || [];\n  if (defaultSelected.length > 0) {\n    prevDefaultSelectedString = JSON.stringify(defaultSelected);\n    appsmith.updateModel({\n      newSelection: defaultSelected\n    });\n    appsmith.triggerEvent(\"onDefaultSelectedChange\");\n  }\n  render(appsmith.model);\n});\nappsmith.onModelChange(newModel => {\n  const defaultSelected = newModel?.defaultSelected || [];\n  const newDefaultSelectedString = JSON.stringify(defaultSelected);\n  if (newDefaultSelectedString !== prevDefaultSelectedString) {\n    console.log(\"defaultSelected changed\", defaultSelected);\n    prevDefaultSelectedString = newDefaultSelectedString;\n    appsmith.updateModel({\n      newSelection: defaultSelected\n    });\n    appsmith.triggerEvent(\"onDefaultSelectedChange\");\n  }\n  render(newModel);\n});"
                           },
                           "isCanvas": false,
                           "dynamicPropertyPathList": [
                             { "key": "onSelectionChange" }
                           ],
-                          "topRow": 2.0,
-                          "bottomRow": 21.0,
+                          "topRow": 4.0,
+                          "bottomRow": 17.0,
                           "parentRowSpace": 10.0,
                           "type": "CUSTOM_WIDGET",
                           "mobileRightColumn": 11.0,
@@ -179,7 +193,7 @@
                             { "key": "defaultModel" }
                           ],
                           "leftColumn": 0.0,
-                          "defaultModel": " {{\n\t{\n\t\t\"selectedMembers\": OrgChartJS.selectedMembers,\n\t\tplaceholder: \"멤버를 선택해주세요\",\n\t\t  newSelection: []\n\n\t}\n}}",
+                          "defaultModel": " {{\n\t{\n\t\t\"selectedMembers\": OrgChartJS.selectedMembers,\n\t\tplaceholder: \"멤버를 선택해주세요\",\n\t\t  newSelection: [],  disabled: inputs.disabled\n\n\n\t}\n}}",
                           "borderWidth": "1",
                           "onSelectionChange": "   {{OrgChartJS.setSelectedMembers(Chip.model.newSelection)}}\n",
                           "theme": "{{appsmith.theme}}",
@@ -199,8 +213,8 @@
                           "version": 1.0,
                           "uncompiledSrcDoc": {
                             "html": "<!-- no need to write html, head, body tags, it is handled by the widget -->\n<div id=\"root\"></div>\n",
-                            "css": ".chips-container {\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  padding: 12px;\n  height: 100%;\n  overflow: auto;\n}\n\n.chips-header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 12px;\n}\n\n.header-actions {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.chips-label {\n  font-size: 14px;\n  font-weight: 600;\n  color: #1f2937;\n}\n\n.add-btn {\n  width: 28px;\n  height: 28px;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  border-radius: 50%;\n  cursor: pointer;\n  font-size: 18px;\n  font-weight: 500;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  transition: all 0.2s;\n}\n\n.add-btn:hover {\n  background: #2563eb;\n  transform: scale(1.1);\n}\n\n.empty-container {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px;\n  height: 100%;\n}\n\n.clear-all-btn {\n  padding: 4px 10px;\n  background: #fee2e2;\n  color: #dc2626;\n  border: 1px solid #fecaca;\n  border-radius: 6px;\n  cursor: pointer;\n  font-size: 12px;\n  transition: all 0.2s;\n}\n\n.clear-all-btn:hover {\n  background: #fecaca;\n}\n\n.chips-list {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n\n.member-chip {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  background: #f0fdf4;\n  border: 1px solid #86efac;\n  padding: 6px 8px 6px 10px;\n  border-radius: 20px;\n  font-size: 13px;\n  transition: all 0.2s;\n}\n\n.member-chip:hover {\n  background: #dcfce7;\n  border-color: #4ade80;\n}\n\n.chip-avatar {\n  font-size: 14px;\n}\n\n.chip-info {\n  display: flex;\n  flex-direction: column;\n  gap: 1px;\n}\n\n.chip-name {\n  color: #166534;\n  font-weight: 500;\n  line-height: 1.2;\n}\n\n.chip-dept {\n  font-size: 11px;\n  color: #4ade80;\n  line-height: 1.2;\n}\n\n.chip-remove {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 18px;\n  height: 18px;\n  background: #dcfce7;\n  border: none;\n  border-radius: 50%;\n  color: #166534;\n  font-size: 10px;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.chip-remove:hover {\n  background: #dc2626;\n  color: white;\n}\n\n.empty-state {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  min-height: 60px;\n  color: #9ca3af;\n  font-size: 14px;\n}",
-                            "js": "import React from \"https://esm.sh/react@18.2.0\";\nimport ReactDOM from \"https://esm.sh/react-dom@18.2.0\";\n\nfunction App({ selectedMembers = [], placeholder }) {\n    const handleRemove = (member) => {\n        const newSelection = selectedMembers.filter(m => m.id !== member.id);\n        console.log(\"handleRemove\", member, newSelection);\n        // model에 저장 후 이벤트 트리거\n        appsmith.updateModel({ newSelection });\n        appsmith.triggerEvent(\"onSelectionChange\");\n    };\n\n    const handleClearAll = () => {\n        console.log(\"handleClearAll\");\n        appsmith.updateModel({ newSelection: [] });\n        appsmith.triggerEvent(\"onSelectionChange\");\n    };\n\n    const handleAdd = () => {\n        console.log(\"handleAdd\");\n        appsmith.triggerEvent(\"onAddClick\");\n    };\n\n    if (!selectedMembers || selectedMembers.length === 0) {\n        return React.createElement(\"div\", { className: \"empty-container\" },\n            React.createElement(\"div\", { className: \"empty-state\" },\n                placeholder || \"선택된 멤버가 없습니다.\"\n            ),\n            React.createElement(\"button\", {\n                className: \"add-btn\",\n                onClick: handleAdd\n            }, \"+\")\n        );\n    }\n\n    return React.createElement(\"div\", { className: \"chips-container\" },\n        React.createElement(\"div\", { className: \"chips-header\" },\n            React.createElement(\"span\", { className: \"chips-label\" },\n                `선택된 멤버 (${selectedMembers.length}명)`\n            ),\n            React.createElement(\"div\", { className: \"header-actions\" },\n                React.createElement(\"button\", {\n                    className: \"clear-all-btn\",\n                    onClick: handleClearAll\n                }, \"전체 해제\"),\n                React.createElement(\"button\", {\n                    className: \"add-btn\",\n                    onClick: handleAdd\n                }, \"+\")\n            )\n        ),\n        React.createElement(\"div\", { className: \"chips-list\" },\n            selectedMembers.map(member =>\n                React.createElement(\"span\", {\n                    key: member.id,\n                    className: \"member-chip\"\n                },\n                    React.createElement(\"span\", { className: \"chip-avatar\" }, \"\uD83D\uDC64\"),\n                    React.createElement(\"span\", { className: \"chip-info\" },\n                        React.createElement(\"span\", { className: \"chip-name\" }, member.name),\n                        member.departmentName && React.createElement(\"span\", { className: \"chip-dept\" }, member.departmentName)\n                    ),\n                    React.createElement(\"button\", {\n                        className: \"chip-remove\",\n                        onClick: (e) => {\n                            e.stopPropagation();\n                            e.preventDefault();\n                            handleRemove(member);\n                        }\n                    }, \"✕\")\n                )\n            )\n        )\n    );\n}\n\nfunction render(model) {\n    ReactDOM.render(\n        React.createElement(App, {\n            selectedMembers: model?.selectedMembers || [],\n            placeholder: model?.placeholder\n        }),\n        document.getElementById(\"root\")\n    );\n}\n\nappsmith.onReady(() => {\n    render(appsmith.model);\n});\n\nappsmith.onModelChange((newModel) => {\n    render(newModel);\n});"
+                            "css": ".chips-container {\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;\n  padding: 12px;\n  height: 100%;\n  overflow: auto;\n}\n\n.chips-container.disabled {\n  background: #f3f3f3;\n}\n\n.chips-header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 12px;\n}\n\n.header-actions {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n}\n\n.chips-label {\n  font-size: 14px;\n  font-weight: 600;\n  color: #1f2937;\n}\n\n.disabled .chips-label {\n  color: #9ca3af;\n}\n\n.add-btn {\n  width: 28px;\n  height: 28px;\n  background: #3b82f6;\n  color: white;\n  border: none;\n  border-radius: 50%;\n  cursor: pointer;\n  font-size: 18px;\n  font-weight: 500;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  transition: all 0.2s;\n}\n\n.add-btn:hover:not(.disabled) {\n  background: #2563eb;\n  transform: scale(1.1);\n}\n\n.add-btn.disabled {\n  background: #d1d5db;\n  cursor: not-allowed;\n}\n\n.clear-all-btn {\n  padding: 4px 10px;\n  background: #fee2e2;\n  color: #dc2626;\n  border: 1px solid #fecaca;\n  border-radius: 6px;\n  cursor: pointer;\n  font-size: 12px;\n  transition: all 0.2s;\n}\n\n.clear-all-btn:hover:not(.disabled) {\n  background: #fecaca;\n}\n\n.clear-all-btn.disabled {\n  background: #e5e7eb;\n  color: #9ca3af;\n  border-color: #d1d5db;\n  cursor: not-allowed;\n}\n\n.empty-container {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  padding: 12px;\n  height: 100%;\n}\n\n.empty-container.disabled {\n  background: #f3f3f3;\n}\n\n.chips-list {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 8px;\n}\n\n.member-chip {\n  display: inline-flex;\n  align-items: center;\n  gap: 8px;\n  background: #f0fdf4;\n  border: 1px solid #86efac;\n  padding: 6px 8px 6px 10px;\n  border-radius: 20px;\n  font-size: 13px;\n  transition: all 0.2s;\n}\n\n.member-chip:hover:not(.disabled) {\n  background: #dcfce7;\n  border-color: #4ade80;\n}\n\n.member-chip.disabled {\n  background: #e5e7eb;\n  border-color: #d1d5db;\n  padding-right: 10px;\n}\n\n.chip-avatar {\n  font-size: 14px;\n}\n\n.chip-info {\n  display: flex;\n  flex-direction: column;\n  gap: 1px;\n}\n\n.chip-name {\n  color: #166534;\n  font-weight: 500;\n  line-height: 1.2;\n}\n\n.disabled .chip-name {\n  color: #6b7280;\n}\n\n.chip-dept {\n  font-size: 11px;\n  color: #4ade80;\n  line-height: 1.2;\n}\n\n.disabled .chip-dept {\n  color: #9ca3af;\n}\n\n.chip-remove {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  width: 18px;\n  height: 18px;\n  background: #dcfce7;\n  border: none;\n  border-radius: 50%;\n  color: #166534;\n  font-size: 10px;\n  cursor: pointer;\n  transition: all 0.2s;\n}\n\n.chip-remove:hover {\n  background: #dc2626;\n  color: white;\n}\n\n.empty-state {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  min-height: 60px;\n  color: #9ca3af;\n  font-size: 14px;\n}",
+                            "js": "import React from \"https://esm.sh/react@18.2.0\";\nimport ReactDOM from \"https://esm.sh/react-dom@18.2.0\";\n\nfunction App({ selectedMembers = [], placeholder, disabled = false }) {\n    const handleRemove = (member) => {\n        if (disabled) return;\n        const newSelection = selectedMembers.filter(m => m.id !== member.id);\n        console.log(\"handleRemove\", member, newSelection);\n        appsmith.updateModel({ newSelection });\n        appsmith.triggerEvent(\"onSelectionChange\");\n    };\n\n    const handleClearAll = () => {\n        if (disabled) return;\n        console.log(\"handleClearAll\");\n        appsmith.updateModel({ newSelection: [] });\n        appsmith.triggerEvent(\"onSelectionChange\");\n    };\n\n    const handleAdd = () => {\n        if (disabled) return;\n        console.log(\"handleAdd\");\n        appsmith.triggerEvent(\"onAddClick\");\n    };\n\n    if (!selectedMembers || selectedMembers.length === 0) {\n        return React.createElement(\"div\", { \n            className: `empty-container ${disabled ? \"disabled\" : \"\"}`\n        },\n            React.createElement(\"div\", { className: \"empty-state\" },\n                placeholder || \"선택된 멤버가 없습니다.\"\n            ),\n            React.createElement(\"button\", {\n                className: `add-btn ${disabled ? \"disabled\" : \"\"}`,\n                onClick: handleAdd,\n                disabled: disabled\n            }, \"+\")\n        );\n    }\n\n    return React.createElement(\"div\", { \n        className: `chips-container ${disabled ? \"disabled\" : \"\"}`\n    },\n        React.createElement(\"div\", { className: \"chips-header\" },\n            React.createElement(\"span\", { className: \"chips-label\" },\n                `선택된 멤버 (${selectedMembers.length}명)`\n            ),\n            React.createElement(\"div\", { className: \"header-actions\" },\n                React.createElement(\"button\", {\n                    className: `clear-all-btn ${disabled ? \"disabled\" : \"\"}`,\n                    onClick: handleClearAll,\n                    disabled: disabled\n                }, \"전체 해제\"),\n                React.createElement(\"button\", {\n                    className: `add-btn ${disabled ? \"disabled\" : \"\"}`,\n                    onClick: handleAdd,\n                    disabled: disabled\n                }, \"+\")\n            )\n        ),\n        React.createElement(\"div\", { className: \"chips-list\" },\n            selectedMembers.map(member =>\n                React.createElement(\"span\", {\n                    key: member.id,\n                    className: `member-chip ${disabled ? \"disabled\" : \"\"}`\n                },\n                    React.createElement(\"span\", { className: \"chip-avatar\" }, \"\uD83D\uDC64\"),\n                    React.createElement(\"span\", { className: \"chip-info\" },\n                        React.createElement(\"span\", { className: \"chip-name\" }, member.name),\n                        member.departmentName && React.createElement(\"span\", { className: \"chip-dept\" }, member.departmentName)\n                    ),\n                    !disabled && React.createElement(\"button\", {\n                        className: \"chip-remove\",\n                        onClick: (e) => {\n                            e.stopPropagation();\n                            e.preventDefault();\n                            handleRemove(member);\n                        }\n                    }, \"✕\")\n                )\n            )\n        )\n    );\n}\n\nlet prevDefaultSelectedString = null;\n\nfunction render(model) {\n    ReactDOM.render(\n        React.createElement(App, {\n            selectedMembers: model?.selectedMembers || [],\n            placeholder: model?.placeholder,\n            disabled: model?.disabled || false\n        }),\n        document.getElementById(\"root\")\n    );\n}\n\nappsmith.onReady(() => {\n    const model = appsmith.model || {};\n    const defaultSelected = model.defaultSelected || [];\n    \n    if (defaultSelected.length > 0) {\n        prevDefaultSelectedString = JSON.stringify(defaultSelected);\n        appsmith.updateModel({ newSelection: defaultSelected });\n        appsmith.triggerEvent(\"onDefaultSelectedChange\");\n    }\n    \n    render(appsmith.model);\n});\n\nappsmith.onModelChange((newModel) => {\n    const defaultSelected = newModel?.defaultSelected || [];\n    const newDefaultSelectedString = JSON.stringify(defaultSelected);\n    \n    if (newDefaultSelectedString !== prevDefaultSelectedString) {\n        console.log(\"defaultSelected changed\", defaultSelected);\n        prevDefaultSelectedString = newDefaultSelectedString;\n        appsmith.updateModel({ newSelection: defaultSelected });\n        appsmith.triggerEvent(\"onDefaultSelectedChange\");\n    }\n    \n    render(newModel);\n});"
                           },
                           "parentId": "module-canvas-0",
                           "renderMode": "CANVAS",
@@ -209,6 +223,51 @@
                           "borderRadius": "{{appsmith.theme.borderRadius.appBorderRadius}}",
                           "mobileLeftColumn": 0.0,
                           "maxDynamicHeight": 9000.0,
+                          "minDynamicHeight": 4.0
+                        },
+                        {
+                          "needsErrorInfo": false,
+                          "mobileBottomRow": 4.0,
+                          "widgetName": "Text1",
+                          "topRow": 0.0,
+                          "bottomRow": 4.0,
+                          "parentRowSpace": 10.0,
+                          "type": "TEXT_WIDGET",
+                          "mobileRightColumn": 17.0,
+                          "animateLoading": true,
+                          "overflow": "NONE",
+                          "fontFamily": "{{appsmith.theme.fontFamily.appFont}}",
+                          "parentColumnSpace": 10.19775390625,
+                          "dynamicTriggerPathList": [],
+                          "leftColumn": 0.0,
+                          "dynamicBindingPathList": [
+                            { "key": "truncateButtonColor" },
+                            { "key": "fontFamily" },
+                            { "key": "borderRadius" },
+                            { "key": "text" }
+                          ],
+                          "shouldTruncate": false,
+                          "truncateButtonColor": "{{appsmith.theme.colors.primaryColor}}",
+                          "text": "{{inputs.label}}",
+                          "key": "huphhr3ejh",
+                          "rightColumn": 9.0,
+                          "textAlign": "LEFT",
+                          "dynamicHeight": "FIXED",
+                          "widgetId": "hc0ex17dnx",
+                          "minWidth": 450.0,
+                          "isVisible": true,
+                          "fontStyle": "",
+                          "textColor": "#231F20",
+                          "version": 1.0,
+                          "parentId": "module-canvas-0",
+                          "renderMode": "CANVAS",
+                          "isLoading": false,
+                          "mobileTopRow": 0.0,
+                          "responsiveBehavior": "fill",
+                          "borderRadius": "{{appsmith.theme.borderRadius.appBorderRadius}}",
+                          "mobileLeftColumn": 1.0,
+                          "maxDynamicHeight": 9000.0,
+                          "fontSize": "0.875rem",
                           "minDynamicHeight": 4.0
                         }
                       ],
@@ -237,7 +296,7 @@
                   "borderWidth": "1",
                   "key": "wb46zhs1r9",
                   "flexVerticalAlignment": "stretch",
-                  "rightColumn": 38.0,
+                  "rightColumn": 42.0,
                   "backgroundColor": "transparent",
                   "dynamicHeight": "FIXED",
                   "widgetId": "module-container-0",
@@ -434,7 +493,7 @@
             "layoutOnLoadActions": [
               [
                 {
-                  "id": "692fb7bb81628f3d7eb97321",
+                  "id": "694a1e30aa168e362c63bee6",
                   "name": "Member",
                   "confirmBeforeExecute": false,
                   "pluginType": "DB",
@@ -442,13 +501,13 @@
                   "timeoutInMillisecond": 10000.0
                 },
                 {
-                  "id": "693a0f78aa168e362c63b0f7",
+                  "id": "694a1e30aa168e362c63bee9",
                   "name": "OrgChartJS.init",
-                  "collectionId": "6938c4869f9db06bf98bb97f",
+                  "collectionId": "694a1e30aa168e362c63beeb",
                   "confirmBeforeExecute": false,
                   "pluginType": "JS",
                   "jsonPathKeys": [
-                    "async function () {\n  console.log('run init');\n  const result = await Member.run();\n  console.log('result', result);\n  OrgChartJS.orgData = result;\n  return result;\n}"
+                    "async function () {\n  console.log('run init');\n  const result = await Member.run();\n  console.log('result', result);\n  console.log('inputs', inputs.defaultSelected);\n  OrgChartJS.selectedMembers = inputs.defaultSelected || [];\n  OrgChartJS.orgData = result;\n  return result;\n}"
                   ],
                   "timeoutInMillisecond": 10000.0
                 }
@@ -456,7 +515,7 @@
             ],
             "layoutOnLoadActionErrors": [],
             "validOnPageLoadActions": true,
-            "id": "692f9f3881628f3d7eb97308",
+            "id": "694a1e30aa168e362c63bee4",
             "deleted": false,
             "policies": [],
             "userPermissions": []
@@ -471,56 +530,6 @@
     }
   ],
   "actionList": [
-    {
-      "isPublic": false,
-      "pluginType": "DB",
-      "pluginId": "postgres-plugin",
-      "unpublishedAction": {
-        "moduleId": "OrgChartChip",
-        "name": "Member",
-        "datasource": {
-          "name": "Postgres",
-          "pluginId": "postgres-plugin",
-          "messages": [],
-          "isAutoGenerated": false,
-          "id": "Postgres",
-          "deleted": false,
-          "policyMap": {},
-          "policies": [],
-          "userPermissions": []
-        },
-        "contextType": "MODULE",
-        "actionConfiguration": {
-          "timeoutInMillisecond": 10000.0,
-          "paginationType": "NONE",
-          "encodeParamsToggle": true,
-          "body": "WITH RECURSIVE department_tree AS (\n    -- 루트 부서 (parent_id가 NULL인 최상위 부서)\n    SELECT \n        id,\n        name,\n        code,\n        alias,\n        parent_id,\n        sort_order,\n        status,\n        1 AS depth,\n        ARRAY[id] AS path,\n        LPAD(sort_order::text, 5, '0') AS sort_path\n    FROM public.department\n    WHERE parent_id IS NULL\n      AND deleted_at IS NULL\n    \n    UNION ALL\n    \n    -- 하위 부서들 재귀적으로 조회\n    SELECT \n        d.id,\n        d.name,\n        d.code,\n        d.alias,\n        d.parent_id,\n        d.sort_order,\n        d.status,\n        dt.depth + 1,\n        dt.path || d.id,\n        dt.sort_path || '-' || LPAD(d.sort_order::text, 5, '0')\n    FROM public.department d\n    INNER JOIN department_tree dt ON d.parent_id = dt.id\n    WHERE d.deleted_at IS NULL\n)\nSELECT \n    dt.id AS department_id,\n    dt.name AS department_name,\n    dt.code AS department_code,\n    dt.parent_id,\n    dt.depth,\n    dt.path AS department_path_ids,\n    dt.sort_path,\n    m.id AS member_id,\n    m.user_id,\n    m.member_type,\n    m.duty_code_id,\n    m.department_order,\n    m.sort_order AS member_sort_order,\n    u.name AS member_name,\n    u.employee_number,\n    u.mobile_number,\n    u.profile_image_path\nFROM department_tree dt\nLEFT JOIN public.member m ON m.department_id = dt.id\nLEFT JOIN public.user u ON m.user_id = u.id AND u.deleted_at IS NULL\nORDER BY dt.sort_path, m.department_order, m.sort_order;",
-          "selfReferencingDataPaths": [],
-          "pluginSpecifiedTemplates": [{ "value": false }]
-        },
-        "runBehaviour": "ON_PAGE_LOAD",
-        "dynamicBindingPathList": [],
-        "isValid": true,
-        "invalids": [],
-        "messages": [],
-        "jsonPathKeys": [],
-        "userSetOnLoad": true,
-        "confirmBeforeExecute": false,
-        "policyMap": {},
-        "userPermissions": [],
-        "createdAt": "2025-12-03T04:08:27Z"
-      },
-      "publishedAction": {
-        "messages": [],
-        "userSetOnLoad": false,
-        "confirmBeforeExecute": false,
-        "policyMap": {},
-        "userPermissions": []
-      },
-      "gitSyncId": "472405fe-c393-4f99-9c3c-68450306f837_8fa39a07-d027-4e8b-875f-650e4f11f72f",
-      "id": "OrgChartChip_Member",
-      "deleted": false
-    },
     {
       "isPublic": false,
       "pluginType": "DB",
@@ -606,7 +615,8 @@
         "userSetOnLoad": false,
         "confirmBeforeExecute": false,
         "policyMap": {},
-        "userPermissions": []
+        "userPermissions": [],
+        "createdAt": "2025-12-23T04:44:32Z"
       },
       "publishedAction": {
         "messages": [],
@@ -643,7 +653,7 @@
           "timeoutInMillisecond": 10000.0,
           "paginationType": "NONE",
           "encodeParamsToggle": true,
-          "body": "async function () {\n  console.log('run init');\n  const result = await Member.run();\n  console.log('result', result);\n  OrgChartJS.orgData = result;\n  return result;\n}",
+          "body": "async function () {\n  console.log('run init');\n  const result = await Member.run();\n  console.log('result', result);\n  console.log('inputs', inputs.defaultSelected);\n  OrgChartJS.selectedMembers = inputs.defaultSelected || [];\n  OrgChartJS.orgData = result;\n  return result;\n}",
           "selfReferencingDataPaths": [],
           "jsArguments": []
         },
@@ -653,7 +663,7 @@
         "invalids": [],
         "messages": [],
         "jsonPathKeys": [
-          "async function () {\n  console.log('run init');\n  const result = await Member.run();\n  console.log('result', result);\n  OrgChartJS.orgData = result;\n  return result;\n}"
+          "async function () {\n  console.log('run init');\n  const result = await Member.run();\n  console.log('result', result);\n  console.log('inputs', inputs.defaultSelected);\n  OrgChartJS.selectedMembers = inputs.defaultSelected || [];\n  OrgChartJS.orgData = result;\n  return result;\n}"
         ],
         "userSetOnLoad": true,
         "confirmBeforeExecute": false,
@@ -724,6 +734,56 @@
       "gitSyncId": "3d848f72-fd9f-4f61-8cb7-113c4e1adbb3_6733eb64-5914-44bb-aab4-c42e3d63fc44",
       "id": "OrgChartChip_OrgChartJS.setSelectedMembers",
       "deleted": false
+    },
+    {
+      "isPublic": false,
+      "pluginType": "DB",
+      "pluginId": "postgres-plugin",
+      "unpublishedAction": {
+        "moduleId": "OrgChartChip",
+        "name": "Member",
+        "datasource": {
+          "name": "Postgres",
+          "pluginId": "postgres-plugin",
+          "messages": [],
+          "isAutoGenerated": false,
+          "id": "Postgres",
+          "deleted": false,
+          "policyMap": {},
+          "policies": [],
+          "userPermissions": []
+        },
+        "contextType": "MODULE",
+        "actionConfiguration": {
+          "timeoutInMillisecond": 10000.0,
+          "paginationType": "NONE",
+          "encodeParamsToggle": true,
+          "body": "WITH RECURSIVE department_tree AS (\n    -- 루트 부서 (parent_id가 NULL인 최상위 부서)\n    SELECT \n        id,\n        name,\n        code,\n        alias,\n        parent_id,\n        sort_order,\n        status,\n        1 AS depth,\n        ARRAY[id] AS path,\n        LPAD(sort_order::text, 5, '0') AS sort_path\n    FROM public.department\n    WHERE parent_id IS NULL\n      AND deleted_at IS NULL\n    \n    UNION ALL\n    \n    -- 하위 부서들 재귀적으로 조회\n    SELECT \n        d.id,\n        d.name,\n        d.code,\n        d.alias,\n        d.parent_id,\n        d.sort_order,\n        d.status,\n        dt.depth + 1,\n        dt.path || d.id,\n        dt.sort_path || '-' || LPAD(d.sort_order::text, 5, '0')\n    FROM public.department d\n    INNER JOIN department_tree dt ON d.parent_id = dt.id\n    WHERE d.deleted_at IS NULL\n)\nSELECT \n    dt.id AS department_id,\n    dt.name AS department_name,\n    dt.code AS department_code,\n    dt.parent_id,\n    dt.depth,\n    dt.path AS department_path_ids,\n    dt.sort_path,\n    m.id AS member_id,\n    m.user_id,\n    m.member_type,\n    m.duty_code_id,\n    m.department_order,\n    m.sort_order AS member_sort_order,\n    u.name AS member_name,\n    u.employee_number,\n    u.mobile_number,\n    u.profile_image_path\nFROM department_tree dt\nLEFT JOIN public.member m ON m.department_id = dt.id\nLEFT JOIN public.user u ON m.user_id = u.id AND u.deleted_at IS NULL\nORDER BY dt.sort_path, m.department_order, m.sort_order;",
+          "selfReferencingDataPaths": [],
+          "pluginSpecifiedTemplates": [{ "value": false }]
+        },
+        "runBehaviour": "ON_PAGE_LOAD",
+        "dynamicBindingPathList": [],
+        "isValid": true,
+        "invalids": [],
+        "messages": [],
+        "jsonPathKeys": [],
+        "userSetOnLoad": true,
+        "confirmBeforeExecute": false,
+        "policyMap": {},
+        "userPermissions": [],
+        "createdAt": "2025-12-03T04:08:27Z"
+      },
+      "publishedAction": {
+        "messages": [],
+        "userSetOnLoad": false,
+        "confirmBeforeExecute": false,
+        "policyMap": {},
+        "userPermissions": []
+      },
+      "gitSyncId": "472405fe-c393-4f99-9c3c-68450306f837_8fa39a07-d027-4e8b-875f-650e4f11f72f",
+      "id": "OrgChartChip_Member",
+      "deleted": false
     }
   ],
   "actionCollectionList": [
@@ -737,10 +797,13 @@
         "pluginType": "JS",
         "actions": [],
         "archivedActions": [],
-        "body": "export default {\n\torgData: null,\n\tselectedMembers: inputs?.defaultSelected || [],\n\tsetSelectedMembers(members) {\n\t\tthis.selectedMembers = members;\n\t},\n\tasync init() {\n\t\tconsole.log('run init');\n\t\tconst result = await Member.run();\n\t\tconsole.log('result', result);\n\t\tconsole.log('inputs', inputs.defaultSelected);\n\t\tthis.selectedMembers = inputs.defaultSelected || [];\n\t\tthis.orgData = result;\n\t\treturn result;\n\t}\n}",
+        "body": "export default {\n\torgData: null,\n\tselectedMembers: inputs?.defaultSelected || [],\n  \n  setSelectedMembers(members) {\n    this.selectedMembers = members;\n  },\n\tasync init() {\n\t\tconsole.log('run init')\n\t\tconst result = await Member.run();\n\t\tconsole.log('result', result)\n\t\tconsole.log('inputs', inputs.defaultSelected);\n\t\tthis.selectedMembers = inputs.defaultSelected || [];\n\t\tthis.orgData = result;\n\t\treturn result;\n\t}\n}\n",
         "variables": [
           { "name": "orgData", "value": "null" },
-          { "name": "selectedMembers", "value": "[]" }
+          {
+            "name": "selectedMembers",
+            "value": "inputs?.defaultSelected || []"
+          }
         ],
         "userPermissions": []
       },
