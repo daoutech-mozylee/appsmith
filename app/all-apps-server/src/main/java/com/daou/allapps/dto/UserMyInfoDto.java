@@ -15,7 +15,7 @@ import java.util.List;
 @AllArgsConstructor
 public class UserMyInfoDto {
     private Long userId;
-    private String companyUid;
+    private String companyUuid;
     private String userName;
     private String position;
     private List<String> myApps;
