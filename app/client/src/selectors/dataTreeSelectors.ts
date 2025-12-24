@@ -32,7 +32,7 @@ import { getWindowDimensions } from "./windowSelectors";
 import type { LoadingEntitiesState } from "reducers/evaluationReducers/loadingEntitiesReducer";
 import _, { get } from "lodash";
 import type { EvaluationError } from "utils/DynamicBindingUtils";
-import { getEvalErrorPath } from "utils/DynamicBindingUtils";
+import { getEvalErrorPath, isDynamicValue } from "utils/DynamicBindingUtils";
 import ConfigTreeActions from "utils/configTree";
 import { DATATREE_INTERNAL_KEYWORDS } from "constants/WidgetValidation";
 import { getLayoutSystemType } from "./layoutSystemSelectors";
@@ -172,24 +172,66 @@ const getCustomModuleInstancesDataTree = createSelector(
         // 변수 처리 (unknown[] 타입이므로 타입 단언 사용)
         const variables = jsObject.variables || [];
         const variableList: Record<string, unknown> = {};
+        // 바인딩 표현식을 가진 변수들 (body 교체 시 별도 처리 필요)
+        const bindingVariables: Record<string, string> = {};
         const listVariables: string[] = [];
 
         (variables as Array<{ name: string; value: unknown }>).forEach(
           (variable) => {
-            // 변수 값이 문자열인 경우 JSON.parse 시도 (JSON에서 로드된 값은 문자열임)
-            // 예: "[]" -> [], "null" -> null, "123" -> 123
+            // 변수 값이 문자열인 경우 처리
             let parsedValue = variable.value;
+            // body 교체 시 사용할 값 (바인딩이면 기본값)
+            let bodyReplacementValue = variable.value;
 
             if (typeof variable.value === "string") {
-              try {
-                parsedValue = JSON.parse(variable.value);
-              } catch {
-                // JSON 파싱 실패 시 원래 문자열 값 유지
-                parsedValue = variable.value;
+              // 바인딩 표현식 체크 ({{...}} 형식)
+              if (isDynamicValue(variable.value)) {
+                // 바인딩 표현식인 경우: {{inputs?.defaultSelected || []}}
+                // inputs를 __mod_xxx_params__로 변환하여 eval worker가 평가할 수 있도록 함
+                const paramsEntityName = `__${instance.instanceId}_params__`;
+                const transformedBinding = variable.value.replace(
+                  /\binputs\b/g,
+                  paramsEntityName,
+                );
+
+                // variableList에는 변환된 바인딩 표현식 저장 (eval worker가 평가)
+                parsedValue = transformedBinding;
+                bindingVariables[variable.name] = transformedBinding;
+
+                // body 교체용 기본값 추출: {{expr || defaultValue}}에서 defaultValue 추출
+                const bindingContent = variable.value.slice(2, -2).trim(); // {{ }} 제거
+                const orMatch = bindingContent.match(
+                  /\|\|\s*(\[.*?\]|\{.*?\}|null|undefined|true|false|\d+|".*?"|'.*?')$/,
+                );
+
+                if (orMatch) {
+                  try {
+                    bodyReplacementValue = JSON.parse(orMatch[1]);
+                  } catch {
+                    bodyReplacementValue = [];
+                  }
+                } else {
+                  bodyReplacementValue = undefined;
+                }
+              } else {
+                // 일반 문자열: JSON.parse 시도
+                // 예: "[]" -> [], "null" -> null, "123" -> 123
+                try {
+                  parsedValue = JSON.parse(variable.value);
+                  bodyReplacementValue = parsedValue;
+                } catch {
+                  // JSON 파싱 실패 시 원래 문자열 값 유지
+                  parsedValue = variable.value;
+                  bodyReplacementValue = variable.value;
+                }
               }
             }
 
             variableList[variable.name] = parsedValue;
+            // body 교체용 값 저장 (바인딩 변수는 기본값 사용)
+            bindingVariables[variable.name] = bindingVariables[variable.name]
+              ? bodyReplacementValue
+              : parsedValue;
             listVariables.push(variable.name);
             bindingPaths[variable.name] =
               EvaluationSubstitutionType.SMART_SUBSTITUTE;
@@ -205,9 +247,19 @@ const getCustomModuleInstancesDataTree = createSelector(
           `${jsObjectName}.`,
         );
 
+        // inputs 참조를 __mod_xxx_params__로 변환
+        // 모듈 내부에서 inputs.xxx는 페이지에서 전달한 값에 접근
+        const paramsEntityName = `__${instance.instanceId}_params__`;
+
+        transformedBody = transformedBody.replace(
+          /\binputs\b/g,
+          paramsEntityName,
+        );
+
         // 모듈 인스턴스 JSObject의 변수 초기화 표현식을 실제 값으로 교체
         // eval worker가 body를 파싱할 때 바인딩으로 래핑하는 것을 방지
         // 예: "selectedMembers: inputs?.defaultSelected || []" -> "selectedMembers: []"
+        // 바인딩 표현식이 있는 변수는 바인딩으로 교체
         for (const [varName, varValue] of Object.entries(variableList)) {
           // 변수 선언 패턴: varName: <expression> (뒤에 , 또는 } 또는 줄바꿈이 올 수 있음)
           const varPattern = new RegExp(
@@ -215,10 +267,12 @@ const getCustomModuleInstancesDataTree = createSelector(
             "g",
           );
 
-          transformedBody = transformedBody.replace(
-            varPattern,
-            `$1${JSON.stringify(varValue)}`,
-          );
+          // 바인딩 변수인 경우 바인딩 표현식 사용, 아니면 JSON.stringify
+          const replacement = bindingVariables[varName]
+            ? `$1${JSON.stringify(bindingVariables[varName])}`
+            : `$1${JSON.stringify(varValue)}`;
+
+          transformedBody = transformedBody.replace(varPattern, replacement);
         }
 
         // JSObject 엔티티 생성 (mod_xxx_JSObject1)
@@ -305,23 +359,45 @@ const getCustomModuleInstancesDataTree = createSelector(
       });
 
       // params 엔티티 생성 (parsedInputs 사용 - 바인딩 파싱된 값)
+      // ACTION 타입으로 설정하여 바인딩 평가 지원
       dataTree[paramsEntityName] = {
         ...parsedInputs,
-        ENTITY_TYPE: ENTITY_TYPE.APPSMITH, // Special entity type
+        ENTITY_TYPE: ENTITY_TYPE.ACTION,
         __moduleInstanceId__: instance.instanceId,
+        // ACTION 타입에 필요한 기본 속성
+        actionId: `${instance.instanceId}_params`,
+        data: undefined,
+        isLoading: false,
+        run: {},
+        clear: {},
+        config: {},
+        responseMeta: {},
       };
+
+      // 바인딩 문자열이 있는 input만 dynamicBindingPathList에 추가
+      const paramsDynamicBindingPathList: Array<{ key: string }> = [];
+
+      Object.entries(parsedInputs).forEach(([key, value]) => {
+        if (
+          typeof value === "string" &&
+          value.includes("{{") &&
+          value.includes("}}")
+        ) {
+          paramsDynamicBindingPathList.push({ key });
+        }
+      });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (configTree as any)[paramsEntityName] = {
         name: paramsEntityName,
-        ENTITY_TYPE: ENTITY_TYPE.APPSMITH,
+        actionId: `${instance.instanceId}_params`,
+        pluginType: "MODULE_PARAMS",
+        ENTITY_TYPE: ENTITY_TYPE.ACTION,
         bindingPaths: paramsBindingPaths,
         reactivePaths: paramsReactivePaths,
         dependencyMap: {},
         logBlackList: {},
-        dynamicBindingPathList: Object.keys(parsedInputs).map((key) => ({
-          key,
-        })),
+        dynamicBindingPathList: paramsDynamicBindingPathList,
       };
 
       // 모듈 인스턴스의 outputs 엔티티 생성
@@ -592,15 +668,31 @@ export const getUnevaluatedDataTree = createSelector(
           const configEntity = configTree[entityName] as any;
 
           if (configEntity) {
-            // inputs의 각 key에 대해 binding path 추가
-            Object.keys(augmentation.inputs).forEach((inputKey) => {
-              const path = `inputs.${inputKey}`;
+            // dynamicBindingPathList 초기화 (없으면 생성)
+            if (!configEntity.dynamicBindingPathList) {
+              configEntity.dynamicBindingPathList = [];
+            }
 
-              configEntity.bindingPaths[path] =
-                EvaluationSubstitutionType.TEMPLATE;
-              configEntity.reactivePaths[path] =
-                EvaluationSubstitutionType.TEMPLATE;
-            });
+            // inputs의 각 key에 대해 binding path 추가
+            Object.entries(augmentation.inputs).forEach(
+              ([inputKey, inputValue]) => {
+                const path = `inputs.${inputKey}`;
+
+                configEntity.bindingPaths[path] =
+                  EvaluationSubstitutionType.TEMPLATE;
+                configEntity.reactivePaths[path] =
+                  EvaluationSubstitutionType.TEMPLATE;
+
+                // 바인딩 문자열인 경우 dynamicBindingPathList에 추가
+                if (
+                  typeof inputValue === "string" &&
+                  inputValue.includes("{{") &&
+                  inputValue.includes("}}")
+                ) {
+                  configEntity.dynamicBindingPathList.push({ key: path });
+                }
+              },
+            );
 
             // outputs의 각 key에 대해 binding path 추가
             Object.keys(augmentation.outputs).forEach((outputKey) => {

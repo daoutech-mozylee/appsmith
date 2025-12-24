@@ -802,7 +802,7 @@
           { "name": "orgData", "value": "null" },
           {
             "name": "selectedMembers",
-            "value": "[]"
+            "value": "{{inputs?.defaultSelected || []}}"
           }
         ],
         "userPermissions": []
