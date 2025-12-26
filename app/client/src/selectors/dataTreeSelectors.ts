@@ -230,8 +230,8 @@ const getCustomModuleInstancesDataTree = createSelector(
             variableList[variable.name] = parsedValue;
             // body 교체용 값 저장 (바인딩 변수는 기본값 사용)
             bindingVariables[variable.name] = bindingVariables[variable.name]
-              ? bodyReplacementValue
-              : parsedValue;
+              ? (bodyReplacementValue as string)
+              : (parsedValue as string);
             listVariables.push(variable.name);
             bindingPaths[variable.name] =
               EvaluationSubstitutionType.SMART_SUBSTITUTE;
@@ -326,8 +326,8 @@ const getCustomModuleInstancesDataTree = createSelector(
 
       for (const [key, value] of Object.entries(mergedInputs)) {
         if (typeof value === "string") {
-          // {{...}} 형태의 바인딩 문자열 확인
-          const bindingMatch = value.match(/^\{\{(.+)\}\}$/s);
+          // {{...}} 형태의 바인딩 문자열 확인 ([\s\S]는 's' 플래그 대체)
+          const bindingMatch = value.match(/^\{\{([\s\S]+)\}\}$/);
 
           if (bindingMatch) {
             let innerValue = bindingMatch[1].trim();
@@ -360,7 +360,8 @@ const getCustomModuleInstancesDataTree = createSelector(
 
       // params 엔티티 생성 (parsedInputs 사용 - 바인딩 파싱된 값)
       // ACTION 타입으로 설정하여 바인딩 평가 지원
-      dataTree[paramsEntityName] = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (dataTree as any)[paramsEntityName] = {
         ...parsedInputs,
         ENTITY_TYPE: ENTITY_TYPE.ACTION,
         __moduleInstanceId__: instance.instanceId,
@@ -371,7 +372,9 @@ const getCustomModuleInstancesDataTree = createSelector(
         run: {},
         clear: {},
         config: {},
-        responseMeta: {},
+        responseMeta: {
+          isExecutionSuccess: true,
+        },
       };
 
       // 바인딩 문자열이 있는 input만 dynamicBindingPathList에 추가
@@ -415,7 +418,8 @@ const getCustomModuleInstancesDataTree = createSelector(
       });
 
       // outputs 엔티티 생성
-      dataTree[outputsEntityName] = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (dataTree as any)[outputsEntityName] = {
         ...instance.outputs,
         ENTITY_TYPE: ENTITY_TYPE.APPSMITH,
         __moduleInstanceId__: instance.instanceId,
