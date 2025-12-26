@@ -103,28 +103,90 @@ function* handleModuleInstanceRegistered(
   // ON_PAGE_LOAD JS 함수가 있는 경우, DataTree 평가가 완료될 때까지 대기
   // 페이지 새로고침 시 모듈 인스턴스가 등록되지만 DataTree에 아직 반영되지 않아서
   // JSObject가 undefined인 상태에서 함수를 호출하면 ReferenceError 발생
+  // 또한 params 바인딩(예: {{Query1.data}})이 평가되어야 init에서 올바른 값을 사용할 수 있음
   if (executeOnLoadJSFunctions.length > 0) {
     // DataTree에서 첫 번째 JSObject가 존재하는지 확인
     const firstJsObj = executeOnLoadJSFunctions[0];
-    const dataTree = (yield select(getDataTree)) as DataTree;
+    const paramsEntityName = `__${instanceId}_params__`;
 
-    // JSObject가 DataTree에 아직 없으면 SET_EVALUATED_TREE를 기다림
-    if (!dataTree[firstJsObj.jsObjectName]) {
-      // 평가 완료까지 대기 (최대 3번의 평가 사이클 대기)
-      let waitCount = 0;
-      const maxWait = 3;
+    // params 엔티티의 시스템 속성 목록 (사용자 입력 값과 구분)
+    const systemProperties = new Set([
+      "ENTITY_TYPE",
+      "__moduleInstanceId__",
+      "actionId",
+      "data",
+      "isLoading",
+      "run",
+      "clear",
+      "config",
+      "responseMeta",
+    ]);
 
-      while (waitCount < maxWait) {
+    // 초기 inputs 값 저장 (바인딩 문자열인지 확인용)
+    const instance: ModuleInstance | undefined = yield select(
+      getModuleInstanceById,
+      instanceId,
+    );
+    const initialInputs = instance?.inputs || {};
+    const bindingInputs = Object.entries(initialInputs)
+      .filter(
+        ([, value]) =>
+          typeof value === "string" &&
+          value.includes("{{") &&
+          value.includes("}}"),
+      )
+      .map(([key]) => key);
+
+    // 평가 완료까지 대기 (최대 10번의 평가 사이클 대기)
+    // params 바인딩이 평가될 때까지 충분히 기다림 (Query 실행 포함)
+    let waitCount = 0;
+    const maxWait = 10;
+
+    while (waitCount < maxWait) {
+      const dataTree = (yield select(getDataTree)) as DataTree;
+
+      // JSObject와 params 엔티티가 모두 존재하는지 확인
+      const jsObjectExists = !!dataTree[firstJsObj.jsObjectName];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const paramsEntity = dataTree[paramsEntityName] as any;
+
+      if (!paramsEntity) {
         yield take(ReduxActionTypes.SET_EVALUATED_TREE);
         waitCount++;
-
-        // 다시 DataTree 확인
-        const updatedDataTree = (yield select(getDataTree)) as DataTree;
-
-        if (updatedDataTree[firstJsObj.jsObjectName]) {
-          break;
-        }
+        continue;
       }
+
+      // 사용자 입력 값만 추출 (시스템 속성 제외)
+      const userInputEntries = Object.entries(paramsEntity).filter(
+        ([key]) => !systemProperties.has(key),
+      );
+
+      // 바인딩 문자열이 아직 평가되지 않았는지 확인
+      const hasUnresolvedBindings = userInputEntries.some(
+        ([, value]) =>
+          typeof value === "string" &&
+          value.includes("{{") &&
+          value.includes("}}"),
+      );
+
+      // 바인딩이 있었던 input들이 실제 값을 가지고 있는지 확인
+      // Query가 아직 실행되지 않았다면 undefined일 수 있음
+      const bindingInputsHaveValues =
+        bindingInputs.length === 0 ||
+        bindingInputs.some((key) => {
+          const value = paramsEntity[key];
+
+          // undefined, null이 아닌 실제 값이 있으면 true
+          // 빈 배열 []도 유효한 값으로 처리
+          return value !== undefined && value !== null;
+        });
+
+      if (jsObjectExists && !hasUnresolvedBindings && bindingInputsHaveValues) {
+        break;
+      }
+
+      yield take(ReduxActionTypes.SET_EVALUATED_TREE);
+      waitCount++;
     }
   }
 

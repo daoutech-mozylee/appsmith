@@ -1,7 +1,5 @@
 import React from "react";
 import styled from "styled-components";
-import { connect } from "react-redux";
-import type { Dispatch } from "redux";
 import classNames from "classnames";
 import { ToggleButton, Tooltip } from "@appsmith/ads";
 import type { ControlProps } from "./BaseControl";
@@ -12,10 +10,11 @@ import type {
   ModuleInputDefinition,
 } from "constants/PackageModuleConstants";
 import { getInputsFormByModuleUUID } from "pages/Editor/widgetSidebar/usePackageModules";
-import { setWidgetDynamicProperty } from "actions/controlActions";
 import type { DynamicPath } from "utils/DynamicBindingUtils";
 import { isDynamicValue } from "utils/DynamicBindingUtils";
 import { JS_TOGGLE_SWITCH_JS_MESSAGE } from "ee/constants/messages";
+import store from "store";
+import { setWidgetDynamicProperty } from "actions/controlActions";
 
 const InputsContainer = styled.div`
   display: flex;
@@ -54,12 +53,7 @@ const HelpText = styled.span`
  * JS 토글 버튼을 통해 {{...}} 바인딩 표현식 입력을 지원
  */
 export interface ModuleInputsControlProps extends ControlProps {
-  // widgetProperties에서 inputsForm을 읽어옴
-  setWidgetDynamicProperty: (
-    widgetId: string,
-    propertyPath: string,
-    isDynamic: boolean,
-  ) => void;
+  // ControlProps에서 상속받는 속성들 사용
 }
 
 class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
@@ -83,15 +77,18 @@ class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
 
   /**
    * JS 토글 버튼 클릭 핸들러
+   * store.dispatch를 직접 사용하여 connect() 없이 동작
    */
   handleJSToggle = (propertyPath: string, isDynamic: boolean) => {
     const { widgetProperties } = this.props;
 
     if (widgetProperties?.widgetId) {
-      this.props.setWidgetDynamicProperty(
-        widgetProperties.widgetId,
-        propertyPath,
-        !isDynamic,
+      store.dispatch(
+        setWidgetDynamicProperty(
+          widgetProperties.widgetId,
+          propertyPath,
+          !isDynamic,
+        ),
       );
     }
   };
@@ -258,12 +255,4 @@ class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
   }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
-  setWidgetDynamicProperty: (
-    widgetId: string,
-    propertyPath: string,
-    isDynamic: boolean,
-  ) => dispatch(setWidgetDynamicProperty(widgetId, propertyPath, isDynamic)),
-});
-
-export default connect(null, mapDispatchToProps)(ModuleInputsControl);
+export default ModuleInputsControl;

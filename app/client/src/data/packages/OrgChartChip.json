@@ -184,7 +184,8 @@
                           "dynamicTriggerPathList": [
                             { "key": "onResetClick" },
                             { "key": "onSelectionChange" },
-                            { "key": "onAddClick" }
+                            { "key": "onAddClick" },
+                            { "key": "onDefaultSelectedChange" }
                           ],
                           "parentColumnSpace": 22.240966796875,
                           "dynamicBindingPathList": [
@@ -193,15 +194,17 @@
                             { "key": "defaultModel" }
                           ],
                           "leftColumn": 0.0,
-                          "defaultModel": " {{\n\t{\n\t\t\"selectedMembers\": OrgChartJS.selectedMembers,\n\t\tplaceholder: \"멤버를 선택해주세요\",\n\t\t  newSelection: [],  disabled: inputs.disabled\n\n\n\t}\n}}",
+                          "defaultModel": " {{\n\t{\n\t\t\"selectedMembers\": OrgChartJS.selectedMembers,\n\t\t\"defaultSelected\": inputs.defaultSelected,\n\t\tplaceholder: \"멤버를 선택해주세요\",\n\t\tnewSelection: [],\n\t\tdisabled: inputs.disabled\n\t}\n}}",
                           "borderWidth": "1",
                           "onSelectionChange": "   {{OrgChartJS.setSelectedMembers(Chip.model.newSelection)}}\n",
                           "theme": "{{appsmith.theme}}",
                           "onResetClick": "{{showAlert('Successfully reset!!', '');}}",
+                          "onDefaultSelectedChange": "{{OrgChartJS.setSelectedMembers(inputs.defaultSelected || [])}}",
                           "events": [
                             "onResetClick",
                             "onSelectionChange",
-                            "onAddClick"
+                            "onAddClick",
+                            "onDefaultSelectedChange"
                           ],
                           "key": "2r6vs5ce2n",
                           "backgroundColor": "#FFFFFF",
@@ -797,13 +800,10 @@
         "pluginType": "JS",
         "actions": [],
         "archivedActions": [],
-        "body": "export default {\n\torgData: null,\n\tselectedMembers: inputs?.defaultSelected || [],\n  \n  setSelectedMembers(members) {\n    this.selectedMembers = members;\n  },\n\tasync init() {\n\t\tconsole.log('run init')\n\t\tconst result = await Member.run();\n\t\tconsole.log('result', result)\n\t\tconsole.log('inputs', inputs.defaultSelected);\n\t\tthis.selectedMembers = inputs.defaultSelected || [];\n\t\tthis.orgData = result;\n\t\treturn result;\n\t}\n}\n",
+        "body": "export default {\n\torgData: null,\n\tselectedMembers: [],\n  \n  setSelectedMembers(members) {\n    this.selectedMembers = members;\n  },\n\tasync init() {\n\t\tconsole.log('run init')\n\t\tconst result = await Member.run();\n\t\tconsole.log('result', result)\n\t\tconsole.log('inputs', inputs.defaultSelected);\n\t\tthis.selectedMembers = inputs.defaultSelected || [];\n\t\tthis.orgData = result;\n\t\treturn result;\n\t}\n}\n",
         "variables": [
           { "name": "orgData", "value": "null" },
-          {
-            "name": "selectedMembers",
-            "value": "{{inputs?.defaultSelected || []}}"
-          }
+          { "name": "selectedMembers", "value": "[]" }
         ],
         "userPermissions": []
       },
