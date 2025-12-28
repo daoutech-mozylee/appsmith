@@ -11,7 +11,7 @@
       "color": "#9747FF1A"
     },
     "lastPublishedBy": "lgkrwn@naver.com",
-    "checksum": "53870ea6-3ef7-414c-a079-d452aaffa1f9",
+    "checksum": "b14a0b1a-f724-4ef9-95b2-4961c7536e42",
     "deleted": false
   },
   "datasourceList": [
@@ -184,8 +184,7 @@
                           "dynamicTriggerPathList": [
                             { "key": "onResetClick" },
                             { "key": "onSelectionChange" },
-                            { "key": "onAddClick" },
-                            { "key": "onDefaultSelectedChange" }
+                            { "key": "onAddClick" }
                           ],
                           "parentColumnSpace": 22.240966796875,
                           "dynamicBindingPathList": [
@@ -194,17 +193,15 @@
                             { "key": "defaultModel" }
                           ],
                           "leftColumn": 0.0,
-                          "defaultModel": " {{\n\t{\n\t\t\"selectedMembers\": OrgChartJS.selectedMembers,\n\t\t\"defaultSelected\": inputs.defaultSelected,\n\t\tplaceholder: \"멤버를 선택해주세요\",\n\t\tnewSelection: [],\n\t\tdisabled: inputs.disabled\n\t}\n}}",
+                          "defaultModel": " {{\n\t{\n\t\t\"selectedMembers\": OrgChartJS.selectedMembers,\n\t\tplaceholder: \"멤버를 선택해주세요\",\n\t\t  newSelection: [],  disabled: inputs.disabled\n\n\n\t}\n}}",
                           "borderWidth": "1",
                           "onSelectionChange": "   {{OrgChartJS.setSelectedMembers(Chip.model.newSelection)}}\n",
                           "theme": "{{appsmith.theme}}",
                           "onResetClick": "{{showAlert('Successfully reset!!', '');}}",
-                          "onDefaultSelectedChange": "{{OrgChartJS.setSelectedMembers(inputs.defaultSelected || [])}}",
                           "events": [
                             "onResetClick",
                             "onSelectionChange",
-                            "onAddClick",
-                            "onDefaultSelectedChange"
+                            "onAddClick"
                           ],
                           "key": "2r6vs5ce2n",
                           "backgroundColor": "#FFFFFF",
@@ -761,7 +758,7 @@
           "timeoutInMillisecond": 10000.0,
           "paginationType": "NONE",
           "encodeParamsToggle": true,
-          "body": "WITH RECURSIVE department_tree AS (\n    -- 루트 부서 (parent_id가 NULL인 최상위 부서)\n    SELECT \n        id,\n        name,\n        code,\n        alias,\n        parent_id,\n        sort_order,\n        status,\n        1 AS depth,\n        ARRAY[id] AS path,\n        LPAD(sort_order::text, 5, '0') AS sort_path\n    FROM public.department\n    WHERE parent_id IS NULL\n      AND deleted_at IS NULL\n    \n    UNION ALL\n    \n    -- 하위 부서들 재귀적으로 조회\n    SELECT \n        d.id,\n        d.name,\n        d.code,\n        d.alias,\n        d.parent_id,\n        d.sort_order,\n        d.status,\n        dt.depth + 1,\n        dt.path || d.id,\n        dt.sort_path || '-' || LPAD(d.sort_order::text, 5, '0')\n    FROM public.department d\n    INNER JOIN department_tree dt ON d.parent_id = dt.id\n    WHERE d.deleted_at IS NULL\n)\nSELECT \n    dt.id AS department_id,\n    dt.name AS department_name,\n    dt.code AS department_code,\n    dt.parent_id,\n    dt.depth,\n    dt.path AS department_path_ids,\n    dt.sort_path,\n    m.id AS member_id,\n    m.user_id,\n    m.member_type,\n    m.duty_code_id,\n    m.department_order,\n    m.sort_order AS member_sort_order,\n    u.name AS member_name,\n    u.employee_number,\n    u.mobile_number,\n    u.profile_image_path\nFROM department_tree dt\nLEFT JOIN public.member m ON m.department_id = dt.id\nLEFT JOIN public.user u ON m.user_id = u.id AND u.deleted_at IS NULL\nORDER BY dt.sort_path, m.department_order, m.sort_order;",
+          "body": "WITH RECURSIVE department_tree AS (\n      -- 루트 부서 (parent_id가 NULL인 최상위 부서)\n      SELECT\n          id,\n          name,\n          code,\n          alias,\n          parent_id,\n          sort_order,\n          status,\n          1 AS depth,\n          ARRAY[id]::VARCHAR[] AS path,  -- 타입 캐스팅 추가\n          LPAD(sort_order::text, 5, '0') AS sort_path\n      FROM public.department\n      WHERE parent_id IS NULL\n        AND deleted_at IS NULL\n\n      UNION ALL\n\n      -- 하위 부서들 재귀적으로 조회\n      SELECT\n          d.id,\n          d.name,\n          d.code,\n          d.alias,\n          d.parent_id,\n          d.sort_order,\n          d.status,\n          dt.depth + 1,\n          dt.path || d.id,\n          dt.sort_path || '-' || LPAD(d.sort_order::text, 5, '0')\n      FROM public.department d\n      INNER JOIN department_tree dt ON d.parent_id = dt.id\n      WHERE d.deleted_at IS NULL\n  )\n  SELECT\n      dt.id AS department_id,\n      dt.name AS department_name,\n      dt.code AS department_code,\n      dt.parent_id,\n      dt.depth,\n      dt.path AS department_path_ids,\n      dt.sort_path,\n      m.id AS member_id,\n      m.user_id,\n      m.member_type,\n      m.duty_code_id,\n      m.department_order,\n      m.sort_order AS member_sort_order,\n      u.name AS member_name,\n      u.employee_number,\n      u.mobile_number,\n      u.profile_image_path\n  FROM department_tree dt\n  LEFT JOIN public.member m ON m.department_id = dt.id\n  LEFT JOIN public.user u ON m.user_id = u.id AND u.deleted_at IS NULL\n  ORDER BY dt.sort_path, m.department_order, m.sort_order;",
           "selfReferencingDataPaths": [],
           "pluginSpecifiedTemplates": [{ "value": false }]
         },
@@ -800,10 +797,13 @@
         "pluginType": "JS",
         "actions": [],
         "archivedActions": [],
-        "body": "export default {\n\torgData: null,\n\tselectedMembers: [],\n  \n  setSelectedMembers(members) {\n    this.selectedMembers = members;\n  },\n\tasync init() {\n\t\tconsole.log('run init')\n\t\tconst result = await Member.run();\n\t\tconsole.log('result', result)\n\t\tconsole.log('inputs', inputs.defaultSelected);\n\t\tthis.selectedMembers = inputs.defaultSelected || [];\n\t\tthis.orgData = result;\n\t\treturn result;\n\t}\n}\n",
+        "body": "export default {\n\torgData: null,\n\tselectedMembers: inputs?.defaultSelected || [],\n  \n  setSelectedMembers(members) {\n    this.selectedMembers = members;\n  },\n\tasync init() {\n\t\tconsole.log('run init')\n\t\tconst result = await Member.run();\n\t\tconsole.log('result', result)\n\t\tconsole.log('inputs', inputs.defaultSelected);\n\t\tthis.selectedMembers = inputs.defaultSelected || [];\n\t\tthis.orgData = result;\n\t\treturn result;\n\t}\n}\n",
         "variables": [
           { "name": "orgData", "value": "null" },
-          { "name": "selectedMembers", "value": "[]" }
+          {
+            "name": "selectedMembers",
+            "value": "inputs?.defaultSelected || []"
+          }
         ],
         "userPermissions": []
       },
