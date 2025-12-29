@@ -40,6 +40,7 @@ public class DaouofficePlugin extends BasePlugin {
         // Internal Service Constants
         private static final String MAIL_SEND_PATH = "/api/mail/internal/noti/send";
         private static final String MESSAGE_SEND_PATH = "/api/chat/internal/message/user";
+        private static final String NOTIFICATION_SEND_PATH = "/api/notifier/app/dop-employee-approval/user/notification/message";
         private static final String SERVICE_GATEWAY_HOST = "dop-service-gateway.dop-platform.svc.cluster.local";
         private static final int SERVICE_GATEWAY_PORT = 20719;
 
@@ -106,8 +107,9 @@ public class DaouofficePlugin extends BasePlugin {
                 }
             } else if (ACTION_SEND_MESSAGE.equals(action)) {
                 return executeMessageSendRequest(connection, actionConfiguration);
+            } else if (ACTION_SEND_NOTIFICATION.equals(action)) {
+                return executeNotificationSendRequest(connection, actionConfiguration);
             } else if (ACTION_ORGANIZATION.equals(action) ||
-                    ACTION_SEND_NOTIFICATION.equals(action) ||
                     ACTION_REGISTER_CALENDAR.equals(action)) {
                 return Mono.just(createPlaceholderResult(action));
             }
@@ -309,6 +311,113 @@ public class DaouofficePlugin extends BasePlugin {
                 result.setIsExecutionSuccess(false);
                 result.setErrorInfo(new AppsmithPluginException(
                         AppsmithPluginError.PLUGIN_ERROR, "Error preparing message request: " + e.getMessage()));
+                return Mono.just(result);
+            }
+        }
+
+        private Mono<ActionExecutionResult> executeNotificationSendRequest(
+                WebClient connection, ActionConfiguration actionConfiguration) {
+
+            ActionExecutionResult result = new ActionExecutionResult();
+
+            try {
+                String notificationType = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
+                        "notificationType", STRING_TYPE, "LEAD_REGISTRATION");
+                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid",
+                        STRING_TYPE, "");
+                String platformUserIdsRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
+                        "platformUserIds", STRING_TYPE, "");
+
+                String message = "";
+                String title = "";
+
+                if ("LEAD_REGISTRATION".equals(notificationType)) {
+                    message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message_registration",
+                            STRING_TYPE, "");
+                    title = "[리드 등록]";
+                } else if ("LEAD_ASSIGNMENT".equals(notificationType)) {
+                    message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message_assignment",
+                            STRING_TYPE, "");
+                    title = "[리드 담당자 배정]";
+                } else if ("LEAD_STATUS_UPDATE".equals(notificationType)) {
+                    message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message_status_update",
+                            STRING_TYPE, "");
+                    title = "[리드 상태 변경]";
+                } else {
+                    // Fallback
+                    message = "새로운 알림이 있습니다.";
+                    title = "[알림]";
+                }
+
+                ObjectNode requestBody = objectMapper.createObjectNode();
+                requestBody.put("messageEvent", "COMPANY_CREATE");
+
+                ObjectNode notification = requestBody.putObject("notification");
+                notification.putArray("notificationTypes").add("PUSH");
+                notification.put("senderType", "APP");
+                notification.put("companyUuid", companyUuid);
+                notification.put("platformSenderId", "1452552749567705088");
+                notification.put("message", message);
+                notification.put("linkUrl", "");
+
+                ObjectNode pushOption = requestBody.putObject("pushOption");
+                var devices = pushOption.putArray("pushDevices");
+                devices.add("PC").add("WEB").add("MOBILE");
+                pushOption.put("title", title);
+                pushOption.put("body", message);
+                pushOption.put("image", "");
+                pushOption.put("data", "{\"sendPriority\":\"HIGH\"}");
+
+                var idsArray = requestBody.putArray("platformUserIds");
+                if (StringUtils.hasText(platformUserIdsRaw)) {
+                    for (String id : platformUserIdsRaw.split(",")) {
+                        if (StringUtils.hasText(id.trim())) {
+                            idsArray.add(id.trim());
+                        }
+                    }
+                }
+
+                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT
+                        + NOTIFICATION_SEND_PATH;
+                log.debug("Daouoffice Notification Send Request: {}", targetUrl);
+
+                return connection
+                        .post()
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("http")
+                                .host(SERVICE_GATEWAY_HOST)
+                                .port(SERVICE_GATEWAY_PORT)
+                                .path(NOTIFICATION_SEND_PATH)
+                                .build())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(requestBody)
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .map(responseBody -> {
+                            try {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(objectMapper.readTree(responseBody));
+                                return result;
+                            } catch (Exception e) {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(responseBody);
+                                return result;
+                            }
+                        })
+                        .onErrorResume(error -> {
+                            log.error("Notification send failed", error);
+                            result.setIsExecutionSuccess(false);
+                            result.setErrorInfo(new AppsmithPluginException(
+                                    AppsmithPluginError.PLUGIN_ERROR,
+                                    "Notification Send Failed: " + error.getMessage()));
+                            return Mono.just(result);
+                        });
+
+            } catch (Exception e) {
+                log.error("Error preparing notification request", e);
+                result.setIsExecutionSuccess(false);
+                result.setErrorInfo(new AppsmithPluginException(
+                        AppsmithPluginError.PLUGIN_ERROR, "Error preparing notification request: " + e.getMessage()));
                 return Mono.just(result);
             }
         }
