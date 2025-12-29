@@ -95,18 +95,21 @@ class ModuleInputsControl extends BaseControl<ModuleInputsControlProps> {
 
   /**
    * inputsForm에서 모든 input children을 플랫하게 추출
+   * 레지스트리(최신)를 우선 사용하여 새로 추가된 필드가 반영되도록 함
    */
   getAllInputChildren(): ModuleInputDefinition[] {
     const { widgetProperties } = this.props;
-    let inputsForm: ModuleInputSection[] | undefined =
-      widgetProperties?.inputsForm;
 
-    // inputsForm이 없으면 moduleUUID로 조회
-    if (
-      (!inputsForm || !Array.isArray(inputsForm) || inputsForm.length === 0) &&
+    // 레지스트리에서 최신 inputsForm 조회 (우선)
+    // 그 다음 위젯 props의 inputsForm (fallback)
+    let inputsForm: ModuleInputSection[] | undefined =
       widgetProperties?.moduleUUID
-    ) {
-      inputsForm = getInputsFormByModuleUUID(widgetProperties.moduleUUID);
+        ? getInputsFormByModuleUUID(widgetProperties.moduleUUID)
+        : undefined;
+
+    // 레지스트리에 없으면 위젯 props에서 가져오기 (fallback)
+    if (!inputsForm || !Array.isArray(inputsForm) || inputsForm.length === 0) {
+      inputsForm = widgetProperties?.inputsForm;
     }
 
     if (!inputsForm || !Array.isArray(inputsForm)) {

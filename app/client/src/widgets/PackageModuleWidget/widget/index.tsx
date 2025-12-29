@@ -2,6 +2,7 @@ import React from "react";
 import { compact, map, sortBy } from "lodash";
 import type { DerivedPropertiesMap } from "WidgetProvider/factory/types";
 import PackageModuleComponent from "../component";
+import ModuleNotFoundFallback from "../component/ModuleNotFoundFallback";
 import type { WidgetProps, WidgetState } from "widgets/BaseWidget";
 import BaseWidget from "widgets/BaseWidget";
 import { ValidationTypes } from "constants/WidgetValidation";
@@ -33,6 +34,7 @@ import {
   type ModuleInstanceInputs,
 } from "constants/PackageModuleConstants";
 import { getInputsFormByModuleUUID } from "pages/Editor/widgetSidebar/usePackageModules";
+import { ModuleRegistry } from "utils/ModuleRegistry";
 import { DynamicHeight } from "utils/WidgetFeatures";
 import { RenderModes } from "constants/WidgetConstants";
 import type { PackageModuleContainerStyle } from "../component";
@@ -199,18 +201,21 @@ export class PackageModuleWidget extends BaseWidget<
   static getPropertyPaneContentConfig() {
     /**
      * inputsForm에 하나라도 input이 있는지 확인
+     * 레지스트리(최신)를 우선 사용하여 새로 추가된 필드가 반영되도록 함
      */
     const hasAnyInputs = (props: PackageModuleWidgetProps): boolean => {
-      let inputsForm = props.inputsForm;
+      // 레지스트리에서 최신 inputsForm 조회 (우선)
+      let inputsForm = props.moduleUUID
+        ? getInputsFormByModuleUUID(props.moduleUUID)
+        : undefined;
 
-      // inputsForm이 없거나 빈 배열이면 moduleUUID로 조회
+      // 레지스트리에 없으면 위젯 props에서 가져오기 (fallback)
       if (
-        (!inputsForm ||
-          !Array.isArray(inputsForm) ||
-          inputsForm.length === 0) &&
-        props.moduleUUID
+        !inputsForm ||
+        !Array.isArray(inputsForm) ||
+        inputsForm.length === 0
       ) {
-        inputsForm = getInputsFormByModuleUUID(props.moduleUUID);
+        inputsForm = props.inputsForm;
       }
 
       if (!inputsForm || !Array.isArray(inputsForm)) {
@@ -440,6 +445,22 @@ export class PackageModuleWidget extends BaseWidget<
     );
   };
 
+  /**
+   * 모듈 레지스트리에서 모듈을 찾을 수 있는지 확인
+   * moduleUUID가 있고 레지스트리에 등록되어 있으면 true
+   */
+  isModuleAvailable(): boolean {
+    const { moduleUUID } = this.props;
+
+    // moduleUUID가 없으면 새로 배치된 모듈 (아직 초기화 중)
+    if (!moduleUUID) {
+      return true; // 초기화 중에는 폴백 표시하지 않음
+    }
+
+    // 레지스트리에서 모듈 확인
+    return ModuleRegistry.has(moduleUUID);
+  }
+
   getWidgetView() {
     const {
       backgroundColor,
@@ -448,6 +469,8 @@ export class PackageModuleWidget extends BaseWidget<
       borderWidth,
       boxShadow,
       containerStyle,
+      moduleName,
+      moduleUUID,
       renderMode,
       widgetId,
     } = this.props;
@@ -455,6 +478,17 @@ export class PackageModuleWidget extends BaseWidget<
     // Deploy 모드(PAGE)에서는 isReadOnly를 false로 설정하여 상호작용 활성화
     // 에디터 모드(CANVAS)에서만 isReadOnly를 true로 설정하여 내부 편집 차단
     const isReadOnly = renderMode === RenderModes.CANVAS;
+
+    // 모듈을 찾을 수 없는 경우 폴백 UI 표시
+    if (!this.isModuleAvailable()) {
+      return (
+        <ModuleNotFoundFallback
+          moduleName={moduleName}
+          moduleUUID={moduleUUID}
+          widgetId={widgetId}
+        />
+      );
+    }
 
     return (
       <PackageModuleComponent
