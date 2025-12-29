@@ -27,7 +27,7 @@ const sentryReduxEnhancer = Sentry.createReduxEnhancer({
   },
 });
 
-export default createStore(
+const store = createStore(
   appReducer,
   composeWithDevTools(
     reduxBatch,
@@ -36,6 +36,14 @@ export default createStore(
     sentryReduxEnhancer,
   ),
 );
+
+// 개발 환경에서 window.store로 접근 가능하도록 노출
+if (typeof window !== "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).store = store;
+}
+
+export default store;
 
 export const testStore = (initialState: Partial<DefaultRootState>) =>
   createStore(
