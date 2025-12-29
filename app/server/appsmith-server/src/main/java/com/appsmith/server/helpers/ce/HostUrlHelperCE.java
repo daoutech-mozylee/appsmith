@@ -6,6 +6,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.server.ServerWebExchange;
 
+import java.util.Set;
+
 import static com.google.common.net.HttpHeaders.FORWARDED;
 import static com.google.common.net.HttpHeaders.X_FORWARDED_HOST;
 import static com.google.common.net.HttpHeaders.X_FORWARDED_PROTO;
@@ -18,6 +20,52 @@ public class HostUrlHelperCE {
 
     public static final String APPSMITH_FORWARDED_HOST = "appsmith-forwarded-host";
     public static final String APPSMITH_FORWARDED_PROTO = "appsmith-forwarded-proto";
+    public static final String X_FORWARDED_SCHEME = "X-Forwarded-Scheme";
+    public static final String X_SCHEME = "X-Scheme";
+
+    private static final Set<String> VALID_SCHEMES = Set.of("http", "https");
+
+    /**
+     * Get scheme from request headers with fallback chain:
+     * X-Forwarded-Scheme -> X-Scheme -> X-Forwarded-Proto -> URI scheme
+     *
+     * @param headers The HTTP headers
+     * @param fallbackScheme The fallback scheme from URI if no valid header found
+     * @return The scheme (http or https)
+     */
+    public static String getSchemeFromHeaders(HttpHeaders headers, String fallbackScheme) {
+        // Priority 1: X-Forwarded-Scheme (most reliable in our setup)
+        String scheme = headers.getFirst(X_FORWARDED_SCHEME);
+        if (isValidScheme(scheme)) {
+            log.trace("Using X-Forwarded-Scheme: {}", scheme);
+            return scheme;
+        }
+
+        // Priority 2: X-Scheme
+        scheme = headers.getFirst(X_SCHEME);
+        if (isValidScheme(scheme)) {
+            log.trace("Using X-Scheme: {}", scheme);
+            return scheme;
+        }
+
+        // Priority 3: X-Forwarded-Proto (may contain invalid value like IP address)
+        scheme = headers.getFirst(X_FORWARDED_PROTO);
+        if (isValidScheme(scheme)) {
+            log.trace("Using X-Forwarded-Proto: {}", scheme);
+            return scheme;
+        }
+
+        // Fallback to URI scheme
+        log.trace("Using fallback scheme: {}", fallbackScheme);
+        return fallbackScheme;
+    }
+
+    /**
+     * Check if the scheme is valid (http or https)
+     */
+    private static boolean isValidScheme(String scheme) {
+        return scheme != null && VALID_SCHEMES.contains(scheme.toLowerCase());
+    }
 
     /**
      * Get the configured redirect domain from environment variables.
@@ -92,10 +140,11 @@ public class HostUrlHelperCE {
         // Use X-Forwarded-Host if available
         String xForwardedHost = headers.getFirst(X_FORWARDED_HOST);
         if (xForwardedHost != null) {
-            String scheme = headers.getFirst(X_FORWARDED_PROTO);
-            if (scheme == null) {
-                scheme = request.getURI().getScheme();
+            // Handle comma-separated values (take first value)
+            if (xForwardedHost.contains(",")) {
+                xForwardedHost = xForwardedHost.split(",")[0].trim();
             }
+            String scheme = getSchemeFromHeaders(headers, request.getURI().getScheme());
             hostUrl = scheme + "://" + xForwardedHost;
             log.trace("Using X-Forwarded-Host: {}", hostUrl);
             return hostUrl;
@@ -116,21 +165,18 @@ public class HostUrlHelperCE {
 
     private static String ensureScheme(String hostUrl, ServerHttpRequest request) {
         if (!hostUrl.contains("://")) {
-            String scheme = request.getHeaders().getFirst(X_FORWARDED_PROTO);
-            if (scheme == null) {
-                scheme = request.getURI().getScheme();
-            }
+            String scheme =
+                    getSchemeFromHeaders(request.getHeaders(), request.getURI().getScheme());
             return scheme + "://" + hostUrl;
         }
         return hostUrl;
     }
 
     public static boolean isSecureScheme(ServerWebExchange exchange) {
-        String scheme = exchange.getRequest().getHeaders().getFirst(X_FORWARDED_PROTO);
-        if (scheme == null) {
-            scheme = exchange.getRequest().getURI().getScheme();
-        }
-        return "https".equals(scheme);
+        String scheme = getSchemeFromHeaders(
+                exchange.getRequest().getHeaders(),
+                exchange.getRequest().getURI().getScheme());
+        return "https".equalsIgnoreCase(scheme);
     }
 
     /**

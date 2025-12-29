@@ -54,7 +54,6 @@ import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilterChain;
-import org.springframework.web.server.adapter.ForwardedHeaderTransformer;
 import org.springframework.web.server.session.WebSessionIdResolver;
 import reactor.core.publisher.Mono;
 
@@ -149,10 +148,21 @@ public class SecurityConfig {
         return RouterFunctions.resources("/public/**", new ClassPathResource("public/"));
     }
 
-    @Bean
-    public ForwardedHeaderTransformer forwardedHeaderTransformer() {
-        return new ForwardedHeaderTransformer();
-    }
+    /**
+     * ForwardedHeaderTransformer is intentionally NOT registered.
+     *
+     * Reason: dop-portal-gateway incorrectly sets X-Forwarded-Proto to client IP address
+     * (e.g., "175.115.92.120") instead of the protocol (http/https).
+     * When ForwardedHeaderTransformer tries to construct URI from this invalid value,
+     * it fails with "Illegal character in scheme name" error.
+     *
+     * Solution: HostUrlHelperCE.getSchemeFromHeaders() handles scheme detection properly
+     * by prioritizing X-Forwarded-Scheme and X-Scheme headers over X-Forwarded-Proto.
+     */
+    // @Bean
+    // public ForwardedHeaderTransformer forwardedHeaderTransformer() {
+    //     return new ForwardedHeaderTransformer();
+    // }
 
     @Order(Ordered.HIGHEST_PRECEDENCE)
     @Bean
