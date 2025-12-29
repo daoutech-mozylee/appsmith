@@ -21,6 +21,7 @@
                     "propertyName": "toUserId",
                     "controlType": "INPUT_TEXT",
                     "configProperty": "actionConfiguration.formData.toUserId.data",
+                    "initialValue": "{{this.params.userTo}}",
                     "isRequired": true
                 }
             ]

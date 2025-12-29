@@ -40,7 +40,8 @@ public class DaouofficePlugin extends BasePlugin {
         // Internal Service Constants
         private static final String MAIL_SEND_PATH = "/api/mail/internal/noti/send";
         private static final String MESSAGE_SEND_PATH = "/api/chat/internal/message/user";
-        private static final String SERVICE_GATEWAY_URL = "http://dop-service-gateway.dop-platform.svc.cluster.local:20719";
+        private static final String SERVICE_GATEWAY_HOST = "dop-service-gateway.dop-platform.svc.cluster.local";
+        private static final int SERVICE_GATEWAY_PORT = 20719;
 
         // Action Identifiers (Must match root.json)
         private static final String ACTION_ORGANIZATION = "organization";
@@ -166,7 +167,7 @@ public class DaouofficePlugin extends BasePlugin {
                         OBJECT_TYPE, "false");
                 String withoutNotiStr = String.valueOf(withoutNotiObj);
 
-                String targetUrl = SERVICE_GATEWAY_URL + MAIL_SEND_PATH;
+                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + MAIL_SEND_PATH;
 
                 log.debug("Daouoffice Mail Send Request: {}", targetUrl);
 
@@ -175,8 +176,8 @@ public class DaouofficePlugin extends BasePlugin {
                         .uri(uriBuilder -> {
                             // URL components separated to ensure correct building
                             uriBuilder.scheme("http")
-                                    .host("dop-service-gateway.dop-platform.svc.cluster.local")
-                                    .port(20719)
+                                    .host(SERVICE_GATEWAY_HOST)
+                                    .port(SERVICE_GATEWAY_PORT)
                                     .path(MAIL_SEND_PATH)
                                     .queryParam("senderEmail", senderEmail)
                                     .queryParam("subject", finalSubject)
@@ -255,10 +256,19 @@ public class DaouofficePlugin extends BasePlugin {
 
                 ObjectNode requestBody = objectMapper.createObjectNode();
                 requestBody.put("platformUserId", platformUserId);
-                requestBody.put("toUserId", toUserId);
+                // requestBody.put("toUserId", toUserId); // Refactored to Array
                 requestBody.put("companyUuid", companyUuid);
                 requestBody.put("cmid", cmid);
                 requestBody.put("message", message);
+
+                var toUserIdArray = requestBody.putArray("toUserId");
+                if (StringUtils.hasText(toUserId)) {
+                    for (String id : toUserId.split(",")) {
+                        if (StringUtils.hasText(id.trim())) {
+                            toUserIdArray.add(id.trim());
+                        }
+                    }
+                }
 
                 var fileArray = requestBody.putArray("filePathList");
                 if (StringUtils.hasText(filePathListStr)) {
@@ -269,15 +279,15 @@ public class DaouofficePlugin extends BasePlugin {
                     }
                 }
 
-                String targetUrl = SERVICE_GATEWAY_URL + MESSAGE_SEND_PATH;
+                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + MESSAGE_SEND_PATH;
                 log.debug("Daouoffice Message Send Request: {}", targetUrl);
 
                 return connection
                         .post()
                         .uri(uriBuilder -> uriBuilder
                                 .scheme("http")
-                                .host("dop-service-gateway.dop-platform.svc.cluster.local")
-                                .port(20719)
+                                .host(SERVICE_GATEWAY_HOST)
+                                .port(SERVICE_GATEWAY_PORT)
                                 .path(MESSAGE_SEND_PATH)
                                 .build())
                         .contentType(MediaType.APPLICATION_JSON)
