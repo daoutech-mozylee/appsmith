@@ -251,8 +251,6 @@ public class DaouofficePlugin extends BasePlugin {
                         "");
                 String message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message",
                         STRING_TYPE, "");
-                String filePathListStr = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
-                        "filePathList", STRING_TYPE, "");
 
                 ObjectNode requestBody = objectMapper.createObjectNode();
                 requestBody.put("platformUserId", platformUserId);
@@ -270,14 +268,7 @@ public class DaouofficePlugin extends BasePlugin {
                     }
                 }
 
-                var fileArray = requestBody.putArray("filePathList");
-                if (StringUtils.hasText(filePathListStr)) {
-                    for (String path : filePathListStr.split(",")) {
-                        if (StringUtils.hasText(path.trim())) {
-                            fileArray.add(path.trim());
-                        }
-                    }
-                }
+                requestBody.putArray("filePathList");
 
                 String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + MESSAGE_SEND_PATH;
                 log.debug("Daouoffice Message Send Request: {}", targetUrl);
