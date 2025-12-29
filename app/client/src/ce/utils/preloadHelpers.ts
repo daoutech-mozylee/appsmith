@@ -1,3 +1,5 @@
 export const getBaseURL = () => {
-  return "/";
+  const publicUrl = process.env.PUBLIC_URL || "";
+
+  return publicUrl.endsWith("/") ? publicUrl : `${publicUrl}/`;
 };
