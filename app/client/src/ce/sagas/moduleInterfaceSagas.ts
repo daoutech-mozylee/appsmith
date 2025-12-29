@@ -802,26 +802,22 @@ export function* handleModuleWidgetCreationSaga(
     ],
   };
 
-  // PackageModuleWidget에 모듈 정보 저장 (페이지 로드 시 복원용)
+  // PackageModuleWidget에 모듈 참조 정보만 저장 (공통 데이터는 레지스트리에서 조회)
+  // Phase 1: 참조 기반 구조 - moduleInstanceData 제거
   updatedWidgets[newWidgetId] = {
     ...updatedWidgets[newWidgetId],
-    moduleName: moduleData.moduleName,
-    packageName: moduleData.packageName,
+    // 모듈 참조 (레지스트리 조회용)
     moduleUUID: moduleData.moduleUUID,
     packageUUID: moduleData.packageUUID,
+    // 인스턴스 식별자
     moduleInstanceId: instancePrefix,
-    // 페이지 로드 시 모듈 인스턴스 복원을 위해 데이터 저장
-    moduleInstanceData: {
-      actions: transformedActions,
-      jsObjects: transformedJSObjects,
-      inputsForm: moduleData.inputsForm,
-      outputsForm: moduleData.outputsForm,
-    },
-    // Input/Output 정의 (Property Pane에서 직접 접근용)
-    inputsForm: moduleData.inputsForm,
-    outputsForm: moduleData.outputsForm,
-    // Input 값 저장 (위젯 props로 전달된 값)
-    inputs: moduleData.inputs,
+    // 인스턴스별 데이터 (사용자 설정 값)
+    inputs: moduleData.inputs || {},
+    // 레거시 호환용 메타데이터 (표시용)
+    moduleName: moduleData.moduleName,
+    packageName: moduleData.packageName,
+    // 주의: moduleInstanceData, inputsForm, outputsForm은 더 이상 저장하지 않음
+    // 페이지 로드 시 ModuleRegistry에서 조회하여 사용
   };
 
   return updatedWidgets;

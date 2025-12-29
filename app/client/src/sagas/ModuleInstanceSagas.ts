@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Module Instance Sagas
  *
@@ -34,16 +35,41 @@ import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
 import { getCurrentPageId } from "selectors/editorSelectors";
 import type { FlattenedWidgetProps } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import DatasourcesApi from "ee/api/DatasourcesApi";
+import { getCurrentWorkspaceId } from "ee/selectors/selectedWorkspaceSelectors";
 import { getDataTree } from "selectors/dataTreeSelectors";
 import type { DataTree } from "entities/DataTree/dataTreeTypes";
 import type {
   ModuleInstanceOutputs,
   ModuleOutputSection,
 } from "constants/PackageModuleConstants";
+// ModuleRegistry 초기화 (side-effect import)
+// utils/ 폴더에 위치하여 Editor와 Viewer 모드 모두에서 로드됨
 import {
   getOutputsFormByModuleUUID,
   getInputsFormByModuleUUID,
-} from "pages/Editor/widgetSidebar/usePackageModules";
+  MODULE_REGISTRY_INITIALIZED,
+} from "utils/moduleRegistryInit";
+
+// 초기화 확인 (side-effect import 보장)
+if (!MODULE_REGISTRY_INITIALIZED) {
+  console.warn("[ModuleInstanceSagas] ModuleRegistry initialization failed");
+}
+
+import { mergeInputsWithDefaults } from "utils/moduleInputMerger";
+import {
+  needsModuleInstanceMigration,
+  migrateModuleInstanceProps,
+  estimatePropsSize,
+  logMigration,
+} from "utils/moduleInstanceMigration";
+import { ModuleRegistry } from "utils/ModuleRegistry";
+import {
+  transformRegistryActions,
+  transformRegistryJSObjects,
+  applyBindingTransformations,
+  extractTargetWidgets,
+  collectWidgetNameMappings,
+} from "utils/moduleTransformUtils";
 import { objectKeys } from "@appsmith/utils";
 import { evaluateAndExecuteDynamicTrigger } from "sagas/EvaluationsSaga";
 import { EventType } from "constants/AppsmithActionConstants/ActionConstants";
@@ -57,6 +83,17 @@ function* handleModuleInstanceRegistered(
   action: ReduxAction<RegisterModuleInstancePayload>,
 ) {
   const { actions, instanceId, jsObjects } = action.payload;
+
+  console.log(
+    `[ModuleInstance] handleModuleInstanceRegistered: instanceId=${instanceId}`,
+  );
+  console.log(
+    `[ModuleInstance] jsObjects received:`,
+    jsObjects.map((js) => ({
+      name: js.name,
+      functions: js.functions,
+    })),
+  );
 
   // 1. DB/SAAS Action 중 executeOnLoad가 true이거나, runBehaviour가 AUTOMATIC/ON_PAGE_LOAD인 것들 실행
   const executeOnLoadActions = actions.filter((act) => {
@@ -85,8 +122,17 @@ function* handleModuleInstanceRegistered(
   }> = [];
 
   for (const jsObj of jsObjects) {
+    console.log(
+      `[ModuleInstance] Checking jsObj: ${jsObj.name}, functions:`,
+      jsObj.functions,
+    );
+
     if (jsObj.functions) {
       for (const [functionName, funcInfo] of Object.entries(jsObj.functions)) {
+        console.log(
+          `[ModuleInstance] Function ${functionName}: runBehaviour=${funcInfo.runBehaviour}`,
+        );
+
         if (
           funcInfo.runBehaviour === "AUTOMATIC" ||
           funcInfo.runBehaviour === "ON_PAGE_LOAD"
@@ -99,6 +145,11 @@ function* handleModuleInstanceRegistered(
       }
     }
   }
+
+  console.log(
+    `[ModuleInstance] executeOnLoadJSFunctions:`,
+    executeOnLoadJSFunctions,
+  );
 
   // ON_PAGE_LOAD JS 함수가 있는 경우, DataTree 평가가 완료될 때까지 대기
   // 페이지 새로고침 시 모듈 인스턴스가 등록되지만 DataTree에 아직 반영되지 않아서
@@ -196,15 +247,79 @@ function* handleModuleInstanceRegistered(
   }
 }
 
+// Datasource 캐시 (API 호출 최소화)
+let cachedDatasources: Datasource[] | null = null;
+
 /**
  * Datasource 이름으로 ID 찾기
+ * 1. Redux 상태에서 먼저 찾기 (Editor 모드)
+ * 2. 없으면 API를 통해 fetch (Deploy 모드)
  */
 function* findDatasourceByName(
   datasourceName: string,
-): Generator<unknown, Datasource | undefined, Datasource[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Generator<unknown, Datasource | undefined, any> {
+  // 1. Redux 상태에서 찾기
   const datasources: Datasource[] = yield select(getDatasources);
+  const found = datasources.find((ds) => ds.name === datasourceName);
 
-  return datasources.find((ds) => ds.name === datasourceName);
+  if (found) {
+    return found;
+  }
+
+  // 2. 캐시된 데이터에서 찾기
+  if (cachedDatasources) {
+    return cachedDatasources.find((ds) => ds.name === datasourceName);
+  }
+
+  // 3. API를 통해 fetch (Deploy 모드)
+  try {
+    const workspaceId: string = yield select(getCurrentWorkspaceId);
+
+    console.log(
+      `[ModuleInstance] Looking for datasource "${datasourceName}", workspaceId=${workspaceId}`,
+    );
+
+    if (workspaceId) {
+      console.log(
+        `[ModuleInstance] Fetching datasources from API for workspace: ${workspaceId}`,
+      );
+      const response = yield call(DatasourcesApi.fetchDatasources, workspaceId);
+
+      console.log(`[ModuleInstance] API response:`, response);
+
+      if (response?.data?.data) {
+        cachedDatasources = response.data.data as Datasource[];
+        console.log(
+          `[ModuleInstance] Fetched ${cachedDatasources.length} datasources:`,
+          cachedDatasources.map((ds) => ds.name),
+        );
+
+        return cachedDatasources?.find((ds) => ds.name === datasourceName);
+      } else {
+        console.log(
+          `[ModuleInstance] No data in response, trying response.data directly`,
+        );
+
+        // 응답 구조가 다를 수 있음
+        if (Array.isArray(response?.data)) {
+          cachedDatasources = response.data as Datasource[];
+          console.log(
+            `[ModuleInstance] Fetched ${cachedDatasources.length} datasources (alt):`,
+            cachedDatasources.map((ds) => ds.name),
+          );
+
+          return cachedDatasources?.find((ds) => ds.name === datasourceName);
+        }
+      }
+    } else {
+      console.log(`[ModuleInstance] No workspaceId available`);
+    }
+  } catch (error) {
+    console.error("[ModuleInstance] Error fetching datasources:", error);
+  }
+
+  return undefined;
 }
 
 /**
@@ -438,6 +553,8 @@ function* executeModuleJSFunction(
  * - 각 모듈 위젯에 대해 REGISTER_MODULE_INSTANCE 디스패치
  */
 function* handlePageLoadModuleRestore() {
+  console.log("[ModuleRestore] handlePageLoadModuleRestore called");
+
   // 현재 페이지 ID 가져오기
   const pageId: string = yield select(getCurrentPageId);
 
@@ -454,26 +571,44 @@ function* handlePageLoadModuleRestore() {
     (widget: any) => widget.type === PACKAGE_MODULE_WIDGET_TYPE,
   );
 
+  console.log(
+    `[ModuleRestore] Found ${moduleWidgets.length} module widgets, existing instances: ${objectKeys(existingInstances).length}`,
+  );
+
   for (const widget of moduleWidgets) {
-    // moduleInstanceData가 있는지 확인
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const widgetAny = widget as any;
+    let widgetAny = widget as any;
+
+    // 레거시 구조 마이그레이션 체크
+    // moduleInstanceData가 존재하면 레거시 구조로 판단
+    if (needsModuleInstanceMigration(widgetAny)) {
+      // 마이그레이션 전 크기 측정 (개발 환경 로깅용)
+      const legacySize = estimatePropsSize(widgetAny);
+
+      // 레거시 구조를 새 구조로 변환
+      const migratedProps = migrateModuleInstanceProps(widgetAny);
+
+      // 마이그레이션 후 크기 측정 및 로깅
+      const newSize = estimatePropsSize(migratedProps);
+
+      logMigration(
+        widgetAny.moduleInstanceId || widgetAny.widgetId,
+        legacySize,
+        newSize,
+      );
+
+      // 마이그레이션된 props로 위젯 업데이트 (런타임에서만 적용)
+      // 실제 저장소 업데이트는 별도 저장 시점에 처리
+      widgetAny = { ...widgetAny, ...migratedProps };
+    }
+
+    // 모듈 식별자 및 레거시 데이터 확인
     const moduleInstanceData = widgetAny.moduleInstanceData;
     const moduleInstanceId = widgetAny.moduleInstanceId;
     const moduleUUID = widgetAny.moduleUUID;
 
-    // inputsForm/outputsForm 조회: 위젯 -> moduleInstanceData -> preloaded modules (fallback)
-    const inputsForm =
-      widgetAny.inputsForm ||
-      moduleInstanceData?.inputsForm ||
-      (moduleUUID ? getInputsFormByModuleUUID(moduleUUID) : undefined);
-
-    const outputsForm =
-      widgetAny.outputsForm ||
-      moduleInstanceData?.outputsForm ||
-      (moduleUUID ? getOutputsFormByModuleUUID(moduleUUID) : undefined);
-
-    if (!moduleInstanceData || !moduleInstanceId) {
+    // moduleInstanceId가 없으면 건너뛰기
+    if (!moduleInstanceId) {
       continue;
     }
 
@@ -482,22 +617,131 @@ function* handlePageLoadModuleRestore() {
       continue;
     }
 
+    // ModuleRegistry에서 원본 모듈 정의 조회
+    const definition = moduleUUID ? ModuleRegistry.get(moduleUUID) : undefined;
+
+    console.log(
+      `[ModuleRestore] Widget ${moduleInstanceId}: moduleUUID=${moduleUUID}, definition found=${!!definition}, registry size=${ModuleRegistry.size()}`,
+    );
+
+    // inputsForm/outputsForm 조회: 레지스트리 (최신) -> 위젯 -> moduleInstanceData (fallback)
+    const inputsForm =
+      definition?.inputsForm ||
+      (moduleUUID ? getInputsFormByModuleUUID(moduleUUID) : undefined) ||
+      widgetAny.inputsForm ||
+      moduleInstanceData?.inputsForm;
+
+    const outputsForm =
+      definition?.outputsForm ||
+      (moduleUUID ? getOutputsFormByModuleUUID(moduleUUID) : undefined) ||
+      widgetAny.outputsForm ||
+      moduleInstanceData?.outputsForm;
+
+    // actions/jsObjects 준비
+    // 레지스트리에서 원본 데이터를 찾았으면 변환하여 사용, 없으면 레거시 데이터 사용
+    let actions: RegisterModuleInstancePayload["actions"];
+    let jsObjects: RegisterModuleInstancePayload["jsObjects"];
+
+    if (definition) {
+      // 레지스트리에서 원본 데이터 조회됨 - 변환하여 사용
+      const entityNameMapping = new Map<string, string>();
+      const datasources: Datasource[] = yield select(getDatasources);
+
+      // 위젯 이름 매핑 수집 (바인딩 변환용)
+      const targetWidgets = extractTargetWidgets(definition.dsl);
+
+      for (const targetWidget of targetWidgets) {
+        collectWidgetNameMappings(
+          targetWidget,
+          moduleInstanceId,
+          entityNameMapping,
+        );
+      }
+
+      // Actions 변환
+      const moduleActions = transformRegistryActions(
+        definition.actions,
+        moduleInstanceId,
+        entityNameMapping,
+        datasources,
+      );
+
+      // JSObjects 변환 (actions 전달하여 JS 함수의 runBehaviour 매핑)
+      const moduleJSObjects = transformRegistryJSObjects(
+        definition.actionCollections,
+        definition.actions,
+        moduleInstanceId,
+        entityNameMapping,
+      );
+
+      // 바인딩 변환 적용
+      const transformed = applyBindingTransformations(
+        moduleActions,
+        moduleJSObjects,
+        entityNameMapping,
+        moduleInstanceId,
+      );
+
+      actions = transformed.transformedActions;
+      jsObjects = transformed.transformedJSObjects;
+
+      console.log(
+        `[ModuleRestore] Loaded from registry: ${definition.moduleName} (${moduleInstanceId})`,
+      );
+      console.log(
+        `[ModuleRestore] jsObjects:`,
+        jsObjects.map((js) => ({
+          name: js.name,
+          functions: Object.entries(js.functions || {}).map(([fn, info]) => ({
+            fn,
+            runBehaviour: info.runBehaviour,
+          })),
+        })),
+      );
+    } else if (moduleInstanceData) {
+      // 레지스트리에 없음 - 레거시 데이터 사용 (fallback)
+      actions = moduleInstanceData.actions || [];
+      jsObjects = moduleInstanceData.jsObjects || [];
+
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          `[ModuleRestore] Using legacy data: ${widgetAny.moduleName || "unknown"} (${moduleInstanceId})`,
+        );
+      }
+    } else {
+      // 레지스트리에도 없고 레거시 데이터도 없음 - 건너뛰기
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          `[ModuleRestore] No data found for module: ${moduleUUID} (${moduleInstanceId})`,
+        );
+      }
+
+      continue;
+    }
+
+    // 인스턴스 입력값과 모듈 기본값 병합
+    const instanceInputs = widgetAny.inputs || {};
+    const mergedInputs = inputsForm
+      ? mergeInputsWithDefaults(instanceInputs, inputsForm)
+      : instanceInputs;
+
     // 모듈 인스턴스 등록
     yield put({
       type: ReduxActionTypes.REGISTER_MODULE_INSTANCE,
       payload: {
         instanceId: moduleInstanceId,
         moduleId: moduleUUID || "",
-        moduleName: widgetAny.moduleName || "",
-        packageName: widgetAny.packageName || "",
+        moduleName: definition?.moduleName || widgetAny.moduleName || "",
+        packageName: definition?.packageName || widgetAny.packageName || "",
         widgetId: widget.widgetId,
         pageId,
-        actions: moduleInstanceData.actions || [],
-        jsObjects: moduleInstanceData.jsObjects || [],
-        // Input/Output 정의 및 초기값 전달 (fallback 포함)
+        actions,
+        jsObjects,
+        // Input/Output 정의 및 초기값 전달
         inputsForm,
         outputsForm,
-        initialInputs: widgetAny.inputs,
+        // 병합된 inputs 사용 (기존 값 보존 + 새 필드 기본값)
+        initialInputs: mergedInputs,
       } as RegisterModuleInstancePayload,
     });
   }
@@ -817,6 +1061,8 @@ function* handleExecuteModuleActionRequest(
  * Module Instance Sagas Root
  */
 export default function* moduleInstanceSagas() {
+  console.log("[ModuleInstanceSagas] Saga initialized and running");
+
   yield all([
     // 모듈 액션 실행 요청 처리
     takeEvery(
