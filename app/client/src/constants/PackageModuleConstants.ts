@@ -167,7 +167,7 @@ export interface LayoutOnLoadAction {
  */
 export interface ActionConfig {
   isPublic: boolean;
-  pluginType: "DB" | "JS";
+  pluginType: "DB" | "JS" | "SAAS";
   pluginId: string;
   unpublishedAction: {
     moduleId: string;
@@ -194,8 +194,9 @@ export interface ActionConfig {
       selfReferencingDataPaths: string[];
       pluginSpecifiedTemplates?: Array<{ value: boolean }>;
       jsArguments?: unknown[];
+      formData?: Record<string, unknown>;
     };
-    runBehaviour: "AUTOMATIC" | "MANUAL";
+    runBehaviour: "AUTOMATIC" | "MANUAL" | "ON_PAGE_LOAD";
     dynamicBindingPathList: Array<{ key: string }>;
     isValid: boolean;
     invalids: string[];
@@ -303,3 +304,200 @@ export const DEFAULT_MODULE_CARD_PROPS = {
   columns: 24,
   icon: "package",
 } as const;
+
+// ============================================================================
+// 새 모듈 시스템 타입 정의
+// ============================================================================
+
+/**
+ * 새 구조: 참조 + 인스턴스 데이터만 저장
+ *
+ * 페이지 DSL에 저장되는 최소 데이터입니다.
+ * 공통 데이터(레이아웃, 코드, 스키마)는 ModuleRegistry에서 조회합니다.
+ */
+export interface ModuleWidgetPropsNew {
+  // 위젯 기본 속성
+  widgetId: string;
+  widgetName: string;
+  type: "PACKAGE_MODULE_WIDGET";
+  parentId: string;
+  renderMode: "CANVAS" | "PAGE";
+
+  // 모듈 참조 (레지스트리 조회용)
+  moduleUUID: string;
+  packageUUID: string;
+
+  // 인스턴스 식별
+  moduleInstanceId: string;
+
+  // 인스턴스별 데이터 (사용자가 설정한 값)
+  inputs: Record<string, unknown>;
+
+  // 위치/크기
+  leftColumn: number;
+  rightColumn: number;
+  topRow: number;
+  bottomRow: number;
+}
+
+/**
+ * 레거시 구조: 전체 데이터 복사 (마이그레이션 대상)
+ *
+ * 기존에 페이지에 저장되던 전체 모듈 데이터입니다.
+ * 이 구조가 감지되면 자동으로 새 구조로 마이그레이션됩니다.
+ */
+export interface ModuleWidgetPropsLegacy extends ModuleWidgetPropsNew {
+  // 레거시 필드들 (마이그레이션 후 제거)
+  moduleName: string;
+  packageName: string;
+  moduleInstanceData: {
+    actions: ActionConfig[];
+    jsObjects: ActionCollectionConfig[];
+    inputsForm: ModuleInputSection[];
+    outputsForm: ModuleOutputSection[];
+  };
+  moduleDSL: ModuleDSL;
+  inputsForm: ModuleInputSection[];
+  outputsForm: ModuleOutputSection[];
+}
+
+/**
+ * 액션 실행 데이터
+ */
+export interface ActionExecutionData {
+  isLoading: boolean;
+  data: unknown;
+  error?: string;
+}
+
+/**
+ * JS 실행 데이터
+ */
+export interface JSExecutionData {
+  [functionName: string]: {
+    isLoading: boolean;
+    data: unknown;
+    error?: string;
+  };
+}
+
+/**
+ * 변환된 액션 (인스턴스 접두사 적용)
+ */
+export interface TransformedAction extends ActionConfig {
+  originalName: string; // 원본 이름
+  transformedName: string; // 변환된 이름: mod_xxx_QueryName
+}
+
+/**
+ * 변환된 JS 컬렉션 (인스턴스 접두사 적용)
+ */
+export interface TransformedJSCollection extends ActionCollectionConfig {
+  originalName: string;
+  transformedName: string; // 변환된 이름: mod_xxx_JSObjectName
+  transformedBody: string; // 내부 참조 변환된 코드
+}
+
+/**
+ * 런타임 모듈 인스턴스 (Redux 상태)
+ *
+ * 페이지 로드 시 생성되어 Redux 상태에서 관리됩니다.
+ */
+export interface RuntimeModuleInstance {
+  instanceId: string;
+  moduleUUID: string;
+
+  // 변환된 로직 (인스턴스 접두사 적용)
+  actions: TransformedAction[];
+  jsObjects: TransformedJSCollection[];
+
+  // 스키마 (레지스트리에서 복사)
+  inputsForm: ModuleInputSection[];
+  outputsForm: ModuleOutputSection[];
+
+  // 상태
+  inputs: Record<string, unknown>;
+  outputs: Record<string, unknown>;
+
+  // 실행 데이터
+  actionData: Record<string, ActionExecutionData>;
+  jsData: Record<string, JSExecutionData>;
+}
+
+/**
+ * 공통 데이터 + 인스턴스 데이터 병합 결과
+ *
+ * 페이지 렌더링 시 ModuleRegistry의 공통 데이터와
+ * 페이지에 저장된 인스턴스 데이터를 병합한 결과입니다.
+ */
+export interface MergedModuleState {
+  // 모듈 정의 참조
+  moduleUUID: string;
+  moduleName: string;
+  packageUUID: string;
+  packageName: string;
+
+  // 인스턴스 정보
+  instanceId: string;
+
+  // 병합된 입력값 (인스턴스 값 우선, 없으면 기본값)
+  inputs: Record<string, unknown>;
+
+  // 변환된 DSL (인스턴스 접두사 적용)
+  transformedDSL: ModuleDSL;
+
+  // 변환된 액션/JS (인스턴스 접두사 적용)
+  transformedActions: TransformedAction[];
+  transformedJSObjects: TransformedJSCollection[];
+
+  // 스키마 참조
+  inputsForm: ModuleInputSection[];
+  outputsForm: ModuleOutputSection[];
+}
+
+/**
+ * 마이그레이션 필요 여부 판단
+ *
+ * @param props - 검사할 위젯 props
+ * @returns moduleInstanceData가 존재하면 true (레거시 구조)
+ */
+export function needsModuleMigration(
+  props: ModuleWidgetPropsNew | ModuleWidgetPropsLegacy,
+): props is ModuleWidgetPropsLegacy {
+  return (
+    "moduleInstanceData" in props && props.moduleInstanceData !== undefined
+  );
+}
+
+/**
+ * Redux 액션 타입
+ */
+export const MODULE_INSTANCE_ACTIONS = {
+  REGISTER: "REGISTER_MODULE_INSTANCE",
+  UNREGISTER: "UNREGISTER_MODULE_INSTANCE",
+  UPDATE_INPUTS: "UPDATE_MODULE_INSTANCE_INPUTS",
+  UPDATE_OUTPUTS: "UPDATE_MODULE_INSTANCE_OUTPUTS",
+  SET_ACTION_DATA: "SET_MODULE_INSTANCE_ACTION_DATA",
+  SET_JS_DATA: "SET_MODULE_INSTANCE_JS_DATA",
+} as const;
+
+/**
+ * 모듈 인스턴스 등록 페이로드
+ */
+export interface RegisterModuleInstancePayload {
+  instanceId: string;
+  moduleUUID: string;
+  actions: TransformedAction[];
+  jsObjects: TransformedJSCollection[];
+  inputsForm: ModuleInputSection[];
+  outputsForm: ModuleOutputSection[];
+  inputs: Record<string, unknown>;
+}
+
+/**
+ * 모듈 입력값 업데이트 페이로드
+ */
+export interface UpdateModuleInputsPayload {
+  instanceId: string;
+  inputs: Record<string, unknown>;
+}
