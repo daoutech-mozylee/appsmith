@@ -20,6 +20,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,13 +48,15 @@ public class CacheAspect {
      * @param joinPoint The join point of the method call
      * @param cacheName The name of the cache
      * @param key       The key to be used for caching
+     * @param ttl       The time to live duration
      * @return The result of the method call
      */
-    private Mono<Object> callMonoMethodAndCache(ProceedingJoinPoint joinPoint, String cacheName, String key) {
+    private Mono<Object> callMonoMethodAndCache(
+            ProceedingJoinPoint joinPoint, String cacheName, String key, Duration ttl) {
         try {
             return ((Mono<?>) joinPoint.proceed())
-                    .zipWhen(value ->
-                            cacheManager.put(cacheName, key, value)) // Call CacheManager.put() to cache the object
+                    .zipWhen(value -> cacheManager.put(
+                            cacheName, key, value, ttl)) // Call CacheManager.put() to cache the object with TTL
                     .flatMap(value -> Mono.just(value.getT1())); // Maps to the original object
         } catch (Throwable e) {
             log.error(
@@ -70,14 +73,15 @@ public class CacheAspect {
      * @param joinPoint The join point
      * @param cacheName The name of the cache
      * @param key       The key to be used for caching
+     * @param ttl       The time to live duration
      * @return The result of the method call after caching
      */
-    private Flux<?> callFluxMethodAndCache(ProceedingJoinPoint joinPoint, String cacheName, String key) {
+    private Flux<?> callFluxMethodAndCache(ProceedingJoinPoint joinPoint, String cacheName, String key, Duration ttl) {
         try {
             return ((Flux<?>) joinPoint.proceed())
                     .collectList() // Collect Flux<T> into Mono<List<T>>
-                    .zipWhen(value ->
-                            cacheManager.put(cacheName, key, value)) // Call CacheManager.put() to cache the list
+                    .zipWhen(value -> cacheManager.put(
+                            cacheName, key, value, ttl)) // Call CacheManager.put() to cache the list with TTL
                     .flatMap(value -> Mono.just(value.getT1())) // Maps to the original list
                     .flatMapMany(Flux::fromIterable); // Convert it back to Flux<T>
         } catch (Throwable e) {
@@ -158,6 +162,7 @@ public class CacheAspect {
         Method method = signature.getMethod();
         Cache annotation = method.getAnnotation(Cache.class);
         String cacheName = annotation.cacheName();
+        Duration ttl = Duration.ofSeconds(annotation.ttlInSeconds());
 
         // derive key
         String[] parameterNames = signature.getParameterNames();
@@ -170,13 +175,14 @@ public class CacheAspect {
                     .get(cacheName, key)
                     .switchIfEmpty(Mono.defer(() -> callMonoMethodAndCache(
                             joinPoint, cacheName,
-                            key))); // defer the creation of Mono until subscription as it will call original function
+                            key, ttl))); // defer the creation of Mono until subscription as it will call original
+            // function
         }
 
         if (returnType.isAssignableFrom(Flux.class)) { // If method returns Flux<T>
             return cacheManager
                     .get(cacheName, key)
-                    .switchIfEmpty(Mono.defer(() -> callFluxMethodAndCache(joinPoint, cacheName, key)
+                    .switchIfEmpty(Mono.defer(() -> callFluxMethodAndCache(joinPoint, cacheName, key, ttl)
                             .collectList())) // defer the creation of Flux until subscription as it will call original
                     // function
                     .map(value -> (List<?>) value)

@@ -2,6 +2,8 @@ package com.appsmith.caching.components;
 
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+
 public interface CacheManager {
     /**
      * This will log the cache stats with INFO severity.
@@ -17,13 +19,25 @@ public interface CacheManager {
     Mono<Object> get(String cacheName, String key);
 
     /**
-     * This will put item into the cache.
+     * This will put item into the cache with TTL.
+     * @param cacheName The name of the cache.
+     * @param key The key of the item.
+     * @param value The value of the item.
+     * @param ttl The time to live duration.
+     * @return Mono<Boolean> true if put was successful, false otherwise.
+     */
+    Mono<Boolean> put(String cacheName, String key, Object value, Duration ttl);
+
+    /**
+     * This will put item into the cache with default TTL (3 minutes).
      * @param cacheName The name of the cache.
      * @param key The key of the item.
      * @param value The value of the item.
      * @return Mono<Boolean> true if put was successful, false otherwise.
      */
-    Mono<Boolean> put(String cacheName, String key, Object value);
+    default Mono<Boolean> put(String cacheName, String key, Object value) {
+        return put(cacheName, key, value, Duration.ofMinutes(3));
+    }
 
     /**
      * This will remove item from the cache.
