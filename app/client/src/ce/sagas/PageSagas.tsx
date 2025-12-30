@@ -153,6 +153,15 @@ import {
   getLayoutSavePayload,
   generateUIModuleInstanceSaga,
 } from "ee/sagas/helpers";
+import { ModuleRegistry } from "utils/ModuleRegistry";
+import { mergeInputsWithDefaults } from "utils/moduleInputMerger";
+import { PACKAGE_MODULE_WIDGET_TYPE } from "constants/PackageModuleConstants";
+// Side-effect import: ModuleRegistry 초기화 (Edit/Deploy 모드 모두 필요)
+import "utils/moduleRegistryInit";
+import {
+  transformDSLWithUniqueIds,
+  type ModuleDSLWidget,
+} from "utils/moduleTransformUtils";
 import { apiFailureResponseInterceptor } from "api/interceptors/response";
 import type { AxiosError } from "axios";
 import { handleFetchApplicationError } from "./ApplicationSagas";
@@ -208,6 +217,188 @@ export function* refreshTheApp() {
   }
 }
 
+// MODULE_CONTAINER_WIDGET: 모듈 내부 DSL에서 사용되는 특수 타입
+// 실제 등록된 위젯이 아니므로 CONTAINER_WIDGET으로 변환 필요
+// (CANVAS_WIDGET이 아닌 CONTAINER_WIDGET - 자식 렌더링 방식이 다름)
+const MODULE_CONTAINER_WIDGET_TYPE_NAME = "MODULE_CONTAINER_WIDGET";
+
+/**
+ * 중첩된 DSL을 플랫한 위젯 맵으로 변환
+ * @param dsl 변환할 DSL 위젯
+ * @param result 결과를 저장할 위젯 맵
+ * @param parentId 부모 위젯 ID (명시적으로 전달)
+ * @param renderMode 렌더 모드
+ */
+function flattenModuleDSL(
+  dsl: ModuleDSLWidget,
+  result: Record<string, WidgetProps>,
+  parentId: string,
+  renderMode: string = "CANVAS",
+): void {
+  // 현재 위젯 추가 (children 제외하고 복사)
+  const { children, ...widgetWithoutChildren } = dsl;
+
+  // MODULE_CONTAINER_WIDGET은 CONTAINER_WIDGET으로 변환
+  // CONTAINER_WIDGET은 isCanvas: true이고 자식을 포함할 수 있는 위젯
+  const isModuleContainer = dsl.type === MODULE_CONTAINER_WIDGET_TYPE_NAME;
+  const widgetType = isModuleContainer ? "CONTAINER_WIDGET" : dsl.type;
+
+  // 기본 위젯 속성 구성
+  const widgetProps: Record<string, unknown> = {
+    ...widgetWithoutChildren,
+    // 변환된 위젯 타입 적용
+    type: widgetType,
+    // parentId를 명시적으로 설정 (중요!)
+    parentId: parentId,
+    // children은 ID 배열로 변환
+    children: children?.map((child) => child.widgetId) || [],
+    // 필수 위젯 속성 추가
+    renderMode: renderMode,
+    isLoading: false,
+  };
+
+  // MODULE_CONTAINER_WIDGET 변환 시 부모를 완전히 채우도록 설정
+  if (isModuleContainer) {
+    widgetProps.topRow = 0;
+    widgetProps.leftColumn = 0;
+    // shouldScrollContents: false이면 부모의 componentHeight를 bottomRow로 사용
+    widgetProps.shouldScrollContents = false;
+    // 배경/테두리 제거 (투명하게)
+    widgetProps.backgroundColor = "transparent";
+    widgetProps.borderWidth = "0";
+    widgetProps.borderRadius = "0";
+    widgetProps.boxShadow = "none";
+  }
+
+  result[dsl.widgetId] = widgetProps as unknown as WidgetProps;
+
+  // 자식 위젯들 재귀 처리 - 현재 위젯을 parentId로 전달
+  if (children && Array.isArray(children)) {
+    for (const child of children) {
+      flattenModuleDSL(child, result, dsl.widgetId, renderMode);
+    }
+  }
+}
+
+/**
+ * 위젯이 모듈 내부 위젯인지 확인 (mod_ 접두사로 시작하거나 parent가 모듈 위젯인 경우)
+ */
+function isModuleInternalWidget(
+  widgetId: string,
+  widget: WidgetProps,
+  widgets: Record<string, WidgetProps>,
+): boolean {
+  // mod_ 접두사로 시작하면 모듈 내부 위젯
+  if (widgetId.startsWith("mod_")) {
+    return true;
+  }
+
+  // parentId 체인을 따라가서 PackageModuleWidget을 찾으면 내부 위젯
+  let parentId = widget.parentId;
+  const visited = new Set<string>();
+
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+    const parent = widgets[parentId];
+
+    if (!parent) break;
+
+    if (parent.type === PACKAGE_MODULE_WIDGET_TYPE) {
+      return true;
+    }
+
+    parentId = parent.parentId;
+  }
+
+  return false;
+}
+
+/**
+ * 페이지 로드 시 PackageModuleWidget을 ModuleRegistry 데이터와 병합
+ *
+ * 최소 참조로 저장된 모듈 위젯에 다음 데이터를 병합합니다:
+ * - moduleName, packageName: 모듈 식별 정보
+ * - inputsForm, outputsForm: 스키마 정의
+ * - moduleDSL: 위젯 트리
+ * - inputs: 인스턴스 값 + 기본값 병합
+ * - 내부 위젯들: ModuleRegistry의 dsl에서 재생성
+ */
+function mergeModuleWidgetsWithRegistry(
+  widgets: Record<string, WidgetProps>,
+): Record<string, WidgetProps> {
+  const result: Record<string, WidgetProps> = {};
+
+  for (const [widgetId, widget] of Object.entries(widgets)) {
+    // 기존 모듈 내부 위젯은 스킵 (레지스트리에서 새로 생성)
+    if (isModuleInternalWidget(widgetId, widget, widgets)) {
+      continue;
+    }
+
+    if (
+      widget.type === PACKAGE_MODULE_WIDGET_TYPE &&
+      (widget as Record<string, unknown>).moduleUUID
+    ) {
+      const w = widget as Record<string, unknown>;
+      const moduleUUID = w.moduleUUID as string;
+      const moduleInstanceId = w.moduleInstanceId as string;
+      const moduleDefinition = ModuleRegistry.get(moduleUUID);
+
+      if (moduleDefinition && moduleDefinition.dsl) {
+        // 인스턴스 접두사로 DSL 변환
+        const idMapping = new Map<string, string>();
+        const entityNameMapping = new Map<string, string>();
+
+        const transformedDSL = transformDSLWithUniqueIds(
+          moduleDefinition.dsl as ModuleDSLWidget,
+          moduleInstanceId,
+          idMapping,
+          entityNameMapping,
+        );
+
+        // 루트 위젯(Canvas)의 parentId를 PackageModuleWidget으로 설정
+        // 변환된 DSL을 플랫하게 만들어서 결과에 추가
+        // widgetId는 PackageModuleWidget의 ID로, 첫 번째 내부 위젯(Canvas)의 parentId가 됨
+        const moduleRenderMode = (w.renderMode as string) || "CANVAS";
+
+        // Height 스케일링은 런타임(PackageModuleWidget.renderChildWidget)에서 처리
+        // 페이지 로드 시에는 원본 DSL 그대로 사용
+        flattenModuleDSL(transformedDSL, result, widgetId, moduleRenderMode);
+
+        // 모듈 위젯의 children 업데이트 (첫 번째 자식 = Canvas)
+        const moduleChildren = transformedDSL.widgetId
+          ? [transformedDSL.widgetId]
+          : [];
+
+        // ModuleRegistry 데이터와 병합
+        result[widgetId] = {
+          ...widget,
+          // 레지스트리에서 가져온 정보
+          moduleName: moduleDefinition.moduleName,
+          packageName: moduleDefinition.packageName,
+          inputsForm: moduleDefinition.inputsForm,
+          outputsForm: moduleDefinition.outputsForm,
+          moduleDSL: moduleDefinition.dsl,
+          // inputs는 기본값과 병합
+          inputs: mergeInputsWithDefaults(
+            (w.inputs as Record<string, unknown>) || {},
+            moduleDefinition.inputsForm || [],
+          ),
+          // 내부 위젯 참조
+          children: moduleChildren,
+        } as WidgetProps;
+      } else {
+        // 레지스트리에 없는 모듈 - 그대로 유지 (폴백 UI 표시용)
+        result[widgetId] = widget;
+      }
+    } else {
+      // 일반 위젯은 그대로 유지
+      result[widgetId] = widget;
+    }
+  }
+
+  return result;
+}
+
 export const getCanvasWidgetsPayload = async (
   pageResponse: FetchPageResponse,
   dslTransformer?: (dsl: DSLWidget) => DSLWidget,
@@ -218,6 +409,10 @@ export const getCanvasWidgetsPayload = async (
   });
   const extractedDSL = currentDSL.dsl;
   const flattenedDSL = flattenDSL(extractedDSL);
+
+  // 모듈 위젯을 ModuleRegistry 데이터와 병합
+  const mergedWidgets = mergeModuleWidgetsWithRegistry(flattenedDSL);
+
   const pageWidgetId = MAIN_CONTAINER_WIDGET_ID;
 
   return {
@@ -225,7 +420,7 @@ export const getCanvasWidgetsPayload = async (
     currentPageName: pageResponse.data.name,
     currentPageId: pageResponse.data.id,
     dsl: extractedDSL,
-    widgets: flattenedDSL,
+    widgets: mergedWidgets,
     currentLayoutId: pageResponse.data.layouts[0].id, // TODO(abhinav): Handle for multiple layouts
     currentApplicationId: pageResponse.data.applicationId,
     pageActions: pageResponse.data.layouts[0].layoutOnLoadActions || [],

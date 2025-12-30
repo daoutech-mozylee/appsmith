@@ -34,6 +34,10 @@ import _, { get } from "lodash";
 import type { EvaluationError } from "utils/DynamicBindingUtils";
 import { getEvalErrorPath, isDynamicValue } from "utils/DynamicBindingUtils";
 import ConfigTreeActions from "utils/configTree";
+import {
+  transformBindingReferences,
+  transformThisParamsBindings,
+} from "utils/moduleTransformUtils";
 import { DATATREE_INTERNAL_KEYWORDS } from "constants/WidgetValidation";
 import { getLayoutSystemType } from "./layoutSystemSelectors";
 import {
@@ -78,9 +82,49 @@ const getCustomModuleInstancesDataTree = createSelector(
       string,
       { inputs: Record<string, unknown>; outputs: Record<string, unknown> }
     > = {};
+    // instanceId -> entityNameMapping 매핑 (위젯 바인딩 변환용)
+    const entityNameMappings: Record<string, Map<string, string>> = {};
 
     // 각 모듈 인스턴스 순회
     Object.values(moduleInstances).forEach((instance) => {
+      // 전체 엔티티 이름 매핑 (Actions + JSObjects + Widgets)
+      const entityNameMapping = new Map<string, string>();
+
+      // 모듈 내 위젯 이름 매핑 생성 (위젯 참조 변환용)
+      // instance.instanceId로 시작하는 위젯들을 찾아서 원본 이름 -> 변환된 이름 매핑 생성
+      // 예: "Modal1" -> "mod_xxx_Modal1", "Chip" -> "mod_xxx_Chip"
+      const widgetNameMapping: Record<string, string> = {};
+
+      Object.entries(widgets).forEach(([, widget]) => {
+        const widgetName = widget.widgetName;
+
+        // 인스턴스 접두사로 시작하는 위젯 찾기
+        if (widgetName && widgetName.startsWith(`${instance.instanceId}_`)) {
+          // 원본 이름 추출: mod_xxx_Modal1 -> Modal1
+          const originalName = widgetName.replace(
+            `${instance.instanceId}_`,
+            "",
+          );
+
+          widgetNameMapping[originalName] = widgetName;
+          // entityNameMapping에도 추가 (위젯 바인딩 변환용)
+          entityNameMapping.set(originalName, widgetName);
+        }
+      });
+
+      // Action 이름 매핑 추가 (엔티티 바인딩 변환용)
+      Object.entries(instance.actions).forEach(([actionName, action]) => {
+        entityNameMapping.set(action.originalName, actionName);
+      });
+
+      // JSObject 이름 매핑 추가 (엔티티 바인딩 변환용)
+      Object.entries(instance.jsObjects).forEach(([jsObjectName, jsObject]) => {
+        entityNameMapping.set(jsObject.originalName, jsObjectName);
+      });
+
+      // entityNameMappings에 저장 (위젯 바인딩 변환 시 사용)
+      entityNameMappings[instance.instanceId] = entityNameMapping;
+
       // 각 Action에 대해 DataTree 엔티티 생성
       Object.entries(instance.actions).forEach(([actionName, action]) => {
         const actionData = instance.actionData[actionName];
@@ -254,6 +298,53 @@ const getCustomModuleInstancesDataTree = createSelector(
         transformedBody = transformedBody.replace(
           /\binputs\b/g,
           paramsEntityName,
+        );
+
+        // 다른 모듈 내부 엔티티 참조 변환
+        // OrgChartJS.xxx -> mod_xxx_OrgChartJS.xxx
+        // Member.run() -> mod_xxx_Member.run()
+        // Modal1.name -> mod_xxx_Modal1.name
+        // 같은 모듈 내의 Actions (Query)
+        Object.entries(instance.actions).forEach(([actionName, action]) => {
+          const originalName = action.originalName;
+
+          // 이미 변환된 이름(mod_xxx_)은 제외
+          const pattern = new RegExp(
+            `(?<!mod_[a-zA-Z0-9]+_)\\b${originalName}\\b(?=[.\\[])`,
+            "g",
+          );
+
+          transformedBody = transformedBody.replace(pattern, actionName);
+        });
+
+        // 같은 모듈 내의 다른 JSObjects
+        Object.entries(instance.jsObjects).forEach(
+          ([otherJsObjName, otherJsObj]) => {
+            // 자기 자신은 이미 변환됨 (this. -> jsObjectName.)
+            if (otherJsObj.originalName === jsObject.originalName) return;
+
+            const originalName = otherJsObj.originalName;
+            const pattern = new RegExp(
+              `(?<!mod_[a-zA-Z0-9]+_)\\b${originalName}\\b(?=[.\\[])`,
+              "g",
+            );
+
+            transformedBody = transformedBody.replace(pattern, otherJsObjName);
+          },
+        );
+
+        // 모듈 내 위젯 참조 변환
+        // Modal1.name -> mod_xxx_Modal1.name
+        // Chip.model -> mod_xxx_Chip.model
+        Object.entries(widgetNameMapping).forEach(
+          ([originalName, transformedName]) => {
+            const pattern = new RegExp(
+              `(?<!mod_[a-zA-Z0-9]+_)\\b${originalName}\\b(?=[.\\[])`,
+              "g",
+            );
+
+            transformedBody = transformedBody.replace(pattern, transformedName);
+          },
         );
 
         // 모듈 인스턴스 JSObject의 변수 초기화 표현식을 실제 값으로 교체
@@ -447,7 +538,7 @@ const getCustomModuleInstancesDataTree = createSelector(
       };
     });
 
-    return { dataTree, configTree, widgetDataAugmentation };
+    return { dataTree, configTree, widgetDataAugmentation, entityNameMappings };
   },
 );
 
@@ -649,7 +740,8 @@ export const getUnevaluatedDataTree = createSelector(
 
     // PackageModuleWidget 엔티티에 inputs/outputs 속성 추가
     // 이를 통해 PackageModule1.outputs.selectedMember 형식의 바인딩 지원
-    const { widgetDataAugmentation } = customModuleInstances;
+    const { entityNameMappings, widgetDataAugmentation } =
+      customModuleInstances;
 
     Object.entries(dataTree).forEach(([entityName, entity]) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -710,6 +802,80 @@ export const getUnevaluatedDataTree = createSelector(
           }
         }
       }
+    });
+
+    // 모듈 내부 위젯의 바인딩 변환 (Deploy 모드에서 위젯 로드 시 필요)
+    // 위젯 이름이 mod_xxx_로 시작하면 해당 모듈의 entityNameMapping을 사용해 바인딩 변환
+    Object.entries(dataTree).forEach(([entityName, entity]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const entityAny = entity as any;
+
+      // 위젯 엔티티가 아니면 건너뛰기
+      if (entityAny?.ENTITY_TYPE !== ENTITY_TYPE.WIDGET) return;
+
+      // 모듈 내부 위젯인지 확인 (이름이 mod_로 시작)
+      const moduleMatch = entityName.match(/^(mod_[a-zA-Z0-9]+)_/);
+
+      if (!moduleMatch) return;
+
+      const instanceId = moduleMatch[1];
+      const entityNameMapping = entityNameMappings[instanceId];
+
+      if (!entityNameMapping || entityNameMapping.size === 0) return;
+
+      // 위젯의 모든 속성을 순회하면서 바인딩 변환
+      Object.keys(entityAny).forEach((key) => {
+        const value = entityAny[key];
+
+        if (typeof value === "string" && value.includes("{{")) {
+          // 바인딩 참조 변환
+          let transformed = transformBindingReferences(
+            value,
+            entityNameMapping,
+          ) as string;
+
+          // inputs 참조 변환
+          transformed = transformThisParamsBindings(
+            transformed,
+            instanceId,
+          ) as string;
+
+          if (transformed !== value) {
+            entityAny[key] = transformed;
+          }
+        } else if (typeof value === "object" && value !== null) {
+          // 중첩 객체도 처리 (예: primaryColumns, defaultModel 등)
+          try {
+            const jsonStr = JSON.stringify(value);
+
+            if (jsonStr.includes("{{")) {
+              const transformedObj = JSON.parse(
+                JSON.stringify(value, (k, v) => {
+                  if (typeof v === "string" && v.includes("{{")) {
+                    let transformed = transformBindingReferences(
+                      v,
+                      entityNameMapping,
+                    ) as string;
+
+                    transformed = transformThisParamsBindings(
+                      transformed,
+                      instanceId,
+                    ) as string;
+
+                    return transformed;
+                  }
+
+                  return v;
+                }),
+              );
+
+              entityAny[key] = transformedObj;
+            }
+          } catch {
+            // JSON 변환 실패 시 무시
+          }
+        }
+      });
     });
 
     return { unEvalTree: dataTree, configTree };

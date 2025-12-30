@@ -32,9 +32,18 @@ export const AutoLayoutCanvasView = ({
     parentColumnSpace: snapColumnSpace,
     parentRowSpace: GridDefaults.DEFAULT_GRID_ROW_HEIGHT,
   };
+  // 모듈 스케일링 비율 전달 (PackageModuleWidget에서 CANVAS_WIDGET으로 전달된 값)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const propsAny = widgetProps as any;
   const defaultWidgetProps: Partial<WidgetProps> = {
     isFlexChild: true,
     direction,
+    ...(propsAny.moduleWidthScaleRatio && {
+      moduleWidthScaleRatio: propsAny.moduleWidthScaleRatio,
+    }),
+    ...(propsAny.moduleHeightScaleRatio && {
+      moduleHeightScaleRatio: propsAny.moduleHeightScaleRatio,
+    }),
   };
   const canvasChildren = useMemo(
     () =>

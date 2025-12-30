@@ -55,8 +55,17 @@ export const FixedLayoutEditorCanvas = (props: BaseWidgetProps) => {
     parentColumnSpace: snapColumnSpace,
     parentRowSpace: GridDefaults.DEFAULT_GRID_ROW_HEIGHT,
   };
+  // 모듈 스케일링 비율 전달 (PackageModuleWidget에서 CANVAS_WIDGET으로 전달된 값)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const propsAny = props as any;
   const defaultWidgetProps: Partial<WidgetProps> = {
     positioning: props.positioning,
+    ...(propsAny.moduleWidthScaleRatio && {
+      moduleWidthScaleRatio: propsAny.moduleWidthScaleRatio,
+    }),
+    ...(propsAny.moduleHeightScaleRatio && {
+      moduleHeightScaleRatio: propsAny.moduleHeightScaleRatio,
+    }),
   };
   // ToDO(#27617): Remove sorting of children on the view, ideally the model should be sorted, coz they are less frequently happening
   // operations. leaving it as is for now, coz it multiple cypress tests are dependent on this.

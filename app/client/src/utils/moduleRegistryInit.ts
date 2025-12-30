@@ -11,9 +11,10 @@
 import type {
   PackageJSON,
   PackageModuleCard,
+  ModuleDSL,
 } from "constants/PackageModuleConstants";
 import { parsePackageJSON } from "utils/packageModuleUtils";
-import { ModuleRegistry } from "utils/ModuleRegistry";
+import { ModuleRegistry, type ModuleOriginalSize } from "utils/ModuleRegistry";
 
 // Webpack require.context 타입 선언
 declare const require: {
@@ -70,9 +71,73 @@ export const PRELOADED_MODULES: PackageModuleCard[] = PACKAGE_DATA_LIST.flatMap(
   },
 );
 
+/**
+ * DSL 트리에서 MODULE_CONTAINER_WIDGET을 찾기
+ */
+function findModuleContainer(widget: ModuleDSL): ModuleDSL | null {
+  if (widget.type === "MODULE_CONTAINER_WIDGET") {
+    return widget;
+  }
+
+  if (widget.children && Array.isArray(widget.children)) {
+    for (const child of widget.children) {
+      const found = findModuleContainer(child as ModuleDSL);
+
+      if (found) return found;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 모듈 DSL에서 원본 크기를 계산
+ * MODULE_CONTAINER_WIDGET의 크기를 사용 (모듈의 실제 콘텐츠 영역)
+ * - columns: MODULE_CONTAINER_WIDGET의 rightColumn - leftColumn
+ * - rows: MODULE_CONTAINER_WIDGET의 bottomRow - topRow
+ */
+function calculateOriginalSize(dsl: ModuleDSL): ModuleOriginalSize {
+  // 기본값: 64 columns, 40 rows (Appsmith 기본 그리드)
+  const DEFAULT_COLUMNS = 64;
+  const DEFAULT_ROWS = 40;
+
+  if (!dsl) {
+    return { columns: DEFAULT_COLUMNS, rows: DEFAULT_ROWS };
+  }
+
+  // MODULE_CONTAINER_WIDGET 찾기
+  const moduleContainer = findModuleContainer(dsl);
+
+  if (moduleContainer) {
+    // MODULE_CONTAINER_WIDGET의 실제 크기 사용
+    const columns =
+      typeof moduleContainer.rightColumn === "number" &&
+      typeof moduleContainer.leftColumn === "number"
+        ? moduleContainer.rightColumn - moduleContainer.leftColumn
+        : DEFAULT_COLUMNS;
+    const rows =
+      typeof moduleContainer.bottomRow === "number" &&
+      typeof moduleContainer.topRow === "number"
+        ? moduleContainer.bottomRow - moduleContainer.topRow
+        : DEFAULT_ROWS;
+
+    return { columns, rows };
+  }
+
+  // MODULE_CONTAINER_WIDGET이 없으면 DSL 최상위 사용 (fallback)
+  const columns =
+    typeof dsl.rightColumn === "number" ? dsl.rightColumn : DEFAULT_COLUMNS;
+  const rows = typeof dsl.bottomRow === "number" ? dsl.bottomRow : DEFAULT_ROWS;
+
+  return { columns, rows };
+}
+
 // ModuleRegistry 초기화 (빌드 시점에 실행)
 // 모든 모듈을 레지스트리에 등록하여 UUID로 조회 가능하게 함
 PRELOADED_MODULES.forEach((moduleCard) => {
+  // 원본 크기 계산 (동적 스케일링에 사용)
+  const originalSize = calculateOriginalSize(moduleCard.dsl);
+
   ModuleRegistry.register({
     moduleUUID: moduleCard.moduleUUID,
     packageUUID: moduleCard.packageUUID,
@@ -84,6 +149,7 @@ PRELOADED_MODULES.forEach((moduleCard) => {
     dsl: moduleCard.dsl,
     actions: moduleCard.actions,
     actionCollections: moduleCard.actionCollections,
+    originalSize,
   });
 });
 

@@ -307,6 +307,10 @@ export const isResizingOrDragging = createSelector(
   (state: DefaultRootState) => state.ui.widgetDragResize.isDragging,
   (isResizing, isDragging) => !!isResizing || !!isDragging,
 );
+// MODULE_CONTAINER_WIDGET: 모듈 내부 DSL에서 사용되는 특수 타입
+// 실제 등록된 위젯이 아니므로 로드 시도하면 실패함
+const MODULE_CONTAINER_WIDGET_TYPE = "MODULE_CONTAINER_WIDGET";
+
 // get widgets types associated to a tab
 export const getUsedWidgetTypes = createSelector(
   getCanvasWidgets,
@@ -315,7 +319,11 @@ export const getUsedWidgetTypes = createSelector(
 
     // Iterate through all widgets in the state
     Object.values(canvasWidgets).forEach((widget) => {
-      if (widget.type && !widget.type.startsWith("MODULE_WIDGET_")) {
+      if (
+        widget.type &&
+        !widget.type.startsWith("MODULE_WIDGET_") &&
+        widget.type !== MODULE_CONTAINER_WIDGET_TYPE
+      ) {
         widgetTypes.add(widget.type);
       }
     });

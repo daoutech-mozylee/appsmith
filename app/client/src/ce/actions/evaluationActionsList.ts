@@ -95,6 +95,7 @@ export const EVALUATE_REDUX_ACTIONS = [
   // 다우오피스 사용자 정보 (postMessage로 부모 창에서 전달받음)
   ReduxActionTypes.SET_ME_DATA,
   // Widgets
+  ReduxActionTypes.INIT_CANVAS_LAYOUT, // 모듈 위젯 병합 후 평가 트리거
   ReduxActionTypes.UPDATE_LAYOUT,
   ReduxActionTypes.UPDATE_WIDGET_PROPERTY,
   ReduxActionTypes.UPDATE_WIDGET_NAME_SUCCESS,

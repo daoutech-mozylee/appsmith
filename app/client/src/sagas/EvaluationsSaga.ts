@@ -887,6 +887,7 @@ export function* evalAndLintingHandler(
   yield all(effects);
   endSpan(span);
 }
+
 export function* loadAndRegisterOnlyCanvasWidgets(): Generator<
   Effect,
   (typeof BaseWidget)[],
