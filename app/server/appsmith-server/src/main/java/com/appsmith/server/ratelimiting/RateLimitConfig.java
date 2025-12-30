@@ -46,9 +46,10 @@ public class RateLimitConfig {
         /*
          we want a single proxyManager to manage all buckets.
          If we set too short an expiration time,
-         the proxyManager expires and renews the buckets with their initial configuration
+         the proxyManager expires and renews the buckets with their initial configuration.
+         Set to 1 day to match the longest refill period (LOGIN_API) and prevent Redis OOM.
         */
-        Duration longExpiration = Duration.ofDays(3650); // 10 years
+        Duration longExpiration = Duration.ofDays(1); // 1 day
 
         if (redisClient instanceof RedisClusterClient) {
             return LettuceBasedProxyManager.builderFor((RedisClusterClient) redisClient)

@@ -22,4 +22,11 @@ public @interface Cache {
      * All method arguments can be used in the expression
      */
     String key() default "";
+
+    /**
+     * Time to live in seconds for the cached entry.
+     * Default is 180 seconds (3 minutes).
+     * Set to 0 or negative to disable TTL (not recommended).
+     */
+    long ttlInSeconds() default 180;
 }

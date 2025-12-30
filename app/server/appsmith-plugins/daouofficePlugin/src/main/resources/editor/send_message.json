@@ -21,6 +21,7 @@
                     "propertyName": "toUserId",
                     "controlType": "INPUT_TEXT",
                     "configProperty": "actionConfiguration.formData.toUserId.data",
+                    "initialValue": "{{this.params.userTo}}",
                     "isRequired": true
                 }
             ]
@@ -55,14 +56,8 @@
                     "controlType": "INPUT_TEXT",
                     "inputType": "TEXT_MULTI_LINE",
                     "configProperty": "actionConfiguration.formData.message.data",
+                    "initialValue": "<p>리드가 등록되었습니다.</p>",
                     "isRequired": true
-                },
-                {
-                    "label": "File Path List (Comma separated)",
-                    "propertyName": "filePathList",
-                    "controlType": "INPUT_TEXT",
-                    "configProperty": "actionConfiguration.formData.filePathList.data",
-                    "placeholderText": "file1.jpg, file2.jpg"
                 }
             ]
         }

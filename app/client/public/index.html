@@ -141,7 +141,7 @@
         ) {
           window.addEventListener("load", function () {
             navigator.serviceWorker
-              .register("/pageService.js")
+              .register("%PUBLIC_URL%/pageService.js")
               .catch((error) => {
                 console.error("Service Worker Registration failed: " + error);
               });

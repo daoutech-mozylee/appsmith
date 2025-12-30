@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -87,11 +88,11 @@ public class RedisCacheManagerImpl implements CacheManager {
     }
 
     @Override
-    public Mono<Boolean> put(String cacheName, String key, Object value) {
+    public Mono<Boolean> put(String cacheName, String key, Object value, Duration ttl) {
         ensureStats(cacheName);
         String path = cacheName + ":" + key;
-        log.debug("Cache entry added for key {}", path);
-        return reactiveRedisTemplate.opsForValue().set(path, value);
+        log.debug("Cache entry added for key {} with TTL {}", path, ttl);
+        return reactiveRedisTemplate.opsForValue().set(path, value, ttl);
     }
 
     @Override

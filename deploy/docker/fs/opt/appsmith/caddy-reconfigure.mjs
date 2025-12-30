@@ -66,6 +66,8 @@ parts.push(`
   reverse_proxy {
     to 127.0.0.1:{args[0]}
     header_up -Forwarded
+    # Remove X-Forwarded-Proto to prevent URI parsing error when GW sets invalid value (IP instead of protocol)
+    header_up -X-Forwarded-Proto
     header_up X-Appsmith-Request-Id {http.request.uuid}
     header_up X-Auth-Info {header.X-Auth-Info}
     header_up X-User-Info {header.X-User-Info}

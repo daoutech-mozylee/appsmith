@@ -7,6 +7,7 @@ stacks
 
 # Server artifacts
 /deploy/docker/fs/opt/appsmith/server
+/deploy/docker/fs/opt/appsmith/relay/all-apps-server.jar
 
 # to ignore the node_modeules folder
 node_modules
