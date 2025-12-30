@@ -52,8 +52,8 @@ import java.util.Map;
 
 @Configuration
 @Slf4j
-// Setting the maxInactiveInterval to 30 days
-@EnableRedisWebSession(maxInactiveIntervalInSeconds = 2592000)
+// Setting the maxInactiveInterval to 3 minutes (180 seconds)
+@EnableRedisWebSession(maxInactiveIntervalInSeconds = 180)
 public class RedisConfig {
 
     @Value("${appsmith.redis.url:}")
