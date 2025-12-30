@@ -26,6 +26,16 @@ import type {
 } from "constants/PackageModuleConstants";
 
 /**
+ * 모듈 원본 크기 정보 - 동적 스케일링에 사용
+ */
+export interface ModuleOriginalSize {
+  /** 원본 DSL의 rightColumn (보통 64) */
+  columns: number;
+  /** 원본 DSL의 bottomRow (내부 위젯들의 최대 bottomRow) */
+  rows: number;
+}
+
+/**
  * 모듈 정의 - 레지스트리에 저장되는 공통 데이터
  */
 export interface ModuleDefinition {
@@ -49,6 +59,12 @@ export interface ModuleDefinition {
   // 로직
   actions: ActionConfig[];
   actionCollections: ActionCollectionConfig[];
+
+  /**
+   * 원본 크기 정보 - 동적 스케일링에 사용
+   * 모듈 컨테이너 리사이즈 시 내부 위젯들의 height 비례 조정에 사용됨
+   */
+  originalSize: ModuleOriginalSize;
 }
 
 /**

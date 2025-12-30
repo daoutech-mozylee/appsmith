@@ -239,6 +239,22 @@ function withWidgetProps(WrappedWidget: typeof BaseWidget) {
         widgetProps.shouldScrollContents = props.shouldScrollContents;
         widgetProps.canExtend = props.canExtend;
         widgetProps.parentId = props.parentId;
+
+        // 모듈 스케일링 비율 전달 (PackageModuleWidget에서 전달됨)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const propsAny = props as any;
+
+        if (propsAny.moduleHeightScaleRatio) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (widgetProps as any).moduleHeightScaleRatio =
+            propsAny.moduleHeightScaleRatio;
+        }
+
+        if (propsAny.moduleWidthScaleRatio) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (widgetProps as any).moduleWidthScaleRatio =
+            propsAny.moduleWidthScaleRatio;
+        }
       } else if (widgetId !== MAIN_CONTAINER_WIDGET_ID) {
         widgetProps.parentColumnSpace = props.parentColumnSpace;
         widgetProps.parentRowSpace = props.parentRowSpace;
@@ -277,9 +293,42 @@ function withWidgetProps(WrappedWidget: typeof BaseWidget) {
     }
 
     //merging with original props
+    // 모듈 스케일링: CONTAINER_WIDGET의 경우에만 부모(canvasUtils)에서 스케일링된 위치 값 유지
+    // - canvasUtils가 ModuleContainer의 컬럼을 스케일링 (42→64)
+    // - 이 값이 Redux 값으로 덮어쓰이면 안됨
+    // - CANVAS_WIDGET, 일반 위젯은 기존 동작 유지
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const propsWithScale = props as any;
+    const isModuleScalingContext =
+      propsWithScale.moduleWidthScaleRatio ||
+      propsWithScale.moduleHeightScaleRatio;
+    const isContainerWidget = props.type === "CONTAINER_WIDGET";
+
+    const positionPropsFromParent: Partial<WidgetProps> = {};
+
+    // CONTAINER_WIDGET만 위치 속성 보존 (ModuleContainer 스케일링용)
+    if (isModuleScalingContext && isContainerWidget) {
+      if (props.leftColumn !== undefined) {
+        positionPropsFromParent.leftColumn = props.leftColumn;
+      }
+
+      if (props.rightColumn !== undefined) {
+        positionPropsFromParent.rightColumn = props.rightColumn;
+      }
+
+      if (props.topRow !== undefined) {
+        positionPropsFromParent.topRow = props.topRow;
+      }
+
+      if (props.bottomRow !== undefined) {
+        positionPropsFromParent.bottomRow = props.bottomRow;
+      }
+    }
+
     widgetProps = {
       ...props,
       ...widgetProps,
+      ...positionPropsFromParent,
       layoutSystemType,
       renderMode,
       isPreviewMode,

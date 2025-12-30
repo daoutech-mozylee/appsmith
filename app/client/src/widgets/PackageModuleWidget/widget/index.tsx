@@ -410,11 +410,88 @@ export class PackageModuleWidget extends BaseWidget<
     return snapGrid;
   };
 
+  /**
+   * Height 스케일링 비율 계산
+   * 모듈 컨테이너 리사이즈 시 내부 위젯들의 height를 비례 조정
+   *
+   * @returns heightRatio - 원본 대비 현재 높이 비율 (1.0 = 원본 크기)
+   */
+  private getHeightScaleRatio(): number {
+    const { componentHeight, moduleUUID } = this.props;
+
+    if (!moduleUUID || !componentHeight) {
+      return 1.0;
+    }
+
+    const moduleDefinition = ModuleRegistry.get(moduleUUID);
+
+    if (!moduleDefinition?.originalSize?.rows) {
+      return 1.0;
+    }
+
+    // 원본 픽셀 높이: 행 수 × 기본 행 높이 (10px)
+    const DEFAULT_GRID_ROW_HEIGHT = 10;
+    const originalHeightPixels =
+      moduleDefinition.originalSize.rows * DEFAULT_GRID_ROW_HEIGHT;
+
+    return componentHeight / originalHeightPixels;
+  }
+
+  /**
+   * Width 스케일링 비율 계산
+   * 모듈 컨테이너 리사이즈 시 내부 위젯들의 width를 비례 조정
+   *
+   * @returns widthRatio - 원본 대비 현재 너비 비율 (1.0 = 원본 크기)
+   */
+  private getWidthScaleRatio(): number {
+    const { componentWidth, moduleUUID } = this.props;
+
+    if (!moduleUUID || !componentWidth) {
+      return 1.0;
+    }
+
+    const moduleDefinition = ModuleRegistry.get(moduleUUID);
+
+    if (!moduleDefinition?.originalSize?.columns) {
+      return 1.0;
+    }
+
+    // 원본 픽셀 너비: 열 수 × 기본 열 너비
+    // Appsmith에서 64 columns = 전체 너비, 보통 부모 컨테이너 기준
+    // MODULE_CONTAINER_WIDGET의 columns를 사용하므로 비율 계산
+    const originalColumns = moduleDefinition.originalSize.columns;
+
+    // 현재 컨테이너 너비를 기준으로 한 그리드 열 너비 계산
+    // 기본적으로 PackageModuleWidget은 64 columns 기준으로 설계됨
+    const DEFAULT_TOTAL_COLUMNS = 64;
+    const columnWidth = componentWidth / DEFAULT_TOTAL_COLUMNS;
+    const originalWidthPixels = originalColumns * columnWidth;
+
+    const ratio = componentWidth / originalWidthPixels;
+
+    return ratio;
+  }
+
   // ContainerWidget과 동일한 방식으로 자식 위젯 렌더링
+  // Height/Width 스케일링 추가: 모듈 컨테이너 리사이즈 시 내부 위젯 비례 조정
   renderChildWidget(childWidgetData: WidgetProps): React.ReactNode {
     const childWidget = { ...childWidgetData };
 
     const { componentHeight, componentWidth } = this.props;
+
+    // Height/Width 스케일링 비율 계산
+    const heightRatio = this.getHeightScaleRatio();
+    const widthRatio = this.getWidthScaleRatio();
+
+    // moduleHeightScaleRatio를 자식에게 전달하여 손자 위젯까지 스케일링 적용
+    if (heightRatio !== 1.0) {
+      childWidget.moduleHeightScaleRatio = heightRatio;
+    }
+
+    // moduleWidthScaleRatio를 자식에게 전달하여 손자 위젯까지 스케일링 적용
+    if (widthRatio !== 1.0) {
+      childWidget.moduleWidthScaleRatio = widthRatio;
+    }
 
     childWidget.rightColumn = componentWidth;
     childWidget.bottomRow = this.props.shouldScrollContents

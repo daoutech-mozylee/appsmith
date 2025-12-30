@@ -44,6 +44,41 @@ export function renderChildWidget({
     ...layoutSystemProps,
   };
 
+  // 모듈 스케일링: 실제 사용자 위젯만 스케일링 (모듈 구조 위젯 제외)
+  // CANVAS_WIDGET, MODULE_CONTAINER_WIDGET, CONTAINER_WIDGET은 스케일링 제외
+  const moduleWidthScaleRatio = defaultWidgetProps.moduleWidthScaleRatio;
+  const moduleHeightScaleRatio = defaultWidgetProps.moduleHeightScaleRatio;
+  // 모듈 구조 위젯 중 CANVAS_WIDGET만 스케일링에서 제외
+  // - CANVAS_WIDGET: 캔버스 자체는 스케일링 불필요 (자식 위젯들이 스케일링됨)
+  // - ModuleContainer (CONTAINER_WIDGET): 스케일링 필요 (PackageModuleWidget 크기에 맞게 확장)
+  const isStructureWidget = childWidgetData.type === "CANVAS_WIDGET";
+
+  if (
+    moduleWidthScaleRatio &&
+    moduleWidthScaleRatio !== 1.0 &&
+    !isStructureWidget
+  ) {
+    childWidget.leftColumn = Math.round(
+      (childWidgetData.leftColumn || 0) * moduleWidthScaleRatio,
+    );
+    childWidget.rightColumn = Math.round(
+      (childWidgetData.rightColumn || 0) * moduleWidthScaleRatio,
+    );
+  }
+
+  if (
+    moduleHeightScaleRatio &&
+    moduleHeightScaleRatio !== 1.0 &&
+    !isStructureWidget
+  ) {
+    childWidget.topRow = Math.round(
+      (childWidgetData.topRow || 0) * moduleHeightScaleRatio,
+    );
+    childWidget.bottomRow = Math.round(
+      (childWidgetData.bottomRow || 0) * moduleHeightScaleRatio,
+    );
+  }
+
   if (noPad) childWidget.noContainerOffset = true;
 
   childWidget.parentId = widgetId;

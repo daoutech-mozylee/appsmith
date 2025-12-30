@@ -347,10 +347,81 @@ export class ContainerWidget extends BaseWidget<
 
     const { componentHeight, componentWidth } = this.props;
 
-    childWidget.rightColumn = componentWidth;
-    childWidget.bottomRow = this.props.shouldScrollContents
-      ? childWidget.bottomRow
-      : componentHeight;
+    // 모듈 Height/Width 스케일링: PackageModuleWidget에서 전달된 비율 적용
+    // 이 prop이 있으면 모듈 컨테이너 내부의 위젯이므로 topRow/bottomRow, leftColumn/rightColumn을 스케일링
+    const moduleHeightScaleRatio = (
+      this.props as ContainerWidgetProps<WidgetProps> & {
+        moduleHeightScaleRatio?: number;
+        moduleWidthScaleRatio?: number;
+      }
+    ).moduleHeightScaleRatio;
+
+    const moduleWidthScaleRatio = (
+      this.props as ContainerWidgetProps<WidgetProps> & {
+        moduleHeightScaleRatio?: number;
+        moduleWidthScaleRatio?: number;
+      }
+    ).moduleWidthScaleRatio;
+
+    // 스케일링 적용 여부 (CANVAS_WIDGET은 제외 - 부모 채움용)
+    const shouldApplyHeightScaling =
+      moduleHeightScaleRatio &&
+      moduleHeightScaleRatio !== 1.0 &&
+      childWidgetData.type !== "CANVAS_WIDGET";
+
+    const shouldApplyWidthScaling =
+      moduleWidthScaleRatio &&
+      moduleWidthScaleRatio !== 1.0 &&
+      childWidgetData.type !== "CANVAS_WIDGET";
+
+    if (shouldApplyHeightScaling) {
+      // 원본 topRow/bottomRow에 스케일링 비율 적용
+      childWidget.topRow = Math.round(
+        (childWidgetData.topRow || 0) * moduleHeightScaleRatio,
+      );
+      childWidget.bottomRow = Math.round(
+        (childWidgetData.bottomRow || 0) * moduleHeightScaleRatio,
+      );
+    }
+
+    if (shouldApplyWidthScaling) {
+      // 원본 leftColumn/rightColumn에 스케일링 비율 적용
+      const newLeftColumn = Math.round(
+        (childWidgetData.leftColumn || 0) * moduleWidthScaleRatio,
+      );
+      const newRightColumn = Math.round(
+        (childWidgetData.rightColumn || 0) * moduleWidthScaleRatio,
+      );
+
+      childWidget.leftColumn = newLeftColumn;
+      childWidget.rightColumn = newRightColumn;
+    }
+
+    // 스케일링 비율을 자식에게 전달 (중첩 컨테이너 지원)
+    // CANVAS_WIDGET에도 전달해야 내부 위젯들이 스케일링됨
+    // withWidgetProps에서 CONTAINER_WIDGET의 컬럼이 보존되므로 componentWidth도 스케일링 반영됨
+    if (moduleHeightScaleRatio && moduleHeightScaleRatio !== 1.0) {
+      childWidget.moduleHeightScaleRatio = moduleHeightScaleRatio;
+    }
+
+    if (moduleWidthScaleRatio && moduleWidthScaleRatio !== 1.0) {
+      childWidget.moduleWidthScaleRatio = moduleWidthScaleRatio;
+    }
+
+    // Width 스케일링이 적용되지 않은 경우에만 rightColumn을 componentWidth로 설정
+    // withWidgetProps에서 스케일링된 컬럼이 유지되므로, componentWidth도 이미 스케일링 반영됨
+    if (!shouldApplyWidthScaling) {
+      childWidget.rightColumn = componentWidth;
+    }
+
+    // Height 스케일링이 적용된 위젯은 bottomRow를 유지, 그렇지 않으면 componentHeight로 설정
+    // withWidgetProps에서 스케일링된 컬럼이 유지되므로, componentHeight도 이미 스케일링 반영됨
+    if (!shouldApplyHeightScaling) {
+      childWidget.bottomRow = this.props.shouldScrollContents
+        ? childWidget.bottomRow
+        : componentHeight;
+    }
+
     childWidget.minHeight = componentHeight;
     childWidget.shouldScrollContents = false;
     childWidget.canExtend = this.props.shouldScrollContents;
