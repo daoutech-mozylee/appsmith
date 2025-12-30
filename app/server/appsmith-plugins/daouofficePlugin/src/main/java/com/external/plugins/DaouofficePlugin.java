@@ -257,19 +257,10 @@ public class DaouofficePlugin extends BasePlugin {
 
                 ObjectNode requestBody = objectMapper.createObjectNode();
                 requestBody.put("platformUserId", platformUserId);
-                // requestBody.put("toUserId", toUserId); // Refactored to Array
+                requestBody.put("toUserId", toUserId);
                 requestBody.put("companyUuid", companyUuid);
                 requestBody.put("cmid", cmid);
                 requestBody.put("message", message);
-
-                var toUserIdArray = requestBody.putArray("toUserId");
-                if (StringUtils.hasText(toUserId)) {
-                    for (String id : toUserId.split(",")) {
-                        if (StringUtils.hasText(id.trim())) {
-                            toUserIdArray.add(id.trim());
-                        }
-                    }
-                }
 
                 requestBody.putArray("filePathList");
 
