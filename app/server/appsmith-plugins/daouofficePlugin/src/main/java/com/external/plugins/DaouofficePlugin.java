@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.pf4j.Extension;
 import org.pf4j.PluginWrapper;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -316,35 +317,34 @@ public class DaouofficePlugin extends BasePlugin {
         }
 
         private Mono<ActionExecutionResult> executeNotificationSendRequest(
-                WebClient connection, ActionConfiguration actionConfiguration) {
+            WebClient connection, ActionConfiguration actionConfiguration) {
 
             ActionExecutionResult result = new ActionExecutionResult();
 
             try {
-                String notificationType = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
-                        "notificationType", STRING_TYPE, "LEAD_REGISTRATION");
-                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid",
-                        STRING_TYPE, "");
-                String platformUserIdsRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
-                        "platformUserIds", STRING_TYPE, "");
+                String notificationType = getDataValueSafelyFromFormData(
+                    actionConfiguration.getFormData(), "notificationType", STRING_TYPE, "LEAD_REGISTRATION");
+                String companyUuid = getDataValueSafelyFromFormData(
+                    actionConfiguration.getFormData(), "companyUuid", STRING_TYPE, "");
+                String platformUserIdsRaw = getDataValueSafelyFromFormData(
+                    actionConfiguration.getFormData(), "platformUserIds", STRING_TYPE, "");
 
-                String message = "";
-                String title = "";
+                String message;
+                String title;
 
                 if ("LEAD_REGISTRATION".equals(notificationType)) {
-                    message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message_registration",
-                            STRING_TYPE, "");
+                    message = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "message_registration", STRING_TYPE, "");
                     title = "[리드 등록]";
                 } else if ("LEAD_ASSIGNMENT".equals(notificationType)) {
-                    message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message_assignment",
-                            STRING_TYPE, "");
+                    message = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "message_assignment", STRING_TYPE, "");
                     title = "[리드 담당자 배정]";
                 } else if ("LEAD_STATUS_UPDATE".equals(notificationType)) {
-                    message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message_status_update",
-                            STRING_TYPE, "");
+                    message = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "message_status_update", STRING_TYPE, "");
                     title = "[리드 상태 변경]";
                 } else {
-                    // Fallback
                     message = "새로운 알림이 있습니다.";
                     title = "[알림]";
                 }
@@ -377,50 +377,77 @@ public class DaouofficePlugin extends BasePlugin {
                     }
                 }
 
-                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT
-                        + NOTIFICATION_SEND_PATH;
-                log.debug("Daouoffice Notification Send Request: {}", targetUrl);
+                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + NOTIFICATION_SEND_PATH;
+
+                // ✅ 요청 로그 (URL + Body)
+                try {
+                    log.info("Daouoffice Notification Send Request URL: {}", targetUrl);
+                    log.info("Daouoffice Notification Send Request Body: {}",
+                        objectMapper.writeValueAsString(requestBody));
+                } catch (Exception ignore) {
+                    log.info("Daouoffice Notification Send Request Body (toString): {}", requestBody.toString());
+                }
 
                 return connection
-                        .post()
-                        .uri(uriBuilder -> uriBuilder
-                                .scheme("http")
-                                .host(SERVICE_GATEWAY_HOST)
-                                .port(SERVICE_GATEWAY_PORT)
-                                .path(NOTIFICATION_SEND_PATH)
-                                .build())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(requestBody)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .map(responseBody -> {
-                            try {
-                                result.setIsExecutionSuccess(true);
-                                result.setBody(objectMapper.readTree(responseBody));
-                                return result;
-                            } catch (Exception e) {
-                                result.setIsExecutionSuccess(true);
-                                result.setBody(responseBody);
-                                return result;
-                            }
-                        })
-                        .onErrorResume(error -> {
-                            log.error("Notification send failed", error);
-                            result.setIsExecutionSuccess(false);
-                            result.setErrorInfo(new AppsmithPluginException(
-                                    AppsmithPluginError.PLUGIN_ERROR,
-                                    "Notification Send Failed: " + error.getMessage()));
-                            return Mono.just(result);
-                        });
+                    .post()
+                    .uri(uriBuilder -> uriBuilder
+                        .scheme("http")
+                        .host(SERVICE_GATEWAY_HOST)
+                        .port(SERVICE_GATEWAY_PORT)
+                        .path(NOTIFICATION_SEND_PATH)
+                        .build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+
+                    // ✅ 4xx/5xx면 응답 바디를 강제로 읽어서 로그 + 에러에 포함
+                    .onStatus(HttpStatusCode::isError, resp ->
+                        resp.bodyToMono(String.class)
+                            .defaultIfEmpty("")
+                            .flatMap(body -> {
+                                log.error("Notification API error. status={}, url={}, responseBody={}",
+                                    resp.statusCode(), targetUrl, body);
+                                return Mono.error(new RuntimeException(
+                                    "HTTP " + resp.statusCode() + " from " + targetUrl + " body=" + body));
+                            })
+                    )
+
+                    .bodyToMono(String.class)
+
+                    // ✅ 성공 응답 로그
+                    .doOnNext(responseBody ->
+                        log.info("Notification API success. url={}, responseBody={}", targetUrl, responseBody))
+
+                    .map(responseBody -> {
+                        try {
+                            result.setIsExecutionSuccess(true);
+                            result.setBody(objectMapper.readTree(responseBody));
+                        } catch (Exception e) {
+                            result.setIsExecutionSuccess(true);
+                            result.setBody(responseBody);
+                        }
+                        return result;
+                    })
+                    .onErrorResume(error -> {
+                        log.error("Notification send failed. url={}", targetUrl, error);
+                        result.setIsExecutionSuccess(false);
+                        result.setErrorInfo(new AppsmithPluginException(
+                            AppsmithPluginError.PLUGIN_ERROR,
+                            "Notification Send Failed: " + error.getMessage()));
+                        return Mono.just(result);
+                    });
 
             } catch (Exception e) {
                 log.error("Error preparing notification request", e);
                 result.setIsExecutionSuccess(false);
                 result.setErrorInfo(new AppsmithPluginException(
-                        AppsmithPluginError.PLUGIN_ERROR, "Error preparing notification request: " + e.getMessage()));
+                    AppsmithPluginError.PLUGIN_ERROR,
+                    "Error preparing notification request: " + e.getMessage()));
                 return Mono.just(result);
             }
         }
+
 
         private String getLeadAssignmentHtmlTemplate() {
             return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>"
