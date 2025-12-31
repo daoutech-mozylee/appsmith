@@ -11,7 +11,7 @@
       "color": "#9747FF1A"
     },
     "lastPublishedBy": "lgkrwn@naver.com",
-    "checksum": "030b6264-928b-4115-801c-26c3890cfe2e",
+    "checksum": "4bc1ecfc-fd61-4cd5-933b-d7cf3483a48c",
     "deleted": false
   },
   "datasourceList": [
@@ -422,7 +422,7 @@
                             { "key": "defaultModel" }
                           ],
                           "leftColumn": 1.0,
-                          "defaultModel": " {{\n\t{\n\t\t\"data\": Member.data,\n\t\tselectedMembers: OrgChartJS.selectedMembers,\n\t\tisMulti: inputs.isMulti,  newSelection: []\n\n\t}\n}}",
+                          "defaultModel": " {{\n\t{\n\t\t\"data\": OrgChartJS.orgData,\n\t\tselectedMembers: OrgChartJS.selectedMembers,\n\t\tisMulti: inputs.isMulti,  newSelection: []\n\n\t}\n}}",
                           "borderWidth": "1",
                           "onSelectionChange": "{{OrgChartJS.setSelectedMembers(OrgChart.model.newSelection)}}\n",
                           "theme": "{{appsmith.theme}}",
