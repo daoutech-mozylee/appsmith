@@ -41,7 +41,8 @@ public class DaouofficePlugin extends BasePlugin {
         // Internal Service Constants
         private static final String MAIL_SEND_PATH = "/api/mail/internal/noti/send";
         private static final String MESSAGE_SEND_PATH = "/api/chat/internal/message/user";
-        private static final String NOTIFICATION_SEND_PATH = "/api/notifier/app/dop-employee-approval/user/notification/message";
+        private static final String NOTIFICATION_SEND_PATH =
+                "/api/notifier/app/dop-employee-approval/user/notification/message";
         private static final String SERVICE_GATEWAY_HOST = "dop-service-gateway.dop-platform.svc.cluster.local";
         private static final String APPROVAL_REQUEST_PATH = "/gw/platform/api/approval/document/popup";
         private static final int SERVICE_GATEWAY_PORT = 20719;
@@ -100,8 +101,7 @@ public class DaouofficePlugin extends BasePlugin {
             if (ACTION_SEND_MAIL.equals(action)) {
                 String mailType = getDataValueSafelyFromFormData(
                         actionConfiguration.getFormData(), "mail_type", STRING_TYPE, "leadRegistrationMail");
-
-                if ("leadRegistrationMail".equals(mailType)) {
+                if ("leadRegistrationMail".equals(mailType) || "plainMail".equals(mailType)) {
                     return executeMailSendRequest(connection, actionConfiguration);
                 } else if ("leadAssignmentMail".equals(mailType)) {
                     return Mono.just(createPlaceholderResult("send_mail_assignment"));
@@ -114,8 +114,8 @@ public class DaouofficePlugin extends BasePlugin {
                 return executeNotificationSendRequest(connection, actionConfiguration);
             } else if (ACTION_SEND_APPROVAL.equals(action)) {
                 return executeApprovalRequest(connection, actionConfiguration);
-            } else if (ACTION_ORGANIZATION.equals(action) ||
-                    ACTION_REGISTER_CALENDAR.equals(action)) {
+            } else if (ACTION_ORGANIZATION.equals(action) || ACTION_REGISTER_CALENDAR.equals(action)) {
+            } else if (ACTION_ORGANIZATION.equals(action) || ACTION_REGISTER_CALENDAR.equals(action)) {
                 return Mono.just(createPlaceholderResult(action));
             }
 
@@ -153,42 +153,65 @@ public class DaouofficePlugin extends BasePlugin {
             try {
                 String senderName = "다우오피스";
                 String senderEmail = "noreply@daouoffice.com";
-                String toStrRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "to", STRING_TYPE,
-                        "");
-                String subjectRaw = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "subject",
-                        STRING_TYPE, "");
+                String toStrRaw =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "to", STRING_TYPE, "");
+                String subjectRaw =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "subject", STRING_TYPE, "");
 
+                String mailType = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "mail_type", STRING_TYPE, "leadRegistrationMail");
+                log.debug("mailtype", mailType);
                 // Default logic
-                final String finalTo = StringUtils.hasText(toStrRaw) ? toStrRaw
-                        : "mrlhs@hyunggil01.dev-dopweb.daouoffice.com";
-                final String finalSubject = StringUtils.hasText(subjectRaw) ? subjectRaw : "";
-                final String finalContents = getLeadRegistrationHtmlTemplate();
+                String finalTo = "";
+                String finalSubject = "";
+                String finalContents = "";
+
+                log.debug("subjectRaw", subjectRaw);
+
+                if ("plainMail".equals(mailType)) {
+                    finalTo = StringUtils.hasText(toStrRaw) ? toStrRaw : "";
+                    finalSubject = StringUtils.hasText(subjectRaw) ? subjectRaw : "";
+                    String contentRaw = getDataValueSafelyFromFormData(
+                            actionConfiguration.getFormData(), "content", STRING_TYPE, "");
+                    finalContents = StringUtils.hasText(contentRaw) ? contentRaw : "";
+                } else {
+                    // leadRegistrationMail and fallback
+                    finalTo = StringUtils.hasText(toStrRaw) ? toStrRaw : "mrlhs@hyunggil01.dev-dopweb.daouoffice.com";
+                    finalSubject = StringUtils.hasText(subjectRaw) ? subjectRaw : "";
+                    finalContents = getLeadRegistrationHtmlTemplate();
+                }
 
                 // "editmode" defaults to "html"
-                String editmode = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "editmode",
-                        STRING_TYPE, "html");
+                String editmode = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "editmode", STRING_TYPE, "html");
 
-                String envFromAddr = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "envFromAddr",
-                        STRING_TYPE, "");
-                Object withoutNotiObj = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "withoutNoti",
-                        OBJECT_TYPE, "false");
+                String envFromAddr = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "envFromAddr", STRING_TYPE, "");
+                Object withoutNotiObj = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "withoutNoti", OBJECT_TYPE, "false");
                 String withoutNotiStr = String.valueOf(withoutNotiObj);
 
                 String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + MAIL_SEND_PATH;
 
                 log.debug("Daouoffice Mail Send Request: {}", targetUrl);
 
+                final String finalToEffective = finalTo;
+                final String finalSubjectEffective = finalSubject;
+                final String finalContentsEffective = finalContents;
+                final String senderEmailEffective = senderEmail;
+
                 return connection
                         .post()
                         .uri(uriBuilder -> {
                             // URL components separated to ensure correct building
-                            uriBuilder.scheme("http")
+                            uriBuilder
+                                    .scheme("http")
                                     .host(SERVICE_GATEWAY_HOST)
                                     .port(SERVICE_GATEWAY_PORT)
                                     .path(MAIL_SEND_PATH)
-                                    .queryParam("senderEmail", senderEmail)
-                                    .queryParam("subject", finalSubject)
-                                    .queryParam("contents", finalContents)
+                                    .queryParam("senderEmail", senderEmailEffective)
+                                    .queryParam("subject", finalSubjectEffective)
+                                    .queryParam("contents", finalContentsEffective)
                                     .queryParam("editmode", editmode)
                                     .queryParam("withoutNoti", "true".equalsIgnoreCase(withoutNotiStr));
 
@@ -200,8 +223,8 @@ public class DaouofficePlugin extends BasePlugin {
                             }
 
                             // Handle 'to' array (comma separated input -> multiple query params)
-                            if (StringUtils.hasText(finalTo)) {
-                                String[] emails = finalTo.split(",");
+                            if (StringUtils.hasText(finalToEffective)) {
+                                String[] emails = finalToEffective.split(",");
                                 for (String email : emails) {
                                     if (StringUtils.hasText(email.trim())) {
                                         uriBuilder.queryParam("to", email.trim());
@@ -248,16 +271,16 @@ public class DaouofficePlugin extends BasePlugin {
             ActionExecutionResult result = new ActionExecutionResult();
 
             try {
-                String platformUserId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(),
-                        "platformUserId", STRING_TYPE, "");
-                String toUserId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "toUserId",
-                        STRING_TYPE, "");
-                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid",
-                        STRING_TYPE, "");
-                String cmid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "cmid", STRING_TYPE,
-                        "");
-                String message = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message",
-                        STRING_TYPE, "");
+                String platformUserId = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "platformUserId", STRING_TYPE, "");
+                String toUserId =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "toUserId", STRING_TYPE, "");
+                String companyUuid = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "companyUuid", STRING_TYPE, "");
+                String cmid =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "cmid", STRING_TYPE, "");
+                String message =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "message", STRING_TYPE, "");
 
                 ObjectNode requestBody = objectMapper.createObjectNode();
                 requestBody.put("platformUserId", platformUserId);
@@ -273,8 +296,7 @@ public class DaouofficePlugin extends BasePlugin {
                 // ✅ 요청 로그 (URL + Body)
                 try {
                     log.info("Daouoffice Message Send Request URL: {}", targetUrl);
-                    log.info("Daouoffice Message Send Request Body: {}",
-                            objectMapper.writeValueAsString(requestBody));
+                    log.info("Daouoffice Message Send Request Body: {}", objectMapper.writeValueAsString(requestBody));
                 } catch (Exception ignore) {
                     log.info("Daouoffice Message Send Request Body (toString): {}", requestBody.toString());
                 }
@@ -296,18 +318,19 @@ public class DaouofficePlugin extends BasePlugin {
                         .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
                                 .defaultIfEmpty("")
                                 .flatMap(body -> {
-                                    log.error("Message API error. status={}, url={}, responseBody={}",
-                                            resp.statusCode(), targetUrl, body);
+                                    log.error(
+                                            "Message API error. status={}, url={}, responseBody={}",
+                                            resp.statusCode(),
+                                            targetUrl,
+                                            body);
                                     return Mono.error(new RuntimeException(
                                             "HTTP " + resp.statusCode() + " from " + targetUrl + " body=" + body));
                                 }))
-
                         .bodyToMono(String.class)
 
                         // ✅ 성공 응답 로그
-                        .doOnNext(responseBody -> log.info("Message API success. url={}, responseBody={}",
-                                targetUrl, responseBody))
-
+                        .doOnNext(responseBody ->
+                                log.info("Message API success. url={}, responseBody={}", targetUrl, responseBody))
                         .map(responseBody -> {
                             try {
                                 result.setIsExecutionSuccess(true);
@@ -396,13 +419,14 @@ public class DaouofficePlugin extends BasePlugin {
                     }
                 }
 
-                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT
-                        + NOTIFICATION_SEND_PATH;
+                String targetUrl =
+                        "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + NOTIFICATION_SEND_PATH;
 
                 // ✅ 요청 로그 (URL + Body)
                 try {
                     log.info("Daouoffice Notification Send Request URL: {}", targetUrl);
-                    log.info("Daouoffice Notification Send Request Body: {}",
+                    log.info(
+                            "Daouoffice Notification Send Request Body: {}",
                             objectMapper.writeValueAsString(requestBody));
                 } catch (Exception ignore) {
                     log.info("Daouoffice Notification Send Request Body (toString): {}", requestBody.toString());
@@ -425,18 +449,19 @@ public class DaouofficePlugin extends BasePlugin {
                         .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
                                 .defaultIfEmpty("")
                                 .flatMap(body -> {
-                                    log.error("Notification API error. status={}, url={}, responseBody={}",
-                                            resp.statusCode(), targetUrl, body);
+                                    log.error(
+                                            "Notification API error. status={}, url={}, responseBody={}",
+                                            resp.statusCode(),
+                                            targetUrl,
+                                            body);
                                     return Mono.error(new RuntimeException(
                                             "HTTP " + resp.statusCode() + " from " + targetUrl + " body=" + body));
                                 }))
-
                         .bodyToMono(String.class)
 
                         // ✅ 성공 응답 로그
-                        .doOnNext(responseBody -> log.info("Notification API success. url={}, responseBody={}",
-                                targetUrl, responseBody))
-
+                        .doOnNext(responseBody ->
+                                log.info("Notification API success. url={}, responseBody={}", targetUrl, responseBody))
                         .map(responseBody -> {
                             try {
                                 result.setIsExecutionSuccess(true);
@@ -460,8 +485,7 @@ public class DaouofficePlugin extends BasePlugin {
                 log.error("Error preparing notification request", e);
                 result.setIsExecutionSuccess(false);
                 result.setErrorInfo(new AppsmithPluginException(
-                        AppsmithPluginError.PLUGIN_ERROR,
-                        "Error preparing notification request: " + e.getMessage()));
+                        AppsmithPluginError.PLUGIN_ERROR, "Error preparing notification request: " + e.getMessage()));
                 return Mono.just(result);
             }
         }
@@ -472,20 +496,21 @@ public class DaouofficePlugin extends BasePlugin {
             ActionExecutionResult result = new ActionExecutionResult();
 
             try {
-                String userId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "userId", STRING_TYPE,
-                        "");
-                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid",
-                        STRING_TYPE, "");
-                String formCode = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "formCode",
-                        STRING_TYPE, "");
-                String title = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "title", STRING_TYPE,
-                        "");
-                String content = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "content",
-                        STRING_TYPE, "");
+                String userId =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "userId", STRING_TYPE, "");
+                String companyUuid = getDataValueSafelyFromFormData(
+                        actionConfiguration.getFormData(), "companyUuid", STRING_TYPE, "");
+                String formCode =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "formCode", STRING_TYPE, "");
+                String title =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "title", STRING_TYPE, "");
+                String content =
+                        getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "content", STRING_TYPE, "");
 
                 // Multipart Body Builder
                 // Using Spring's MultipartBodyBuilder
-                org.springframework.http.client.MultipartBodyBuilder builder = new org.springframework.http.client.MultipartBodyBuilder();
+                org.springframework.http.client.MultipartBodyBuilder builder =
+                        new org.springframework.http.client.MultipartBodyBuilder();
                 builder.part("userId", userId);
                 builder.part("companyUuid", companyUuid);
                 builder.part("formCode", formCode);
@@ -500,15 +525,18 @@ public class DaouofficePlugin extends BasePlugin {
 
                 // files is optional and currently empty
 
-                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT
-                        + APPROVAL_REQUEST_PATH;
+                String targetUrl =
+                        "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + APPROVAL_REQUEST_PATH;
 
                 // ✅ 요청 로그 (URL + Parts Summary)
                 try {
                     log.info("Daouoffice Approval Send Request URL: {}", targetUrl);
                     log.info(
                             "Daouoffice Approval Send Request Params: userId={}, companyUuid={}, formCode={}, title={}",
-                            userId, companyUuid, formCode, title);
+                            userId,
+                            companyUuid,
+                            formCode,
+                            title);
                 } catch (Exception ignore) {
                 }
 
@@ -522,26 +550,27 @@ public class DaouofficePlugin extends BasePlugin {
                                 .build())
                         .header("x-company-uuid", companyUuid)
                         .contentType(MediaType.MULTIPART_FORM_DATA)
-                        .body(org.springframework.web.reactive.function.BodyInserters
-                                .fromMultipartData(builder.build()))
+                        .body(org.springframework.web.reactive.function.BodyInserters.fromMultipartData(
+                                builder.build()))
                         .retrieve()
 
                         // ✅ 4xx/5xx handling
                         .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
                                 .defaultIfEmpty("")
                                 .flatMap(body -> {
-                                    log.error("Approval API error. status={}, url={}, responseBody={}",
-                                            resp.statusCode(), targetUrl, body);
+                                    log.error(
+                                            "Approval API error. status={}, url={}, responseBody={}",
+                                            resp.statusCode(),
+                                            targetUrl,
+                                            body);
                                     return Mono.error(new RuntimeException(
                                             "HTTP " + resp.statusCode() + " from " + targetUrl + " body=" + body));
                                 }))
-
                         .bodyToMono(String.class)
 
                         // ✅ Success Log
-                        .doOnNext(responseBody -> log.info("Approval API success. url={}, responseBody={}", targetUrl,
-                                responseBody))
-
+                        .doOnNext(responseBody ->
+                                log.info("Approval API success. url={}, responseBody={}", targetUrl, responseBody))
                         .map(responseBody -> {
                             try {
                                 result.setIsExecutionSuccess(true);
@@ -556,8 +585,7 @@ public class DaouofficePlugin extends BasePlugin {
                             log.error("Approval send failed. url={}", targetUrl, error);
                             result.setIsExecutionSuccess(false);
                             result.setErrorInfo(new AppsmithPluginException(
-                                    AppsmithPluginError.PLUGIN_ERROR,
-                                    "Approval Send Failed: " + error.getMessage()));
+                                    AppsmithPluginError.PLUGIN_ERROR, "Approval Send Failed: " + error.getMessage()));
                             return Mono.just(result);
                         });
 
@@ -565,55 +593,45 @@ public class DaouofficePlugin extends BasePlugin {
                 log.error("Error preparing approval request", e);
                 result.setIsExecutionSuccess(false);
                 result.setErrorInfo(new AppsmithPluginException(
-                        AppsmithPluginError.PLUGIN_ERROR,
-                        "Error preparing approval request: " + e.getMessage()));
+                        AppsmithPluginError.PLUGIN_ERROR, "Error preparing approval request: " + e.getMessage()));
                 return Mono.just(result);
             }
         }
 
         private String getLeadAssignmentHtmlTemplate() {
             return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>"
-                    +
-                    "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>" +
-                    "    <h1 style='margin: 0; font-size: 24px;'>리드 배정 알림</h1>" +
-                    "  </div>" +
-                    "  <div style='padding: 30px; background-color: #ffffff;'>" +
-                    "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>" +
-                    "    <p style='font-size: 16px; color: #333;'>새로운 리드의 담당자로 배정되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
-                    +
-                    "    <div style='margin-top: 30px; text-align: center;'>" +
-                    "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>리드 확인하기</a>"
-                    +
-                    "    </div>" +
-                    "  </div>" +
-                    "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
-                    +
-                    "    © 2024 DaouOffice Lead Management" +
-                    "  </div>" +
-                    "</div>";
+                    + "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>"
+                    + "    <h1 style='margin: 0; font-size: 24px;'>리드 배정 알림</h1>"
+                    + "  </div>"
+                    + "  <div style='padding: 30px; background-color: #ffffff;'>"
+                    + "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>"
+                    + "    <p style='font-size: 16px; color: #333;'>새로운 리드의 담당자로 배정되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
+                    + "    <div style='margin-top: 30px; text-align: center;'>"
+                    + "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>리드 확인하기</a>"
+                    + "    </div>"
+                    + "  </div>"
+                    + "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
+                    + "    © 2024 DaouOffice Lead Management"
+                    + "  </div>"
+                    + "</div>";
         }
 
         private String getLeadRegistrationHtmlTemplate() {
             return "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>"
-                    +
-                    "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>" +
-                    "    <h1 style='margin: 0; font-size: 24px;'>리드 등록 알림</h1>" +
-                    "  </div>" +
-                    "  <div style='padding: 30px; background-color: #ffffff;'>" +
-                    "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>" +
-                    "    <p style='font-size: 16px; color: #333;'>새로운 리드가 등록되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
-                    +
-                    "    <div style='margin-top: 30px; text-align: center;'>" +
-                    "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>등록된 리드 확인하기</a>"
-                    +
-                    "    </div>" +
-                    "  </div>" +
-                    "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
-                    +
-                    "    © 2024 DaouOffice Lead Management" +
-                    "  </div>" +
-                    "</div>";
+                    + "  <div style='background-color: #4A90E2; padding: 20px; text-align: center; color: white;'>"
+                    + "    <h1 style='margin: 0; font-size: 24px;'>리드 등록 알림</h1>"
+                    + "  </div>"
+                    + "  <div style='padding: 30px; background-color: #ffffff;'>"
+                    + "    <p style='font-size: 16px; color: #333;'>안녕하세요,</p>"
+                    + "    <p style='font-size: 16px; color: #333;'>새로운 리드가 등록되었습니다. <br>자세한 내용은 리드 관리 시스템에서 확인해 주세요.</p>"
+                    + "    <div style='margin-top: 30px; text-align: center;'>"
+                    + "      <a href='#' style='display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;'>등록된 리드 확인하기</a>"
+                    + "    </div>"
+                    + "  </div>"
+                    + "  <div style='background-color: #f5f5f5; padding: 15px; text-align: center; font-size: 12px; color: #888;'>"
+                    + "    © 2024 DaouOffice Lead Management"
+                    + "  </div>"
+                    + "</div>";
         }
-
     }
 }
