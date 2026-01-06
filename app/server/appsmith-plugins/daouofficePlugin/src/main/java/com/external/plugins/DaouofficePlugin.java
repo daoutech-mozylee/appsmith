@@ -467,16 +467,21 @@ public class DaouofficePlugin extends BasePlugin {
         }
 
         private Mono<ActionExecutionResult> executeApprovalRequest(
-            WebClient connection, ActionConfiguration actionConfiguration) {
+                WebClient connection, ActionConfiguration actionConfiguration) {
 
             ActionExecutionResult result = new ActionExecutionResult();
 
             try {
-                String userId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "userId", STRING_TYPE, "");
-                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid", STRING_TYPE, "");
-                String formCode = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "formCode", STRING_TYPE, "");
-                String title = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "title", STRING_TYPE, "");
-                String content = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "content", STRING_TYPE, "");
+                String userId = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "userId", STRING_TYPE,
+                        "");
+                String companyUuid = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "companyUuid",
+                        STRING_TYPE, "");
+                String formCode = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "formCode",
+                        STRING_TYPE, "");
+                String title = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "title", STRING_TYPE,
+                        "");
+                String content = getDataValueSafelyFromFormData(actionConfiguration.getFormData(), "content",
+                        STRING_TYPE, "");
 
                 // Multipart Body Builder
                 // Using Spring's MultipartBodyBuilder
@@ -488,77 +493,80 @@ public class DaouofficePlugin extends BasePlugin {
                     builder.part("title", title);
                 }
                 if (StringUtils.hasText(content)) {
-                    // Ensure content type is explicit if needed, but text/plain is default for string parts
+                    // Ensure content type is explicit if needed, but text/plain is default for
+                    // string parts
                     builder.part("content", content);
                 }
 
                 // files is optional and currently empty
 
-                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + APPROVAL_REQUEST_PATH;
+                String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT
+                        + APPROVAL_REQUEST_PATH;
 
                 // ✅ 요청 로그 (URL + Parts Summary)
                 try {
                     log.info("Daouoffice Approval Send Request URL: {}", targetUrl);
-                    log.info("Daouoffice Approval Send Request Params: userId={}, companyUuid={}, formCode={}, title={}",
-                        userId, companyUuid, formCode, title);
-                } catch (Exception ignore) {}
-
+                    log.info(
+                            "Daouoffice Approval Send Request Params: userId={}, companyUuid={}, formCode={}, title={}",
+                            userId, companyUuid, formCode, title);
+                } catch (Exception ignore) {
+                }
 
                 return connection
-                    .post()
-                    .uri(uriBuilder -> uriBuilder
-                        .scheme("http")
-                        .host(SERVICE_GATEWAY_HOST)
-                        .port(SERVICE_GATEWAY_PORT)
-                        .path(APPROVAL_REQUEST_PATH)
-                        .build())
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(org.springframework.web.reactive.function.BodyInserters.fromMultipartData(builder.build()))
-                    .retrieve()
+                        .post()
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("http")
+                                .host(SERVICE_GATEWAY_HOST)
+                                .port(SERVICE_GATEWAY_PORT)
+                                .path(APPROVAL_REQUEST_PATH)
+                                .build())
+                        .header("x-company-uuid", companyUuid)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .body(org.springframework.web.reactive.function.BodyInserters
+                                .fromMultipartData(builder.build()))
+                        .retrieve()
 
-                    // ✅ 4xx/5xx handling
-                    .onStatus(HttpStatusCode::isError, resp ->
-                        resp.bodyToMono(String.class)
-                            .defaultIfEmpty("")
-                            .flatMap(body -> {
-                                log.error("Approval API error. status={}, url={}, responseBody={}",
-                                    resp.statusCode(), targetUrl, body);
-                                return Mono.error(new RuntimeException(
-                                    "HTTP " + resp.statusCode() + " from " + targetUrl + " body=" + body));
-                            })
-                    )
+                        // ✅ 4xx/5xx handling
+                        .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(body -> {
+                                    log.error("Approval API error. status={}, url={}, responseBody={}",
+                                            resp.statusCode(), targetUrl, body);
+                                    return Mono.error(new RuntimeException(
+                                            "HTTP " + resp.statusCode() + " from " + targetUrl + " body=" + body));
+                                }))
 
-                    .bodyToMono(String.class)
+                        .bodyToMono(String.class)
 
-                    // ✅ Success Log
-                    .doOnNext(responseBody ->
-                        log.info("Approval API success. url={}, responseBody={}", targetUrl, responseBody))
+                        // ✅ Success Log
+                        .doOnNext(responseBody -> log.info("Approval API success. url={}, responseBody={}", targetUrl,
+                                responseBody))
 
-                    .map(responseBody -> {
-                        try {
-                            result.setIsExecutionSuccess(true);
-                            result.setBody(objectMapper.readTree(responseBody));
-                        } catch (Exception e) {
-                            result.setIsExecutionSuccess(true);
-                            result.setBody(responseBody);
-                        }
-                        return result;
-                    })
-                    .onErrorResume(error -> {
-                        log.error("Approval send failed. url={}", targetUrl, error);
-                        result.setIsExecutionSuccess(false);
-                        result.setErrorInfo(new AppsmithPluginException(
-                            AppsmithPluginError.PLUGIN_ERROR,
-                            "Approval Send Failed: " + error.getMessage()));
-                        return Mono.just(result);
-                    });
+                        .map(responseBody -> {
+                            try {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(objectMapper.readTree(responseBody));
+                            } catch (Exception e) {
+                                result.setIsExecutionSuccess(true);
+                                result.setBody(responseBody);
+                            }
+                            return result;
+                        })
+                        .onErrorResume(error -> {
+                            log.error("Approval send failed. url={}", targetUrl, error);
+                            result.setIsExecutionSuccess(false);
+                            result.setErrorInfo(new AppsmithPluginException(
+                                    AppsmithPluginError.PLUGIN_ERROR,
+                                    "Approval Send Failed: " + error.getMessage()));
+                            return Mono.just(result);
+                        });
 
             } catch (Exception e) {
                 log.error("Error preparing approval request", e);
                 result.setIsExecutionSuccess(false);
                 result.setErrorInfo(new AppsmithPluginException(
-                    AppsmithPluginError.PLUGIN_ERROR,
-                    "Error preparing approval request: " + e.getMessage()));
+                        AppsmithPluginError.PLUGIN_ERROR,
+                        "Error preparing approval request: " + e.getMessage()));
                 return Mono.just(result);
             }
         }
