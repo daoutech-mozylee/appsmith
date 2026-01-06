@@ -15,6 +15,7 @@ display_help()
   echo "-h     			Print this help"
   echo "-l or --local    	Use the local codebase and not git"
   echo "-r or --remote    	Use the branch from a remote repository"
+  echo "-f or --fast      	Use incremental build (skips clean)"
   echo "For more info please check: https://www.notion.so/appsmith/Test-an-Appsmith-branch-locally-c39ad68aea0d42bf94a149ea22e86820#9cee16c7e2054b5980513ec6f351ace2"
   echo
 }
@@ -40,10 +41,15 @@ then
   LOCAL=true
 fi
 
-REMOTE=false
 if [[ ($1 == "--remote" || $1 == "-r")]]
 then
   REMOTE=true
+fi
+
+FAST_BUILD=false
+if [[ ($1 == "--fast" || $1 == "-f" || $2 == "--fast" || $2 == "-f" || $3 == "--fast" || $3 == "-f" || $4 == "--fast" || $4 == "-f") ]]
+then
+  FAST_BUILD=true
 fi
 
 if [[ ($LOCAL == true) ]]
@@ -95,7 +101,11 @@ fi
 pretty_print "Starting server build ..."
 
 pushd app/server > /dev/null
-if ! ./build.sh -DskipTests > /dev/null; then
+BUILD_ARGS="-DskipTests"
+if [ "$FAST_BUILD" = true ]; then
+  BUILD_ARGS="$BUILD_ARGS --fast"
+fi
+if ! ./build.sh $BUILD_ARGS > /dev/null; then
   echo Server build failed >&2
   exit 1
 fi

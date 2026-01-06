@@ -12,16 +12,26 @@ if [[ "$maven_version_output" != *"Java version: $min_java_major_version."* ]]; 
   exit 1
 fi
 
-# Remove previous dist directory
-rm -rf dist/
-
+# Parse arguments to check for --fast flag and filter it out from maven args
 is_tests_enabled=true
+is_fast_build=false
+maven_args=()
+
 for i in "$@"; do
   if [[ $i == "-DskipTests" ]]; then
     is_tests_enabled=false
-    break
+    maven_args+=("$i")
+  elif [[ $i == "--fast" ]]; then
+    is_fast_build=true
+  else
+    maven_args+=("$i")
   fi
 done
+
+# Remove previous dist directory only if not a fast build
+if [ "$is_fast_build" = false ]; then
+  rm -rf dist/
+fi
 
 if $is_tests_enabled; then
   # If tests will be run, let's pull some required images that often fail to be pulled from inside Maven's test run.
@@ -40,8 +50,13 @@ fi
 
 node scripts/check-field-constants.mjs
 
-# Build the code. $@ accepts all the parameters from the input command line and uses it in the maven build command
-mvn clean package "$@"
+# Build the code. maven_args contains parameters excluding custom flags like --fast
+if [ "$is_fast_build" = true ]; then
+  echo "Fast build enabled: Skipping clean and using incremental build."
+  mvn package "${maven_args[@]}"
+else
+  mvn clean package "${maven_args[@]}"
+fi
 
 if [[ $? -eq 0 ]]; then
   echo "mvn Successful"

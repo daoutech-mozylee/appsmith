@@ -64,7 +64,25 @@ asia-northeast3-docker.pkg.dev/daouoffice-dop-dev/dev-dop-images/appsmith-do-edi
 5. 메타정보 생성: `scripts/generate_info_json.sh`
 6. Docker 빌드 (`linux/amd64` 플랫폼)
 
-### 방법 2: Docker만 빌드 (아티팩트가 이미 있는 경우)
+6. Docker 빌드 (`linux/amd64` 플랫폼)
+
+### 방법 2: 고속 빌드 (Fast Build) - 수정 사항 반복 테스트용
+
+코드를 수정한 후 빠르게 Docker 이미지를 다시 빌드하고 싶을 때 사용합니다. `mvn clean` 과정을 생략하여 변경된 모듈만 다시 컴파일(증분 빌드)합니다.
+
+```bash
+# --fast 또는 -f 옵션 사용
+./scripts/local_testing.sh -l --fast [tag]
+
+# 예시
+./scripts/local_testing.sh -l --fast 1.0.3-snapshot
+```
+
+> [!WARNING]
+> Fast Build는 기존 빌드 아티팩트(`dist/` 폴더)를 지우지 않습니다.
+> 확실한 무결성이 필요한 프로덕션 배포 전에는 `--fast` 옵션 없이 일반 빌드를 수행하는 것을 권장합니다.
+
+### 방법 3: Docker만 빌드 (아티팩트가 이미 있는 경우)
 
 이미 빌드된 아티팩트가 있다면 Docker 이미지만 빌드할 수 있습니다.
 
