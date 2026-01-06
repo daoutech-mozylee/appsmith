@@ -1,0 +1,136 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "APPROVAL_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'send_approval'}}"
+    },
+    "children": [
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "APPROVAL_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "결재 양식",
+                    "propertyName": "formCode",
+                    "controlType": "DROP_DOWN",
+                    "initialValue": "ACCAccExpense001",
+                    "options": [
+                        {
+                            "label": "매입대금 지급결의서",
+                            "value": "ACCAccExpense001"
+                        },
+                        {
+                            "label": "차량운행일지",
+                            "value": "ACCEssCar001"
+                        },
+                        {
+                            "label": "유류비 지출품의서",
+                            "value": "ACCEssCar002"
+                        },
+                        {
+                            "label": "경비예산 변경요청서",
+                            "value": "ACCEssEBM001"
+                        },
+                        {
+                            "label": "법인카드 지출품의서",
+                            "value": "ACCEssExpense001"
+                        },
+                        {
+                            "label": "개인카드 지출품의서",
+                            "value": "ACCEssExpense002"
+                        },
+                        {
+                            "label": "경비 지급결의서",
+                            "value": "ACCEssExpense003"
+                        },
+                        {
+                            "label": "유류비 지급결의서",
+                            "value": "ACCEssExpense004"
+                        },
+                        {
+                            "label": "재직증명서",
+                            "value": "ACCEssHRcerti001"
+                        },
+                        {
+                            "label": "경력증명서",
+                            "value": "ACCEssHRcerti002"
+                        },
+                        {
+                            "label": "소득자별 근로원천징수부",
+                            "value": "ACCEssHRcerti003"
+                        },
+                        {
+                            "label": "급여 지급결의서",
+                            "value": "ACCHRPayment001"
+                        },
+                        {
+                            "label": "일용급여 지급결의서",
+                            "value": "ACCHRPayment002"
+                        },
+                        {
+                            "label": "퇴직급여 지급결의서",
+                            "value": "ACCHRpayment004"
+                        },
+                        {
+                            "label": "상여 지급결의서",
+                            "value": "ACCHRPayment005"
+                        },
+                        {
+                            "label": "인사발령 결재요청",
+                            "value": "ACCHRPersAppt001"
+                        },
+                        {
+                            "label": "세금과공과 지급결의서",
+                            "value": "ACCTax001"
+                        }
+                    ],
+                    "configProperty": "actionConfiguration.formData.formCode.data",
+                    "isRequired": true
+                },
+                {
+                    "label": "Company UUID",
+                    "propertyName": "companyUuid",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.companyUuid.data",
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "APPROVAL_SETTINGS-Z2",
+            "children": [
+                {
+                    "label": "기안자 ID (User ID)",
+                    "propertyName": "userId",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.userId.data",
+                    "initialValue": "{{this.params.userTo}}",
+                    "isRequired": true
+                },
+                {
+                    "label": "문서 제목",
+                    "propertyName": "title",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.title.data",
+                    "isRequired": false
+                }
+            ]
+        },
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "APPROVAL_SETTINGS-Z3",
+            "children": [
+                {
+                    "label": "문서 내용 (HTML)",
+                    "propertyName": "content",
+                    "controlType": "INPUT_TEXT",
+                    "inputType": "TEXT_MULTI_LINE",
+                    "configProperty": "actionConfiguration.formData.content.data",
+                    "initialValue": "<p>임시 내용입니다.</p>",
+                    "isRequired": false
+                }
+            ]
+        }
+    ]
+}

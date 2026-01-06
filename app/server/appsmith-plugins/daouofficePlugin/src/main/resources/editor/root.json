@@ -35,6 +35,10 @@
                   "value": "send_message"
                 },
                 {
+                  "label": "전자결재",
+                  "value": "send_approval"
+                },
+                {
                   "label": "캘린더 등록",
                   "value": "register_calendar"
                 }
@@ -50,6 +54,7 @@
     "send_mail.json",
     "send_notification.json",
     "send_message.json",
+    "send_approval.json",
     "register_calendar.json"
   ]
 }
