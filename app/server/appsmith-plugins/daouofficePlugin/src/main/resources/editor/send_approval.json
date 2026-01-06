@@ -82,6 +82,10 @@
                         {
                             "label": "세금과공과 지급결의서",
                             "value": "ACCTax001"
+                        },
+                        {
+                          "label": "테스트 결재문서",
+                          "value": "AAAA1234"
                         }
                     ],
                     "configProperty": "actionConfiguration.formData.formCode.data",
