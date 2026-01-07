@@ -15,7 +15,10 @@ import org.pf4j.Extension;
 import org.pf4j.PluginWrapper;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -200,41 +203,39 @@ public class DaouofficePlugin extends BasePlugin {
                 final String finalContentsEffective = finalContents;
                 final String senderEmailEffective = senderEmail;
 
+                MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+                formData.add("senderName", senderName);
+                formData.add("senderEmail", senderEmail);
+                formData.add("subject", finalSubjectEffective);
+                formData.add("contents", finalContentsEffective);
+                formData.add("editmode", editmode);
+                formData.add("withoutNoti", String.valueOf("true".equalsIgnoreCase(withoutNotiStr)));
+
+                if (StringUtils.hasText(envFromAddr)) {
+                    formData.add("envFromAddr", envFromAddr);
+                }
+
+                if (StringUtils.hasText(finalToEffective)) {
+                    String[] emails = finalToEffective.split(",");
+                    for (String email : emails) {
+                        if (StringUtils.hasText(email.trim())) {
+                            formData.add("to", email.trim());
+                        }
+                    }
+                }
+
+                log.debug("Daouoffice Mail Send Request Body: {}", formData);
+
                 return connection
                         .post()
-                        .uri(uriBuilder -> {
-                            // URL components separated to ensure correct building
-                            uriBuilder
-                                    .scheme("http")
-                                    .host(SERVICE_GATEWAY_HOST)
-                                    .port(SERVICE_GATEWAY_PORT)
-                                    .path(MAIL_SEND_PATH)
-                                    .queryParam("senderEmail", senderEmailEffective)
-                                    .queryParam("subject", finalSubjectEffective)
-                                    .queryParam("contents", finalContentsEffective)
-                                    .queryParam("editmode", editmode)
-                                    .queryParam("withoutNoti", "true".equalsIgnoreCase(withoutNotiStr));
-
-                            if (StringUtils.hasText(senderName)) {
-                                uriBuilder.queryParam("senderName", senderName);
-                            }
-                            if (StringUtils.hasText(envFromAddr)) {
-                                uriBuilder.queryParam("envFromAddr", envFromAddr);
-                            }
-
-                            // Handle 'to' array (comma separated input -> multiple query params)
-                            if (StringUtils.hasText(finalToEffective)) {
-                                String[] emails = finalToEffective.split(",");
-                                for (String email : emails) {
-                                    if (StringUtils.hasText(email.trim())) {
-                                        uriBuilder.queryParam("to", email.trim());
-                                    }
-                                }
-                            }
-
-                            return uriBuilder.build();
-                        })
-                        .contentType(MediaType.APPLICATION_JSON) // Usually POSTs have content type, even if empty body
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("http")
+                                .host(SERVICE_GATEWAY_HOST)
+                                .port(SERVICE_GATEWAY_PORT)
+                                .path(MAIL_SEND_PATH)
+                                .build())
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .body(BodyInserters.fromValue(formData))
                         .retrieve()
                         .bodyToMono(String.class)
                         .map(responseBody -> {
