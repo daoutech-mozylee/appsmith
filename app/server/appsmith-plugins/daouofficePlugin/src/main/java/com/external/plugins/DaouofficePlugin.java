@@ -177,6 +177,10 @@ public class DaouofficePlugin extends BasePlugin {
                     String contentRaw = getDataValueSafelyFromFormData(
                             actionConfiguration.getFormData(), "content", STRING_TYPE, "");
                     finalContents = StringUtils.hasText(contentRaw) ? contentRaw : "";
+                    // Sanitize Base64 image content in HTML (fix space to +)
+                    String sanitizedContent = sanitizeHtmlContent(contentRaw);
+
+                    finalContents = StringUtils.hasText(sanitizedContent) ? sanitizedContent : "";
                 } else {
                     // leadRegistrationMail and fallback
                     finalTo = StringUtils.hasText(toStrRaw) ? toStrRaw : "mrlhs@hyunggil01.dev-dopweb.daouoffice.com";
@@ -196,7 +200,11 @@ public class DaouofficePlugin extends BasePlugin {
 
                 String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + MAIL_SEND_PATH;
 
-                log.debug("Daouoffice Mail Send Request: {}", targetUrl);
+                log.info("Daouoffice Mail Send Request URL: {}", targetUrl);
+                log.info("Daouoffice Mail Send Request TO: {}", finalTo);
+                log.info("Daouoffice Mail Send Request SUBJECT: {}", finalSubject);
+                log.info("Daouoffice Mail Send Request CONTENT: {}", finalContents);
+                log.info("Daouoffice Mail Send Request SENDER: {}", senderEmail);
 
                 final String finalToEffective = finalTo;
                 final String finalSubjectEffective = finalSubject;
@@ -633,6 +641,48 @@ public class DaouofficePlugin extends BasePlugin {
                     + "    © 2024 DaouOffice Lead Management"
                     + "  </div>"
                     + "</div>";
+        }
+
+        private String sanitizeHtmlContent(String content) {
+            if (!StringUtils.hasText(content)) {
+                return content;
+            }
+
+            StringBuilder sb = new StringBuilder(content);
+            String target = "base64,";
+            int idx = sb.indexOf(target);
+            while (idx != -1) {
+                int startBase64 = idx + target.length();
+                // Find end quote
+                int endQuote = sb.indexOf("\"", startBase64);
+                if (endQuote == -1) {
+                    endQuote = sb.indexOf("'", startBase64);
+                }
+
+                if (endQuote != -1) {
+                    String oddBase64 = sb.substring(startBase64, endQuote);
+                    String fixedBase64 = sanitizeBase64Payload(oddBase64);
+                    if (!fixedBase64.equals(oddBase64)) {
+                        sb.replace(startBase64, endQuote, fixedBase64);
+                        endQuote = startBase64 + fixedBase64.length();
+                    }
+                    idx = sb.indexOf(target, endQuote);
+                } else {
+                    break;
+                }
+            }
+            return sb.toString();
+        }
+
+        private String sanitizeBase64Payload(String base64) {
+            StringBuilder cleaned = new StringBuilder(base64.length());
+            for (int i = 0; i < base64.length(); i++) {
+                char ch = base64.charAt(i);
+                if (!Character.isWhitespace(ch)) {
+                    cleaned.append(ch);
+                }
+            }
+            return cleaned.toString();
         }
     }
 }
