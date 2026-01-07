@@ -15,7 +15,10 @@ import org.pf4j.Extension;
 import org.pf4j.PluginWrapper;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -174,6 +177,10 @@ public class DaouofficePlugin extends BasePlugin {
                     String contentRaw = getDataValueSafelyFromFormData(
                             actionConfiguration.getFormData(), "content", STRING_TYPE, "");
                     finalContents = StringUtils.hasText(contentRaw) ? contentRaw : "";
+                    // Sanitize Base64 image content in HTML (fix space to +)
+                    String sanitizedContent = sanitizeHtmlContent(contentRaw);
+
+                    finalContents = StringUtils.hasText(sanitizedContent) ? sanitizedContent : "";
                 } else {
                     // leadRegistrationMail and fallback
                     finalTo = StringUtils.hasText(toStrRaw) ? toStrRaw : "mrlhs@hyunggil01.dev-dopweb.daouoffice.com";
@@ -193,48 +200,50 @@ public class DaouofficePlugin extends BasePlugin {
 
                 String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + MAIL_SEND_PATH;
 
-                log.debug("Daouoffice Mail Send Request: {}", targetUrl);
+                log.info("Daouoffice Mail Send Request URL: {}", targetUrl);
+                log.info("Daouoffice Mail Send Request TO: {}", finalTo);
+                log.info("Daouoffice Mail Send Request SUBJECT: {}", finalSubject);
+                log.info("Daouoffice Mail Send Request CONTENT: {}", finalContents);
+                log.info("Daouoffice Mail Send Request SENDER: {}", senderEmail);
 
                 final String finalToEffective = finalTo;
                 final String finalSubjectEffective = finalSubject;
                 final String finalContentsEffective = finalContents;
                 final String senderEmailEffective = senderEmail;
 
+                MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+                formData.add("senderName", senderName);
+                formData.add("senderEmail", senderEmail);
+                formData.add("subject", finalSubjectEffective);
+                formData.add("contents", finalContentsEffective);
+                formData.add("editmode", editmode);
+                formData.add("withoutNoti", String.valueOf("true".equalsIgnoreCase(withoutNotiStr)));
+
+                if (StringUtils.hasText(envFromAddr)) {
+                    formData.add("envFromAddr", envFromAddr);
+                }
+
+                if (StringUtils.hasText(finalToEffective)) {
+                    String[] emails = finalToEffective.split(",");
+                    for (String email : emails) {
+                        if (StringUtils.hasText(email.trim())) {
+                            formData.add("to", email.trim());
+                        }
+                    }
+                }
+
+                log.debug("Daouoffice Mail Send Request Body: {}", formData);
+
                 return connection
                         .post()
-                        .uri(uriBuilder -> {
-                            // URL components separated to ensure correct building
-                            uriBuilder
-                                    .scheme("http")
-                                    .host(SERVICE_GATEWAY_HOST)
-                                    .port(SERVICE_GATEWAY_PORT)
-                                    .path(MAIL_SEND_PATH)
-                                    .queryParam("senderEmail", senderEmailEffective)
-                                    .queryParam("subject", finalSubjectEffective)
-                                    .queryParam("contents", finalContentsEffective)
-                                    .queryParam("editmode", editmode)
-                                    .queryParam("withoutNoti", "true".equalsIgnoreCase(withoutNotiStr));
-
-                            if (StringUtils.hasText(senderName)) {
-                                uriBuilder.queryParam("senderName", senderName);
-                            }
-                            if (StringUtils.hasText(envFromAddr)) {
-                                uriBuilder.queryParam("envFromAddr", envFromAddr);
-                            }
-
-                            // Handle 'to' array (comma separated input -> multiple query params)
-                            if (StringUtils.hasText(finalToEffective)) {
-                                String[] emails = finalToEffective.split(",");
-                                for (String email : emails) {
-                                    if (StringUtils.hasText(email.trim())) {
-                                        uriBuilder.queryParam("to", email.trim());
-                                    }
-                                }
-                            }
-
-                            return uriBuilder.build();
-                        })
-                        .contentType(MediaType.APPLICATION_JSON) // Usually POSTs have content type, even if empty body
+                        .uri(uriBuilder -> uriBuilder
+                                .scheme("http")
+                                .host(SERVICE_GATEWAY_HOST)
+                                .port(SERVICE_GATEWAY_PORT)
+                                .path(MAIL_SEND_PATH)
+                                .build())
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .body(BodyInserters.fromValue(formData))
                         .retrieve()
                         .bodyToMono(String.class)
                         .map(responseBody -> {
@@ -632,6 +641,48 @@ public class DaouofficePlugin extends BasePlugin {
                     + "    © 2024 DaouOffice Lead Management"
                     + "  </div>"
                     + "</div>";
+        }
+
+        private String sanitizeHtmlContent(String content) {
+            if (!StringUtils.hasText(content)) {
+                return content;
+            }
+
+            StringBuilder sb = new StringBuilder(content);
+            String target = "base64,";
+            int idx = sb.indexOf(target);
+            while (idx != -1) {
+                int startBase64 = idx + target.length();
+                // Find end quote
+                int endQuote = sb.indexOf("\"", startBase64);
+                if (endQuote == -1) {
+                    endQuote = sb.indexOf("'", startBase64);
+                }
+
+                if (endQuote != -1) {
+                    String oddBase64 = sb.substring(startBase64, endQuote);
+                    String fixedBase64 = sanitizeBase64Payload(oddBase64);
+                    if (!fixedBase64.equals(oddBase64)) {
+                        sb.replace(startBase64, endQuote, fixedBase64);
+                        endQuote = startBase64 + fixedBase64.length();
+                    }
+                    idx = sb.indexOf(target, endQuote);
+                } else {
+                    break;
+                }
+            }
+            return sb.toString();
+        }
+
+        private String sanitizeBase64Payload(String base64) {
+            StringBuilder cleaned = new StringBuilder(base64.length());
+            for (int i = 0; i < base64.length(); i++) {
+                char ch = base64.charAt(i);
+                if (!Character.isWhitespace(ch)) {
+                    cleaned.append(ch);
+                }
+            }
+            return cleaned.toString();
         }
     }
 }
