@@ -32,6 +32,17 @@ runSagaMiddleware();
 
 appInitializer();
 
+// Message listener for postWindowMessage
+window.addEventListener("message", (event) => {
+  
+  if (event.data && event.data.type === "OPEN_APPROVAL_POPUP") {
+    const { url, options } = event.data;
+    if (url) {
+      window.open(url, "_blank", options || "");
+    }
+  }
+});
+
 (async () => {
   try {
     await import(/* webpackChunkName: "instrumentation" */ "./instrumentation");
