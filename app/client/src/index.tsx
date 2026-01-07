@@ -34,11 +34,19 @@ appInitializer();
 
 // Message listener for postWindowMessage
 window.addEventListener("message", (event) => {
+  log.info("[MessageListener] Received message:", event.data);
   
   if (event.data && event.data.type === "OPEN_APPROVAL_POPUP") {
+    log.info("[MessageListener] Opening approval popup:", {
+      url: event.data.url,
+      options: event.data.options,
+    });
     const { url, options } = event.data;
     if (url) {
       window.open(url, "_blank", options || "");
+      log.info("[MessageListener] Popup opened successfully");
+    } else {
+      log.warn("[MessageListener] No URL provided in message");
     }
   }
 });

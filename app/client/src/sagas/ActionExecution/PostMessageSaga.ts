@@ -34,7 +34,16 @@ export function* executePostMessage(
           );
         }
       } else {
-        window.parent.postMessage(message, targetOrigin, undefined);
+        // OPEN_APPROVAL_POPUP 타입일 경우 같은 window에 메시지 전송
+        if (
+          typeof message === "object" &&
+          message !== null &&
+          (message as any).type === "OPEN_APPROVAL_POPUP"
+        ) {
+          window.postMessage(message, targetOrigin);
+        } else {
+          window.parent.postMessage(message, targetOrigin, undefined);
+        }
       }
     }
   } catch (error) {
