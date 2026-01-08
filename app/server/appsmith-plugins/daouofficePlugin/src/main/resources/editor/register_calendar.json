@@ -6,13 +6,25 @@
     },
     "children": [
         {
-            "controlType": "SINGLE_COLUMN_ZONE",
+            "controlType": "DOUBLE_COLUMN_ZONE",
             "identifier": "CALENDAR_SETTINGS-Z1",
             "children": [
                 {
-                    "label": "캘린더 등록 설정 (미구현)",
-                    "controlType": "LABEL",
-                    "configProperty": "actionConfiguration.formData.calendar_dummy.data"
+                    "label": "Company UUID",
+                    "tooltipText": "다우오피스 회사 UUID를 입력하세요.",
+                    "propertyName": "companyUuid",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.companyUuid.data",
+                    "isRequired": true
+                },
+                {
+                    "label": "User ID",
+                    "tooltipText": "다우오피스 사용자 ID를 입력하세요.",
+                    "propertyName": "calendarUserId",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.calendarUserId.data",
+                    "initialValue": "1342008820162899968",
+                    "isRequired": true
                 }
             ]
         }

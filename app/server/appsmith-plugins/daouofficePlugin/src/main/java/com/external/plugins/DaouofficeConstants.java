@@ -15,6 +15,7 @@ public final class DaouofficeConstants {
     public static final String MESSAGE_SEND_PATH = "/api/chat/internal/message/user";
     public static final String NOTIFICATION_SEND_PATH = "/api/notifier/app/dop-employee-approval/user/notification/message";
     public static final String APPROVAL_REQUEST_PATH = "/gw/platform/api/approval/document/popup";
+    public static final String CALENDAR_LIST_PATH = "/gw/platform/api/calendars";
 
     // Action Identifiers (Must match root.json)
     public static final String ACTION_ORGANIZATION = "organization";

@@ -8,6 +8,7 @@ import com.appsmith.external.plugins.BasePlugin;
 import com.appsmith.external.plugins.PluginExecutor;
 import com.external.plugins.actions.ApprovalAction;
 import com.external.plugins.actions.BaseAction;
+import com.external.plugins.actions.CalendarAction;
 import com.external.plugins.actions.MailAction;
 import com.external.plugins.actions.MessageAction;
 import com.external.plugins.actions.NotificationAction;
@@ -59,6 +60,7 @@ public class DaouofficePlugin extends BasePlugin {
             registerAction(new MessageAction(objectMapper));
             registerAction(new NotificationAction(objectMapper));
             registerAction(new ApprovalAction(objectMapper));
+            registerAction(new CalendarAction(objectMapper));
         }
 
         private void registerAction(BaseAction action) {
