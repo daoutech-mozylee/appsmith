@@ -3,7 +3,6 @@ import {
   call,
   put,
   take,
-  fork,
   cancelled,
   race,
   delay,
@@ -216,7 +215,7 @@ function* handleNonIframeAccess() {
  * postMessage 이벤트 처리 saga
  * 부모 창에서 전달받은 메시지를 Redux 액션으로 변환
  */
-function* watchPostMessages() {
+export function* watchPostMessages() {
   // bypass 경로면 인증 체크 건너뛰기 (iframe 여부 관계없이)
   if (shouldBypassAuthCheck()) {
     log.info(
@@ -275,7 +274,10 @@ function* watchPostMessages() {
 /**
  * postMessage saga 루트
  * 앱 초기화 시 호출되어 postMessage 리스너를 설정
+ *
+ * NOTE: iframe postMessage 인증 및 타임아웃 에러 페이지 기능 비활성화
+ * 다시 활성화하려면 아래 주석을 해제하세요.
  */
 export default function* postMessageSaga() {
-  yield fork(watchPostMessages);
+  // yield fork(watchPostMessages);
 }
