@@ -1,8 +1,8 @@
 {
     "controlType": "SECTION_V2",
-    "identifier": "CALENDAR_SETTINGS",
+    "identifier": "CALENDAR_LIST_SETTINGS",
     "conditionals": {
-        "show": "{{actionConfiguration.formData.endpoint.data === 'register_calendar'}}"
+        "show": "{{actionConfiguration.formData.endpoint.data === 'get_calendar_list'}}"
     },
     "children": [
         {

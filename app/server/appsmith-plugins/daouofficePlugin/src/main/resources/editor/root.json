@@ -39,8 +39,12 @@
                   "value": "send_approval"
                 },
                 {
-                  "label": "캘린더 등록",
-                  "value": "register_calendar"
+                  "label": "캘린더 목록",
+                  "value": "get_calendar_list"
+                },
+                {
+                  "label": "일정 등록",
+                  "value": "create_calendar_event"
                 }
               ]
             }
@@ -55,6 +59,7 @@
     "send_notification.json",
     "send_message.json",
     "send_approval.json",
-    "register_calendar.json"
+    "get_calendar_list.json",
+    "create_calendar_event.json"
   ]
 }
