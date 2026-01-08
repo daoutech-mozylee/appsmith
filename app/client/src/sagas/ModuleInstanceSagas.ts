@@ -27,7 +27,8 @@ import {
   getModuleInstanceById,
   getModuleInstances,
 } from "selectors/moduleInstanceSelectors";
-import { getDatasources } from "ee/selectors/entitiesSelector";
+import { getDatasources, getAppMode } from "ee/selectors/entitiesSelector";
+import { APP_MODE } from "entities/App";
 import type { Datasource } from "entities/Datasource";
 import { getWidgets } from "sagas/selectors";
 import type { CanvasWidgetsReduxState } from "ee/reducers/entityReducers/canvasWidgetsReducer";
@@ -253,7 +254,8 @@ let cachedDatasources: Datasource[] | null = null;
 /**
  * Datasource 이름으로 ID 찾기
  * 1. Redux 상태에서 먼저 찾기 (Editor 모드)
- * 2. 없으면 API를 통해 fetch (Deploy 모드)
+ * 2. 캐시된 데이터에서 찾기
+ * 3. Editor 모드에서만 API를 통해 fetch (Public 앱에서는 API 호출 건너뜀)
  */
 function* findDatasourceByName(
   datasourceName: string,
@@ -272,7 +274,19 @@ function* findDatasourceByName(
     return cachedDatasources.find((ds) => ds.name === datasourceName);
   }
 
-  // 3. API를 통해 fetch (Deploy 모드)
+  // 3. 앱 모드 확인 - Public 앱(PUBLISHED)에서는 datasources API 호출 건너뛰기
+  // Datasources API는 workspace 권한이 필요하여 anonymous 사용자에게 401 반환됨
+  const appMode: APP_MODE = yield select(getAppMode);
+
+  if (appMode === APP_MODE.PUBLISHED) {
+    console.log(
+      `[ModuleInstance] Skipping datasources API call in PUBLISHED mode for "${datasourceName}"`,
+    );
+
+    return undefined;
+  }
+
+  // 4. Editor 모드에서만 API를 통해 fetch
   try {
     const workspaceId: string = yield select(getCurrentWorkspaceId);
 
