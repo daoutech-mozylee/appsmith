@@ -16,6 +16,7 @@ public final class DaouofficeConstants {
     public static final String NOTIFICATION_SEND_PATH = "/api/notifier/app/dop-employee-approval/user/notification/message";
     public static final String APPROVAL_REQUEST_PATH = "/gw/platform/api/approval/document/popup";
     public static final String CALENDAR_LIST_PATH = "/gw/platform/api/calendars";
+    public static final String CALENDAR_EVENT_PATH = "/gw/platform/api/calendar/{calendarId}/event";
 
     // Action Identifiers (Must match root.json)
     public static final String ACTION_ORGANIZATION = "organization";
@@ -23,7 +24,8 @@ public final class DaouofficeConstants {
     public static final String ACTION_SEND_NOTIFICATION = "send_notification";
     public static final String ACTION_SEND_MESSAGE = "send_message";
     public static final String ACTION_SEND_APPROVAL = "send_approval";
-    public static final String ACTION_REGISTER_CALENDAR = "register_calendar";
+    public static final String ACTION_GET_CALENDAR_LIST = "get_calendar_list";
+    public static final String ACTION_CREATE_CALENDAR_EVENT = "create_calendar_event";
 
     // Mail Types
     public static final String MAIL_TYPE_PLAIN = "plainMail";

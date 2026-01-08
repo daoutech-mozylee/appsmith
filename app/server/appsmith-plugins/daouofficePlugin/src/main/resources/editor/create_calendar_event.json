@@ -1,0 +1,141 @@
+{
+    "controlType": "SECTION_V2",
+    "identifier": "CALENDAR_EVENT_SETTINGS",
+    "conditionals": {
+        "show": "{{actionConfiguration.formData.endpoint.data === 'create_calendar_event'}}"
+    },
+    "children": [
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_EVENT_SETTINGS-Z1",
+            "children": [
+                {
+                    "label": "Company UUID",
+                    "tooltipText": "다우오피스 회사 UUID를 입력하세요.",
+                    "propertyName": "companyUuid",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.companyUuid.data",
+                    "isRequired": true
+                },
+                {
+                    "label": "User ID",
+                    "tooltipText": "다우오피스 사용자 ID를 입력하세요.",
+                    "propertyName": "eventUserId",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.eventUserId.data",
+                    "initialValue": "1342008820162899968",
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_EVENT_SETTINGS-Z2",
+            "children": [
+                {
+                    "label": "Calendar ID",
+                    "tooltipText": "일정을 등록할 캘린더 ID (Select 위젯에서 선택한 값)",
+                    "propertyName": "calendarId",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.calendarId.data",
+                    "placeholderText": "{{this.params.calendarId}}",
+                    "initialValue": "{{this.params.calendarId}}",
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_EVENT_SETTINGS-Z3",
+            "children": [
+                {
+                    "label": "일정 타입",
+                    "tooltipText": "일반(normal) 또는 전사(company)",
+                    "propertyName": "eventType",
+                    "controlType": "DROP_DOWN",
+                    "configProperty": "actionConfiguration.formData.eventType.data",
+                    "initialValue": "normal",
+                    "options": [
+                        { "label": "일반", "value": "normal" },
+                        { "label": "전사", "value": "company" }
+                    ],
+                    "isRequired": true
+                },
+                {
+                    "label": "공개 여부",
+                    "tooltipText": "비공개(private) 또는 공개(public)",
+                    "propertyName": "eventVisibility",
+                    "controlType": "DROP_DOWN",
+                    "configProperty": "actionConfiguration.formData.eventVisibility.data",
+                    "initialValue": "private",
+                    "options": [
+                        { "label": "비공개", "value": "private" },
+                        { "label": "공개", "value": "public" }
+                    ],
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_EVENT_SETTINGS-Z4",
+            "children": [
+                {
+                    "label": "시간 타입",
+                    "tooltipText": "시간일정(timed) 또는 종일일정(allday)",
+                    "propertyName": "eventTimeType",
+                    "controlType": "DROP_DOWN",
+                    "configProperty": "actionConfiguration.formData.eventTimeType.data",
+                    "initialValue": "timed",
+                    "options": [
+                        { "label": "시간 일정", "value": "timed" },
+                        { "label": "종일 일정", "value": "allday" }
+                    ],
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_EVENT_SETTINGS-Z5",
+            "children": [
+                {
+                    "label": "일정 제목",
+                    "tooltipText": "일정 제목 (위젯에서 param으로 전달)",
+                    "propertyName": "summary",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.summary.data",
+                    "placeholderText": "{{this.params.summary}}",
+                    "initialValue": "{{this.params.summary}}",
+                    "isRequired": true
+                }
+            ]
+        },
+        {
+            "controlType": "DOUBLE_COLUMN_ZONE",
+            "identifier": "CALENDAR_EVENT_SETTINGS-Z6",
+            "children": [
+                {
+                    "label": "시작 시간",
+                    "tooltipText": "yyyy-MM-dd HH:mm 형식",
+                    "propertyName": "startTime",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.startTime.data",
+                    "placeholderText": "{{this.params.startTime}}",
+                    "initialValue": "{{this.params.startTime}}",
+                    "isRequired": true
+                },
+                {
+                    "label": "종료 시간",
+                    "tooltipText": "yyyy-MM-dd HH:mm 형식",
+                    "propertyName": "endTime",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.endTime.data",
+                    "placeholderText": "{{this.params.endTime}}",
+                    "initialValue": "{{this.params.endTime}}",
+                    "isRequired": true
+                }
+            ]
+        }
+    ]
+}
