@@ -242,7 +242,7 @@ public class UserSignupCEImpl implements UserSignupCE {
                 .flatMap(user -> signupAndLogin(user, exchange))
                 .then()
                 .onErrorResume(error -> {
-                    String path = "/user/signup";
+                    String path = "/all-apps/user/signup";
 
                     String referer = exchange.getRequest().getHeaders().getFirst("referer");
                     if (referer != null) {

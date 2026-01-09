@@ -62,7 +62,7 @@ public class LoginRateLimitFilter implements WebFilter {
 
     private Mono<Void> handleRateLimitExceeded(ServerWebExchange exchange) {
         // Set the error in the URL query parameter for rate limiting
-        String url = "/user/login?error=true&message="
+        String url = "/all-apps/user/login?error=true&message="
                 + URLEncoder.encode(RateLimitConstants.RATE_LIMIT_REACHED_ACCOUNT_SUSPENDED, StandardCharsets.UTF_8);
 
         meterRegistry

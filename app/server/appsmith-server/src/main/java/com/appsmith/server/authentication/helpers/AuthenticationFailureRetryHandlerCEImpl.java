@@ -26,9 +26,9 @@ import static com.appsmith.server.helpers.RedirectHelper.REDIRECT_URL_QUERY_PARA
 public class AuthenticationFailureRetryHandlerCEImpl implements AuthenticationFailureRetryHandlerCE {
 
     private final ServerRedirectStrategy redirectStrategy = new DefaultServerRedirectStrategy();
-    protected final String LOGIN_ERROR_URL = "/user/login?error=true";
+    protected final String LOGIN_ERROR_URL = "/all-apps/user/login?error=true";
     protected final String LOGIN_ERROR_MESSAGE_URL = LOGIN_ERROR_URL + "&message=";
-    protected final String SIGNUP_ERROR_URL = "/user/signup?error=";
+    protected final String SIGNUP_ERROR_URL = "/all-apps/user/signup?error=";
 
     @Override
     public Mono<Void> retryAndRedirectOnAuthenticationFailure(

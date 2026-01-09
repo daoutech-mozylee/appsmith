@@ -30,7 +30,7 @@ public class LogoutSuccessHandlerCE implements ServerLogoutSuccessHandler {
     private final AnalyticsService analyticsService;
 
     @Getter(AccessLevel.PROTECTED)
-    private final String postLogoutRedirectUri = "/user/login";
+    private final String postLogoutRedirectUri = "/all-apps/user/login";
 
     public LogoutSuccessHandlerCE(ObjectMapper objectMapper, AnalyticsService analyticsService) {
         this.analyticsService = analyticsService;
