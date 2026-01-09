@@ -76,6 +76,17 @@ public class CalendarEventAction implements BaseAction {
             requestBody.put("startTime", startTime);
             requestBody.put("endTime", endTime);
 
+            // 내부 참석자 (userId를 Long으로 변환하여 배열에 추가)
+            // 실 작업시 내부 참석자를 받아서 처리하도록 수정 필요 (지금은 고정 userId로 처리)
+            var internalAttendees = requestBody.putArray("internalAttendees");
+            if (userId != null && !userId.isEmpty()) {
+                try {
+                    internalAttendees.add(Long.parseLong(userId));
+                } catch (NumberFormatException e) {
+                    log.warn("userId를 Long으로 변환 실패: {}", userId);
+                }
+            }
+
             // Build URL with calendarId
             String path = CALENDAR_EVENT_PATH.replace("{calendarId}", calendarId);
             String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + path;
