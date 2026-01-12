@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { PackageModuleCard } from "constants/PackageModuleConstants";
+import {
+  DEFAULT_MODULE_CARD_PROPS,
+  PACKAGE_MODULE_WIDGET_TYPE,
+} from "constants/PackageModuleConstants";
+import { WIDGET_TAGS } from "constants/WidgetConstants";
 import { ModuleRegistry } from "utils/ModuleRegistry";
+import type { WidgetCardProps } from "widgets/BaseWidget";
+
+// 패키지 모듈 기본 썸네일
+import PackageModuleThumbnail from "widgets/PackageModuleWidget/thumbnail.svg";
 
 // ModuleRegistry 초기화 및 헬퍼 함수들을 utils에서 re-export
 // 초기화 로직은 utils/moduleRegistryInit.ts에서 관리 (Editor/Viewer 모두에서 로드됨)
@@ -17,7 +26,7 @@ import { PRELOADED_MODULES } from "utils/moduleRegistryInit";
  */
 interface UsePackageModulesOptions {
   /**
-   * API 로딩 사용 여부 (기본값: false - 기존 동작 유지)
+   * API 로딩 사용 여부 (기본값: true - API 우선 사용)
    * true: API에서 모듈 목록 로드 시도 후 실패 시 PRELOADED_MODULES 폴백
    * false: PRELOADED_MODULES만 사용 (동기)
    */
@@ -26,19 +35,33 @@ interface UsePackageModulesOptions {
 
 /**
  * 레지스트리 데이터를 PackageModuleCard 형식으로 변환
+ * WidgetCardProps 필수 속성들을 포함해야 탭에 표시됨
  */
 function convertToPackageModuleCards(): PackageModuleCard[] {
   const all = ModuleRegistry.getAllPartial();
 
   return all.map((item) => {
+    // WidgetCardProps 기본 속성 (탭 표시에 필요)
+    const baseProps: WidgetCardProps = {
+      type: PACKAGE_MODULE_WIDGET_TYPE as WidgetCardProps["type"],
+      displayName: item.moduleName,
+      key: `${item.packageUUID}_${item.moduleUUID}`,
+      rows: DEFAULT_MODULE_CARD_PROPS.rows,
+      columns: DEFAULT_MODULE_CARD_PROPS.columns,
+      icon: item.icon || DEFAULT_MODULE_CARD_PROPS.icon,
+      thumbnail: PackageModuleThumbnail,
+      tags: [WIDGET_TAGS.PACKAGES],
+    };
+
     // Partial인 경우 메타데이터만 반환
     if ("_isPartial" in item && item._isPartial) {
       return {
+        ...baseProps,
         moduleUUID: item.moduleUUID,
         packageUUID: item.packageUUID,
         moduleName: item.moduleName,
         packageName: item.packageName,
-        icon: item.icon,
+        moduleType: "UI_MODULE",
         color: item.color,
         // definition 필드들은 빈 값 (지연 로딩됨)
         inputsForm: [],
@@ -46,23 +69,26 @@ function convertToPackageModuleCards(): PackageModuleCard[] {
         dsl: { widgetName: "", type: "CANVAS_WIDGET" },
         actions: [],
         actionCollections: [],
+        datasources: [],
         _isPartial: true,
       } as PackageModuleCard & { _isPartial: true };
     }
 
     // Full definition인 경우
     return {
+      ...baseProps,
       moduleUUID: item.moduleUUID,
       packageUUID: item.packageUUID,
       moduleName: item.moduleName,
       packageName: item.packageName,
-      icon: item.icon,
+      moduleType: "UI_MODULE",
       color: item.color,
       inputsForm: item.inputsForm,
       outputsForm: item.outputsForm,
       dsl: item.dsl,
       actions: item.actions,
       actionCollections: item.actionCollections,
+      datasources: [],
     } as PackageModuleCard;
   });
 }
@@ -80,7 +106,7 @@ function convertToPackageModuleCards(): PackageModuleCard[] {
  * @returns packageModules, isLoading, error, refresh
  */
 export const usePackageModules = (options: UsePackageModulesOptions = {}) => {
-  const { useApi = false } = options;
+  const { useApi = true } = options;
 
   const [isLoading, setIsLoading] = useState(useApi);
   const [error, setError] = useState<Error | null>(null);
@@ -111,15 +137,18 @@ export const usePackageModules = (options: UsePackageModulesOptions = {}) => {
   }, [useApi]);
 
   // 초기 로딩
-  useEffect(() => {
-    if (useApi && !ModuleRegistry.isApiInitialized()) {
-      loadFromApi();
-    } else if (useApi) {
-      // 이미 초기화됨
-      setIsLoading(false);
-      setApiLoaded(true);
-    }
-  }, [useApi, loadFromApi]);
+  useEffect(
+    function initializeModulesFromApi() {
+      if (useApi && !ModuleRegistry.isApiInitialized()) {
+        loadFromApi();
+      } else if (useApi) {
+        // 이미 초기화됨
+        setIsLoading(false);
+        setApiLoaded(true);
+      }
+    },
+    [useApi, loadFromApi],
+  );
 
   // 모듈 목록 (API 또는 PRELOADED)
   const packageModules = useMemo(() => {
