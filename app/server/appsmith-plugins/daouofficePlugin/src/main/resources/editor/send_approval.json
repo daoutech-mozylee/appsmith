@@ -135,6 +135,21 @@
                     "isRequired": false
                 }
             ]
+        },
+        {
+            "controlType": "SINGLE_COLUMN_ZONE",
+            "identifier": "APPROVAL_SETTINGS-Z4",
+            "children": [
+                {
+                    "label": "Callback URL",
+                    "tooltipText": "결재 상태 변경 시 호출될 URL (80, 443 포트만 허용)",
+                    "propertyName": "callbackUrl",
+                    "controlType": "INPUT_TEXT",
+                    "configProperty": "actionConfiguration.formData.callbackUrl.data",
+                    "initialValue": "http://localhost:8090/relay/api/approval/callback",
+                    "isRequired": false
+                }
+            ]
         }
     ]
 }

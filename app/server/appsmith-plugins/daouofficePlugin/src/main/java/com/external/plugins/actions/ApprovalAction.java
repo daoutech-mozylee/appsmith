@@ -47,6 +47,8 @@ public class ApprovalAction implements BaseAction {
                     actionConfiguration.getFormData(), "title", STRING_TYPE, "");
             String content = getDataValueSafelyFromFormData(
                     actionConfiguration.getFormData(), "content", STRING_TYPE, "");
+            String callbackUrl = getDataValueSafelyFromFormData(
+                    actionConfiguration.getFormData(), "callbackUrl", STRING_TYPE, "");
 
             // Build multipart body
             MultipartBodyBuilder builder = new MultipartBodyBuilder();
@@ -58,6 +60,9 @@ public class ApprovalAction implements BaseAction {
             }
             if (StringUtils.hasText(content)) {
                 builder.part("content", content);
+            }
+            if (StringUtils.hasText(callbackUrl)) {
+                builder.part("callbackUrl", callbackUrl);
             }
 
             String targetUrl = "http://" + SERVICE_GATEWAY_HOST + ":" + SERVICE_GATEWAY_PORT + APPROVAL_REQUEST_PATH;
