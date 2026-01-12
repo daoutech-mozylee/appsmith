@@ -565,12 +565,30 @@ function* executeModuleJSFunction(
  * - FETCH_ALL_PAGE_ENTITY_COMPLETION 후 위젯들을 스캔
  * - PACKAGE_MODULE_WIDGET 타입의 위젯에서 moduleInstanceData를 찾음
  * - 각 모듈 위젯에 대해 REGISTER_MODULE_INSTANCE 디스패치
+ *
+ * API 연동:
+ * - 먼저 ModuleRegistry.initFromApi()를 호출하여 API에서 모듈 목록 로드
+ * - 개별 모듈은 getAsync()로 지연 로딩
  */
-function* handlePageLoadModuleRestore() {
+function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
   console.log("[ModuleRestore] handlePageLoadModuleRestore called");
 
+  // API에서 모듈 목록 로드 (아직 초기화되지 않았으면)
+  // 실패해도 기존 PRELOADED_MODULES 폴백 사용
+  try {
+    yield call([ModuleRegistry, ModuleRegistry.initFromApi]);
+    console.log(
+      `[ModuleRestore] ModuleRegistry API initialized: ${ModuleRegistry.isApiInitialized()}, size=${ModuleRegistry.size()}`,
+    );
+  } catch (error) {
+    console.warn(
+      "[ModuleRestore] Failed to initialize from API, using preloaded modules",
+      error,
+    );
+  }
+
   // 현재 페이지 ID 가져오기
-  const pageId: string = yield select(getCurrentPageId);
+  const pageId = (yield select(getCurrentPageId)) as string;
 
   // 모든 위젯 가져오기
   const widgets: CanvasWidgetsReduxState = yield select(getWidgets);
@@ -631,8 +649,24 @@ function* handlePageLoadModuleRestore() {
       continue;
     }
 
-    // ModuleRegistry에서 원본 모듈 정의 조회
-    const definition = moduleUUID ? ModuleRegistry.get(moduleUUID) : undefined;
+    // ModuleRegistry에서 원본 모듈 정의 조회 (API 지연 로딩 지원)
+    // 동기 get() 먼저 시도, 없으면 비동기 getAsync()로 API에서 로드
+    let definition = moduleUUID ? ModuleRegistry.get(moduleUUID) : undefined;
+
+    if (!definition && moduleUUID) {
+      // 레지스트리에 없으면 API에서 지연 로딩 시도
+      try {
+        definition = (yield call(
+          [ModuleRegistry, ModuleRegistry.getAsync],
+          moduleUUID,
+        )) as typeof definition;
+      } catch (error) {
+        console.warn(
+          `[ModuleRestore] Failed to load module from API: ${moduleUUID}`,
+          error,
+        );
+      }
+    }
 
     console.log(
       `[ModuleRestore] Widget ${moduleInstanceId}: moduleUUID=${moduleUUID}, definition found=${!!definition}, registry size=${ModuleRegistry.size()}`,
