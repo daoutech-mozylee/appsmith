@@ -70,6 +70,7 @@ import static com.appsmith.server.constants.Url.PAGE_URL;
 import static com.appsmith.server.constants.Url.PRODUCT_ALERT;
 import static com.appsmith.server.constants.Url.PROXY_URL;
 import static com.appsmith.server.constants.Url.THEME_URL;
+import static com.appsmith.server.constants.Url.UI_MODULE_URL;
 import static com.appsmith.server.constants.Url.USAGE_PULSE_URL;
 import static com.appsmith.server.constants.Url.USER_URL;
 import static com.appsmith.server.constants.ce.UrlCE.CONSOLIDATED_API_URL;
@@ -123,6 +124,9 @@ public class SecurityConfig {
 
     @Autowired
     private MeterRegistry meterRegistry;
+
+    @Autowired
+    private com.appsmith.server.filters.ServiceTokenAuthFilter serviceTokenAuthFilter;
 
     @Value("${appsmith.internal.password}")
     private String INTERNAL_PASSWORD;
@@ -242,7 +246,13 @@ public class SecurityConfig {
                                 ServerWebExchangeMatchers.pathMatchers(
                                         HttpMethod.POST, USER_URL + "/verifyEmailVerificationToken"),
                                 ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, PRODUCT_ALERT + "/alert"),
-                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, CONSOLIDATED_API_URL + "/view"))
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, CONSOLIDATED_API_URL + "/view"),
+                                // UIModule API - GET 엔드포인트는 인증 없이 접근 가능
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, UI_MODULE_URL),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.GET, UI_MODULE_URL + "/**"),
+                                // UIModule API - POST/DELETE는 서비스 토큰으로 인증 (ServiceTokenAuthFilter에서 처리)
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, UI_MODULE_URL + "/**"),
+                                ServerWebExchangeMatchers.pathMatchers(HttpMethod.DELETE, UI_MODULE_URL + "/**"))
                         .permitAll()
                         .pathMatchers("/public/**", "/oauth2/**")
                         .permitAll()
@@ -255,6 +265,8 @@ public class SecurityConfig {
                 .addFilterBefore(
                         new ConditionalFilter(new LoginRateLimitFilter(rateLimitService, meterRegistry), Url.LOGIN_URL),
                         SecurityWebFiltersOrder.FORM_LOGIN)
+                // UIModule API 서비스 토큰 인증 필터
+                .addFilterBefore(serviceTokenAuthFilter, SecurityWebFiltersOrder.AUTHORIZATION)
                 .httpBasic(httpBasicSpec -> httpBasicSpec.authenticationFailureHandler(failureHandler))
                 .formLogin(formLoginSpec -> formLoginSpec
                         .authenticationFailureHandler(failureHandler)

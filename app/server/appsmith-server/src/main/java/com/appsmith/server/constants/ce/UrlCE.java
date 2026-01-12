@@ -35,6 +35,7 @@ public class UrlCE {
     public static final String GIT_APPLICATION_URL = BASE_URL + VERSION + "/git/applications";
     public static final String GIT_ARTIFACT_URL = BASE_URL + VERSION + "/git/artifacts";
     public static final String PROXY_URL = BASE_URL + VERSION + "/proxy";
+    public static final String UI_MODULE_URL = BASE_URL + VERSION + "/modules";
 
     // Sub-paths
     public static final String MOCKS = "/mocks";
