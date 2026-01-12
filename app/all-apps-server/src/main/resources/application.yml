@@ -11,6 +11,18 @@ spring:
       # Appsmith과 동일한 환경 변수 사용 (APPSMITH_REDIS_URL)
       # 형식: redis://[password@]host:port
       url: ${APPSMITH_REDIS_URL:redis://localhost:6379}
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# Appsmith Server 연동 설정
+appsmith:
+  server:
+    url: ${APPSMITH_SERVER_URL:http://localhost:8080}
+  service:
+    token: ${APPSMITH_SERVICE_TOKEN:}
 
 management:
   endpoints:

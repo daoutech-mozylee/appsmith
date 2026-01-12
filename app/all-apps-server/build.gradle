@@ -21,6 +21,9 @@ dependencies {
     // Spring Boot Web MVC
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
+    // Spring WebFlux (for WebClient)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
     // Spring Data Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
