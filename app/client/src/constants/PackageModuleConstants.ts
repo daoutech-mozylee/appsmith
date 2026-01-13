@@ -169,6 +169,8 @@ export interface ActionConfig {
   isPublic: boolean;
   pluginType: "DB" | "JS" | "SAAS";
   pluginId: string;
+  // runBehaviour는 action 루트 레벨에도 있을 수 있음 (JSON 구조)
+  runBehaviour?: "AUTOMATIC" | "MANUAL" | "ON_PAGE_LOAD";
   unpublishedAction: {
     moduleId: string;
     name: string;

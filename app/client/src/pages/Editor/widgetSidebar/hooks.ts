@@ -27,8 +27,8 @@ export const useUIExplorerItems = () => {
   // check if entities have loaded
   const isBuildingBlocksLoaded = useSelector(templatesCountSelector) > 0;
 
-  // Package 모듈 로드 (빌드 시점에 이미 로드됨, 동기적)
-  const { packageModules } = usePackageModules();
+  // Package 모듈 로드 (API에서 비동기 로드)
+  const { isLoading: isModulesLoading, packageModules } = usePackageModules();
 
   const [entityLoading, setEntityLoading] = useState<
     Partial<Record<WidgetTags, boolean>>
@@ -36,8 +36,16 @@ export const useUIExplorerItems = () => {
     "Building Blocks": releaseDragDropBuildingBlocks
       ? !isBuildingBlocksLoaded
       : false,
-    [WIDGET_TAGS.PACKAGES]: false, // 이미 로드됨
+    [WIDGET_TAGS.PACKAGES]: true, // API에서 로드 중
   });
+
+  // Package 모듈 로딩 상태 업데이트
+  useEffect(() => {
+    setEntityLoading((prev) => ({
+      ...prev,
+      [WIDGET_TAGS.PACKAGES]: isModulesLoading,
+    }));
+  }, [isModulesLoading]);
   const widgetCards = useSelector(getWidgetCards);
   const buildingBlockCards = useSelector(getBuildingBlockExplorerCards);
 

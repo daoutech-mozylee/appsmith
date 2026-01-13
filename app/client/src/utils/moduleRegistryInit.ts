@@ -132,26 +132,37 @@ function calculateOriginalSize(dsl: ModuleDSL): ModuleOriginalSize {
   return { columns, rows };
 }
 
-// ModuleRegistry 초기화 (빌드 시점에 실행)
-// 모든 모듈을 레지스트리에 등록하여 UUID로 조회 가능하게 함
-PRELOADED_MODULES.forEach((moduleCard) => {
-  // 원본 크기 계산 (동적 스케일링에 사용)
-  const originalSize = calculateOriginalSize(moduleCard.dsl);
+// ModuleRegistry 초기화 - API 모드에서는 자동 등록하지 않음
+// API가 실패할 경우 폴백으로 등록하는 함수
+export function registerPreloadedModules(): void {
+  PRELOADED_MODULES.forEach((moduleCard) => {
+    // 이미 등록된 모듈은 건너뜀
+    if (ModuleRegistry.has(moduleCard.moduleUUID)) {
+      return;
+    }
 
-  ModuleRegistry.register({
-    moduleUUID: moduleCard.moduleUUID,
-    packageUUID: moduleCard.packageUUID,
-    moduleName: moduleCard.moduleName,
-    packageName: moduleCard.packageName,
-    icon: moduleCard.icon,
-    inputsForm: moduleCard.inputsForm || [],
-    outputsForm: moduleCard.outputsForm || [],
-    dsl: moduleCard.dsl,
-    actions: moduleCard.actions,
-    actionCollections: moduleCard.actionCollections,
-    originalSize,
+    // 원본 크기 계산 (동적 스케일링에 사용)
+    const originalSize = calculateOriginalSize(moduleCard.dsl);
+
+    ModuleRegistry.register({
+      moduleUUID: moduleCard.moduleUUID,
+      packageUUID: moduleCard.packageUUID,
+      moduleName: moduleCard.moduleName,
+      packageName: moduleCard.packageName,
+      icon: moduleCard.icon,
+      inputsForm: moduleCard.inputsForm || [],
+      outputsForm: moduleCard.outputsForm || [],
+      dsl: moduleCard.dsl,
+      actions: moduleCard.actions,
+      actionCollections: moduleCard.actionCollections,
+      originalSize,
+    });
   });
-});
+}
+
+// 자동 등록 비활성화 (API 모드 사용)
+// 아래 코드를 활성화하면 빌드 시점의 JSON 파일을 사용
+// registerPreloadedModules();
 
 // 디버깅용: 레지스트리 초기화 확인 로그 및 전역 노출
 if (process.env.NODE_ENV === "development") {

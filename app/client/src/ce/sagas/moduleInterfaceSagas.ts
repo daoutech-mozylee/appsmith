@@ -13,7 +13,7 @@ import type {
   FlattenedWidgetProps,
 } from "ee/reducers/entityReducers/canvasWidgetsReducer";
 import type { Saga } from "redux-saga";
-import { put, select } from "redux-saga/effects";
+import { call, put, select } from "redux-saga/effects";
 import {
   PACKAGE_MODULE_WIDGET_TYPE,
   type ModuleInputSection,
@@ -26,6 +26,7 @@ import { getCurrentPageId } from "selectors/editorSelectors";
 import { getDatasources } from "ee/selectors/entitiesSelector";
 import type { Datasource } from "entities/Datasource";
 import { objectKeys } from "@appsmith/utils";
+import { ModuleRegistry } from "utils/ModuleRegistry";
 
 export interface HandleModuleWidgetCreationSagaPayload {
   addChildPayload: WidgetAddChild;
@@ -632,7 +633,7 @@ export function* handleModuleWidgetCreationSaga(
   }
 
   // widgetProps에서 모듈 정보 추출
-  const moduleData = widgetProps as
+  let moduleData = widgetProps as
     | {
         moduleName?: string;
         packageName?: string;
@@ -646,12 +647,102 @@ export function* handleModuleWidgetCreationSaga(
         outputsForm?: ModuleOutputSection[];
         // 초기 Input 값 (위젯 props에서 전달)
         inputs?: ModuleInstanceInputs;
+        // Partial 모듈 여부
+        _isPartial?: boolean;
       }
     | undefined;
 
+  // DSL이 없거나 비어있는 경우 (partial 모듈) API에서 full definition 로드
+  const isDslEmpty =
+    !moduleData?.dsl ||
+    !moduleData.dsl.widgetName ||
+    moduleData._isPartial === true;
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[ModuleWidgetCreation] Start - moduleUUID: ${moduleData?.moduleUUID}, isDslEmpty: ${isDslEmpty}, _isPartial: ${moduleData?._isPartial}`,
+  );
+
+  if (moduleData?.moduleUUID && isDslEmpty) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleWidgetCreation] Loading full definition for partial module: ${moduleData.moduleUUID}`,
+    );
+
+    try {
+      // API에서 full definition 로드
+      const definition = (yield call(
+        [ModuleRegistry, ModuleRegistry.getAsync],
+        moduleData.moduleUUID,
+      )) as Awaited<ReturnType<typeof ModuleRegistry.getAsync>>;
+
+      // eslint-disable-next-line no-console
+      console.log(
+        `[ModuleWidgetCreation] API returned definition:`,
+        definition,
+      );
+
+      if (definition) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleWidgetCreation] Loaded full definition: ${definition.moduleName}`,
+          `dsl children: ${definition.dsl?.children?.length || 0}`,
+        );
+
+        // moduleData를 full definition으로 업데이트
+        moduleData = {
+          ...moduleData,
+          moduleName: definition.moduleName,
+          packageName: definition.packageName,
+          dsl: definition.dsl as ModuleDSLWidget,
+          actions: definition.actions as ModuleAction[],
+          actionCollections:
+            definition.actionCollections as ModuleActionCollection[],
+          inputsForm: definition.inputsForm,
+          outputsForm: definition.outputsForm,
+          _isPartial: false,
+        };
+
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleWidgetCreation] Updated moduleData - dsl:`,
+          moduleData.dsl,
+        );
+      } else {
+        // eslint-disable-next-line no-console
+        console.error(
+          `[ModuleWidgetCreation] Failed to load definition for: ${moduleData.moduleUUID}`,
+        );
+
+        return widgets;
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[ModuleWidgetCreation] Error loading module definition:`,
+        error,
+      );
+
+      return widgets;
+    }
+  }
+
   if (!moduleData || !moduleData.dsl) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleWidgetCreation] No moduleData or dsl, returning widgets`,
+    );
+
     return widgets;
   }
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[ModuleWidgetCreation] Proceeding with dsl:`,
+    moduleData.dsl.widgetName,
+    moduleData.dsl.type,
+    `children: ${moduleData.dsl.children?.length || 0}`,
+  );
 
   const pageId: string = yield select(getCurrentPageId);
 
@@ -685,19 +776,55 @@ export function* handleModuleWidgetCreationSaga(
   const moduleDSL = moduleData.dsl;
   const targetWidgets: ModuleDSLWidget[] = [];
 
+  /**
+   * 재귀적으로 CANVAS_WIDGET의 children을 찾아서 반환
+   * API 응답 구조: MODULE_CONTAINER_WIDGET → CONTAINER_WIDGET → CANVAS_WIDGET → 실제 위젯들
+   */
+  function findCanvasChildren(widget: ModuleDSLWidget): ModuleDSLWidget[] {
+    if (widget.type === "CANVAS_WIDGET" && widget.children) {
+      return widget.children;
+    }
+
+    if (widget.children) {
+      for (const child of widget.children) {
+        const found = findCanvasChildren(child);
+
+        if (found.length > 0) {
+          return found;
+        }
+      }
+    }
+
+    return [];
+  }
+
   if (moduleDSL.children && moduleDSL.children.length > 0) {
     // 모든 children을 순회하면서 위젯 추출
     for (const child of moduleDSL.children) {
       if (child.type === "MODULE_CONTAINER_WIDGET" && child.children) {
         // ModuleContainer 내부의 실제 위젯들 추출
-        const containerCanvas = child.children[0];
+        // 구조: MODULE_CONTAINER_WIDGET → CONTAINER_WIDGET → CANVAS_WIDGET → 실제 위젯들
+        const canvasChildren = findCanvasChildren(child);
 
-        if (
-          containerCanvas &&
-          containerCanvas.type === "CANVAS_WIDGET" &&
-          containerCanvas.children
-        ) {
-          targetWidgets.push(...containerCanvas.children);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleWidgetCreation] MODULE_CONTAINER_WIDGET children structure:`,
+          JSON.stringify(
+            child.children?.map((c) => ({
+              type: c.type,
+              children: c.children?.map((cc) => ({ type: cc.type })),
+            })),
+            null,
+            2,
+          ),
+        );
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleWidgetCreation] Found canvas children: ${canvasChildren.length}`,
+        );
+
+        if (canvasChildren.length > 0) {
+          targetWidgets.push(...canvasChildren);
         }
       } else if (child.type === "CANVAS_WIDGET" && child.children) {
         // Canvas 위젯의 children 추출
@@ -708,6 +835,12 @@ export function* handleModuleWidgetCreationSaga(
       }
     }
   }
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[ModuleWidgetCreation] Extracted targetWidgets: ${targetWidgets.length}`,
+    targetWidgets.map((w) => ({ name: w.widgetName, type: w.type })),
+  );
 
   // 2. 위젯 이름 매핑 먼저 수집 (JSObject에서 위젯 참조 변환을 위해)
   for (const widget of targetWidgets) {
@@ -819,6 +952,12 @@ export function* handleModuleWidgetCreationSaga(
     // 주의: moduleInstanceData, inputsForm, outputsForm은 더 이상 저장하지 않음
     // 페이지 로드 시 ModuleRegistry에서 조회하여 사용
   };
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[ModuleWidgetCreation] Complete - created ${newChildrenIds.length} child widgets`,
+    `Canvas children: ${updatedWidgets[canvasWidgetId]?.children?.length || 0}`,
+  );
 
   return updatedWidgets;
 }

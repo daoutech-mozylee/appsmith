@@ -1,3 +1,9 @@
+/**
+ * usePackageModules Hook
+ *
+ * API에서 모듈 목록을 로드하여 위젯 사이드바에 표시합니다.
+ * JSON 파일은 더 이상 사용하지 않습니다.
+ */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { PackageModuleCard } from "constants/PackageModuleConstants";
 import {
@@ -5,40 +11,26 @@ import {
   PACKAGE_MODULE_WIDGET_TYPE,
 } from "constants/PackageModuleConstants";
 import { WIDGET_TAGS } from "constants/WidgetConstants";
-import { ModuleRegistry } from "utils/ModuleRegistry";
+import { ModuleRegistry, type ModuleDefinition } from "utils/ModuleRegistry";
 import type { WidgetCardProps } from "widgets/BaseWidget";
 
 // 패키지 모듈 기본 썸네일
 import PackageModuleThumbnail from "widgets/PackageModuleWidget/thumbnail.svg";
 
-// ModuleRegistry 초기화 및 헬퍼 함수들을 utils에서 re-export
-// 초기화 로직은 utils/moduleRegistryInit.ts에서 관리 (Editor/Viewer 모두에서 로드됨)
+// 레거시 호환용 re-export (다른 파일에서 참조)
 export {
-  PRELOADED_MODULES,
   getOutputsFormByModuleUUID,
   getInputsFormByModuleUUID,
 } from "utils/moduleRegistryInit";
 
-import { PRELOADED_MODULES } from "utils/moduleRegistryInit";
-
-/**
- * API 로딩을 포함한 모듈 로딩 설정
- */
-interface UsePackageModulesOptions {
-  /**
-   * API 로딩 사용 여부 (기본값: true - API 우선 사용)
-   * true: API에서 모듈 목록 로드 시도 후 실패 시 PRELOADED_MODULES 폴백
-   * false: PRELOADED_MODULES만 사용 (동기)
-   */
-  useApi?: boolean;
-}
-
 /**
  * 레지스트리 데이터를 PackageModuleCard 형식으로 변환
- * WidgetCardProps 필수 속성들을 포함해야 탭에 표시됨
  */
 function convertToPackageModuleCards(): PackageModuleCard[] {
   const all = ModuleRegistry.getAllPartial();
+
+  // eslint-disable-next-line no-console
+  console.log("[convertToPackageModuleCards] Registry data:", all.length, all);
 
   return all.map((item) => {
     // WidgetCardProps 기본 속성 (탭 표시에 필요)
@@ -63,31 +55,32 @@ function convertToPackageModuleCards(): PackageModuleCard[] {
         packageName: item.packageName,
         moduleType: "UI_MODULE",
         color: item.color,
-        // definition 필드들은 빈 값 (지연 로딩됨)
         inputsForm: [],
         outputsForm: [],
-        dsl: { widgetName: "", type: "CANVAS_WIDGET" },
+        dsl: { widgetName: "", type: "CANVAS_WIDGET", widgetId: "" },
         actions: [],
         actionCollections: [],
         datasources: [],
         _isPartial: true,
-      } as PackageModuleCard & { _isPartial: true };
+      } as unknown as PackageModuleCard & { _isPartial: true };
     }
 
     // Full definition인 경우
+    const fullDef = item as ModuleDefinition;
+
     return {
       ...baseProps,
-      moduleUUID: item.moduleUUID,
-      packageUUID: item.packageUUID,
-      moduleName: item.moduleName,
-      packageName: item.packageName,
+      moduleUUID: fullDef.moduleUUID,
+      packageUUID: fullDef.packageUUID,
+      moduleName: fullDef.moduleName,
+      packageName: fullDef.packageName,
       moduleType: "UI_MODULE",
-      color: item.color,
-      inputsForm: item.inputsForm,
-      outputsForm: item.outputsForm,
-      dsl: item.dsl,
-      actions: item.actions,
-      actionCollections: item.actionCollections,
+      color: fullDef.color,
+      inputsForm: fullDef.inputsForm,
+      outputsForm: fullDef.outputsForm,
+      dsl: fullDef.dsl,
+      actions: fullDef.actions,
+      actionCollections: fullDef.actionCollections,
       datasources: [],
     } as PackageModuleCard;
   });
@@ -96,103 +89,82 @@ function convertToPackageModuleCards(): PackageModuleCard[] {
 /**
  * Package 모듈을 반환하는 훅
  *
- * 기본 동작: require.context로 빌드 시점에 로드된 PRELOADED_MODULES 반환 (동기)
- *
- * API 연동: useApi=true 옵션 사용 시 API에서 모듈 목록 로드
- * - API 로딩 성공: API 데이터 사용
- * - API 로딩 실패: PRELOADED_MODULES 폴백
- *
- * @param options - 로딩 옵션
- * @returns packageModules, isLoading, error, refresh
+ * API에서 모듈 목록을 로드합니다. (JSON 파일 사용 안 함)
  */
-export const usePackageModules = (options: UsePackageModulesOptions = {}) => {
-  const { useApi = true } = options;
-
-  const [isLoading, setIsLoading] = useState(useApi);
+export const usePackageModules = () => {
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [apiLoaded, setApiLoaded] = useState(ModuleRegistry.isApiInitialized());
+  const [loadCount, setLoadCount] = useState(0); // 리렌더링 트리거용
 
   // API 로딩 함수
   const loadFromApi = useCallback(async () => {
-    if (!useApi) return;
-
     setIsLoading(true);
     setError(null);
 
     try {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[usePackageModules] Calling ModuleRegistry.initFromApi()...",
+      );
+
       await ModuleRegistry.initFromApi();
-      setApiLoaded(true);
+
+      // eslint-disable-next-line no-console
+      console.log(
+        "[usePackageModules] API loaded successfully, registry size:",
+        ModuleRegistry.size(),
+        "partial:",
+        ModuleRegistry.getAllPartial().length,
+      );
+
+      setLoadCount((c) => c + 1); // 리렌더링 트리거
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn(
-        "[usePackageModules] API load failed, using preloaded modules",
-        e,
-      );
+      console.error("[usePackageModules] API load failed:", e);
       setError(
         e instanceof Error ? e : new Error("Failed to load modules from API"),
       );
     } finally {
       setIsLoading(false);
     }
-  }, [useApi]);
+  }, []);
 
   // 초기 로딩
-  useEffect(
-    function initializeModulesFromApi() {
-      if (useApi && !ModuleRegistry.isApiInitialized()) {
-        loadFromApi();
-      } else if (useApi) {
-        // 이미 초기화됨
-        setIsLoading(false);
-        setApiLoaded(true);
-      }
-    },
-    [useApi, loadFromApi],
-  );
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log(
+      "[usePackageModules] useEffect - isApiInitialized:",
+      ModuleRegistry.isApiInitialized(),
+    );
 
-  // 모듈 목록 (API 또는 PRELOADED)
+    if (!ModuleRegistry.isApiInitialized()) {
+      loadFromApi();
+    } else {
+      // 이미 초기화됨
+      setIsLoading(false);
+      setLoadCount((c) => c + 1);
+    }
+  }, [loadFromApi]);
+
+  // 모듈 목록 (항상 레지스트리에서)
   const packageModules = useMemo(() => {
-    if (!useApi) {
-      // API 미사용: 기존 동작 유지
-      return PRELOADED_MODULES;
-    }
+    const cards = convertToPackageModuleCards();
 
-    if (apiLoaded) {
-      // API 로드 완료: 레지스트리 데이터 사용
-      return convertToPackageModuleCards();
-    }
+    // eslint-disable-next-line no-console
+    console.log(
+      "[usePackageModules] packageModules computed:",
+      cards.length,
+      cards.map((c) => c.moduleName),
+    );
 
-    // API 로딩 중 또는 실패: PRELOADED_MODULES 폴백
-    return PRELOADED_MODULES;
-  }, [useApi, apiLoaded]);
+    return cards;
+  }, [loadCount]); // loadCount가 변경될 때 재계산
 
-  // 새로고침 함수 (API 강제 재로딩)
+  // 새로고침 함수
   const refresh = useCallback(async () => {
-    if (!useApi) return;
-
-    // 레지스트리 클리어 후 다시 로드
     ModuleRegistry.clear();
-
-    // PRELOADED_MODULES 다시 등록 (폴백용)
-    PRELOADED_MODULES.forEach((moduleCard) => {
-      ModuleRegistry.register({
-        moduleUUID: moduleCard.moduleUUID,
-        packageUUID: moduleCard.packageUUID,
-        moduleName: moduleCard.moduleName,
-        packageName: moduleCard.packageName,
-        icon: moduleCard.icon,
-        inputsForm: moduleCard.inputsForm || [],
-        outputsForm: moduleCard.outputsForm || [],
-        dsl: moduleCard.dsl,
-        actions: moduleCard.actions,
-        actionCollections: moduleCard.actionCollections,
-        originalSize: { columns: 64, rows: 40 }, // 기본값
-      });
-    });
-
-    setApiLoaded(false);
     await loadFromApi();
-  }, [useApi, loadFromApi]);
+  }, [loadFromApi]);
 
   return {
     packageModules,

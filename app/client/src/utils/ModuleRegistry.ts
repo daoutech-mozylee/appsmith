@@ -224,11 +224,20 @@ class ModuleRegistryImpl implements IModuleRegistry {
   }
 
   /**
-   * 모듈 존재 여부 확인
+   * 모듈 존재 여부 확인 (full 또는 partial)
    * @param moduleUUID - 확인할 모듈 UUID
    * @returns 존재 여부
    */
   has(moduleUUID: string): boolean {
+    return this.modules.has(moduleUUID) || this.partialModules.has(moduleUUID);
+  }
+
+  /**
+   * full 정의가 있는지 확인
+   * @param moduleUUID - 확인할 모듈 UUID
+   * @returns full 정의 존재 여부
+   */
+  hasFull(moduleUUID: string): boolean {
     return this.modules.has(moduleUUID);
   }
 
@@ -300,6 +309,15 @@ class ModuleRegistryImpl implements IModuleRegistry {
     const fullModules = Array.from(this.modules.values());
     const partials = Array.from(this.partialModules.values());
 
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] getAllPartial: full=${fullModules.length}, partial=${partials.length}`,
+      {
+        full: fullModules.map((m) => m.moduleName),
+        partial: partials.map((m) => m.moduleName),
+      },
+    );
+
     return [...fullModules, ...partials];
   }
 
@@ -349,32 +367,50 @@ class ModuleRegistryImpl implements IModuleRegistry {
    * API에서 모듈 목록 로드 (내부 구현)
    */
   private async doInitFromApi(): Promise<void> {
-    try {
-      const response = await ModuleApi.fetchModules();
+    // eslint-disable-next-line no-console
+    console.log("[ModuleRegistry] Fetching modules from API...");
 
-      if (response.data?.data) {
-        const modules = response.data.data;
+    const response = await ModuleApi.fetchModules();
 
-        // eslint-disable-next-line no-console
-        console.log(
-          `[ModuleRegistry] Loaded ${modules.length} modules from API`,
-        );
+    // eslint-disable-next-line no-console
+    console.log("[ModuleRegistry] API response:", response);
 
-        for (const module of modules) {
-          this.registerLazy(module);
-        }
+    // response 자체가 { responseMeta, data: [...], errorDisplay } 구조
+    // response.data가 모듈 배열
+    let modules: UIModuleListItem[] = [];
 
-        this.apiInitialized = true;
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "[ModuleRegistry] Failed to load modules from API, using preloaded modules",
-        error,
-      );
-      // 폴백: 기존 빌드 시점 모듈 사용 (이미 등록된 상태)
-      // apiInitialized는 false로 유지하여 재시도 가능
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawResponse = response as any;
+
+    if (Array.isArray(rawResponse.data)) {
+      // response.data가 직접 배열인 경우
+      modules = rawResponse.data;
+    } else if (rawResponse.data?.data && Array.isArray(rawResponse.data.data)) {
+      // response.data.data가 배열인 경우 (axios 래핑)
+      modules = rawResponse.data.data;
     }
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] Loaded ${modules.length} modules:`,
+      modules.map((m) => m.moduleName),
+    );
+
+    // API 데이터로 레지스트리 교체
+    this.modules.clear();
+    this.partialModules.clear();
+    this.nameIndex.clear();
+
+    for (const module of modules) {
+      this.registerLazy(module);
+    }
+
+    this.apiInitialized = true;
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] Registry updated: partialModules=${this.partialModules.size}`,
+    );
   }
 
   /**
@@ -384,17 +420,69 @@ class ModuleRegistryImpl implements IModuleRegistry {
     moduleUUID: string,
   ): Promise<ModuleDefinition | undefined> {
     try {
+      // eslint-disable-next-line no-console
+      console.log(`[ModuleRegistry] Loading module detail: ${moduleUUID}`);
+
       const response = await ModuleApi.fetchModuleDetail(moduleUUID);
 
-      if (response.data?.data) {
-        const detail = response.data.data;
+      // eslint-disable-next-line no-console
+      console.log(`[ModuleRegistry] Module detail response:`, response);
+
+      // API 응답 구조 확인: response.data 또는 response.data.data
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawResponse = response as any;
+      let detail: UIModuleDetail | undefined;
+
+      if (rawResponse.data && typeof rawResponse.data === "object") {
+        // response.data가 모듈 상세 객체인 경우
+        if (rawResponse.data.moduleUUID) {
+          detail = rawResponse.data;
+        } else if (rawResponse.data.data && rawResponse.data.data.moduleUUID) {
+          // response.data.data가 모듈 상세 객체인 경우
+          detail = rawResponse.data.data;
+        }
+      }
+
+      if (detail) {
+        // eslint-disable-next-line no-console
+        console.log(`[ModuleRegistry] Loaded module: ${detail.moduleName}`);
+        // eslint-disable-next-line no-console
+        console.log(`[ModuleRegistry] detail keys:`, Object.keys(detail));
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleRegistry] detail full:`,
+          JSON.stringify(detail, null, 2).substring(0, 2000),
+        );
+        // eslint-disable-next-line no-console
+        console.log(`[ModuleRegistry] detail.definition:`, detail.definition);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleRegistry] detail.definition keys:`,
+          detail.definition ? Object.keys(detail.definition) : "undefined",
+        );
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleRegistry] detail.definition.layouts:`,
+          detail.definition?.layouts,
+        );
+
         const definition = this.convertApiResponseToDefinition(detail);
+
+        // eslint-disable-next-line no-console
+        console.log(
+          `[ModuleRegistry] Converted definition.dsl:`,
+          definition.dsl,
+          `children: ${definition.dsl?.children?.length || 0}`,
+        );
 
         // 레지스트리에 등록
         this.register(definition);
 
         return definition;
       }
+
+      // eslint-disable-next-line no-console
+      console.warn(`[ModuleRegistry] No detail found for: ${moduleUUID}`);
 
       return undefined;
     } catch (error) {
@@ -416,12 +504,66 @@ class ModuleRegistryImpl implements IModuleRegistry {
   ): ModuleDefinition {
     const def = detail.definition;
 
-    // DSL에서 원본 크기 계산
-    const dsl = def.layouts?.dsl;
+    // layouts는 배열이므로 첫 번째 요소에서 DSL 추출
+    // API 응답: definition.layouts[0].dsl
+    const dsl = def.layouts?.[0]?.dsl;
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] convertApiResponseToDefinition - layouts is array:`,
+      Array.isArray(def.layouts),
+      `dsl:`,
+      dsl,
+      `children count:`,
+      dsl?.children?.length || 0,
+    );
+
     const originalSize: ModuleOriginalSize = {
-      columns: dsl?.rightColumn ?? 64,
+      columns: typeof dsl?.rightColumn === "number" ? dsl.rightColumn : 64,
       rows: this.calculateMaxBottomRow(dsl),
     };
+
+    // actionList와 actionCollectionList는 definition 내부 또는 detail 루트에 있을 수 있음
+    // JSON 파일 구조: 루트에 actionList/actionCollectionList
+    // API 응답 구조: definition 내부에 actionList/actionCollectionList
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const detailAny = detail as any;
+    const actionList = def.actionList ?? detailAny.actionList ?? [];
+    const actionCollectionList =
+      def.actionCollectionList ?? detailAny.actionCollectionList ?? [];
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] def.actionList actual value:`,
+      def.actionList,
+      `isArray:`,
+      Array.isArray(def.actionList),
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] def.actionCollectionList actual value:`,
+      def.actionCollectionList,
+      `isArray:`,
+      Array.isArray(def.actionCollectionList),
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] actionList sources - def.actionList:`,
+      def.actionList?.length ?? 0,
+      `detail.actionList:`,
+      detailAny.actionList?.length ?? 0,
+      `final:`,
+      actionList.length,
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ModuleRegistry] actionCollectionList sources - def.actionCollectionList:`,
+      def.actionCollectionList?.length ?? 0,
+      `detail.actionCollectionList:`,
+      detailAny.actionCollectionList?.length ?? 0,
+      `final:`,
+      actionCollectionList.length,
+    );
 
     return {
       moduleUUID: detail.moduleUUID,
@@ -432,13 +574,13 @@ class ModuleRegistryImpl implements IModuleRegistry {
       color: detail.meta?.color,
       inputsForm: def.inputsForm ?? [],
       outputsForm: def.outputsForm ?? [],
-      dsl: def.layouts?.dsl ?? {
+      dsl: dsl ?? {
         widgetName: "Canvas",
         type: "CANVAS_WIDGET",
         children: [],
       },
-      actions: def.actionList ?? [],
-      actionCollections: def.actionCollectionList ?? [],
+      actions: actionList,
+      actionCollections: actionCollectionList,
       originalSize,
     };
   }
@@ -531,10 +673,17 @@ export const ModuleRegistry = {
   },
 
   /**
-   * 모듈 존재 여부 확인
+   * 모듈 존재 여부 확인 (full 또는 partial)
    */
   has(moduleUUID: string): boolean {
     return ModuleRegistryImpl.getInstance().has(moduleUUID);
+  },
+
+  /**
+   * full 정의가 있는지 확인
+   */
+  hasFull(moduleUUID: string): boolean {
+    return ModuleRegistryImpl.getInstance().hasFull(moduleUUID);
   },
 
   /**

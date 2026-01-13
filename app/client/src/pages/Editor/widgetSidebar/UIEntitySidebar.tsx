@@ -98,6 +98,16 @@ function UIEntitySidebar({
     setFilteredCards(groupedCards);
   }, [entityLoading?.[WIDGET_TAGS.BUILDING_BLOCKS]]);
 
+  // update widgets list when groupedCards changes (e.g., API modules loaded)
+  useEffect(
+    function updateFilteredCardsOnGroupChange() {
+      if (!isSearching) {
+        setFilteredCards(groupedCards);
+      }
+    },
+    [groupedCards, isSearching],
+  );
+
   useEffect(() => {
     if (focusSearchInput) searchInputRef.current?.focus();
   }, [focusSearchInput]);
