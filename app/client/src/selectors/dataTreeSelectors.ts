@@ -755,29 +755,31 @@ export const getUnevaluatedDataTree = createSelector(
         const augmentation = widgetDataAugmentation[entityAny.widgetId];
 
         if (augmentation) {
-          // inputs와 outputs 속성 추가
-          entityAny.inputs = augmentation.inputs;
-          entityAny.outputs = augmentation.outputs;
+          // 원본 객체를 변경하지 않고 새 객체 생성 (mutation 방지)
+          dataTree[entityName] = {
+            ...entityAny,
+            inputs: augmentation.inputs,
+            outputs: augmentation.outputs,
+          };
 
-          // configTree에도 binding paths 추가
+          // configTree에도 binding paths 추가 (새 객체로 생성)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const configEntity = configTree[entityName] as any;
 
           if (configEntity) {
-            // dynamicBindingPathList 초기화 (없으면 생성)
-            if (!configEntity.dynamicBindingPathList) {
-              configEntity.dynamicBindingPathList = [];
-            }
+            const newBindingPaths = { ...configEntity.bindingPaths };
+            const newReactivePaths = { ...configEntity.reactivePaths };
+            const newDynamicBindingPathList = [
+              ...(configEntity.dynamicBindingPathList || []),
+            ];
 
             // inputs의 각 key에 대해 binding path 추가
             Object.entries(augmentation.inputs).forEach(
               ([inputKey, inputValue]) => {
                 const path = `inputs.${inputKey}`;
 
-                configEntity.bindingPaths[path] =
-                  EvaluationSubstitutionType.TEMPLATE;
-                configEntity.reactivePaths[path] =
-                  EvaluationSubstitutionType.TEMPLATE;
+                newBindingPaths[path] = EvaluationSubstitutionType.TEMPLATE;
+                newReactivePaths[path] = EvaluationSubstitutionType.TEMPLATE;
 
                 // 바인딩 문자열인 경우 dynamicBindingPathList에 추가
                 if (
@@ -785,7 +787,7 @@ export const getUnevaluatedDataTree = createSelector(
                   inputValue.includes("{{") &&
                   inputValue.includes("}}")
                 ) {
-                  configEntity.dynamicBindingPathList.push({ key: path });
+                  newDynamicBindingPathList.push({ key: path });
                 }
               },
             );
@@ -794,11 +796,17 @@ export const getUnevaluatedDataTree = createSelector(
             Object.keys(augmentation.outputs).forEach((outputKey) => {
               const path = `outputs.${outputKey}`;
 
-              configEntity.bindingPaths[path] =
-                EvaluationSubstitutionType.TEMPLATE;
-              configEntity.reactivePaths[path] =
-                EvaluationSubstitutionType.TEMPLATE;
+              newBindingPaths[path] = EvaluationSubstitutionType.TEMPLATE;
+              newReactivePaths[path] = EvaluationSubstitutionType.TEMPLATE;
             });
+
+            // 새 configTree 엔티티 생성
+            configTree[entityName] = {
+              ...configEntity,
+              bindingPaths: newBindingPaths,
+              reactivePaths: newReactivePaths,
+              dynamicBindingPathList: newDynamicBindingPathList,
+            };
           }
         }
       }
@@ -821,7 +829,23 @@ export const getUnevaluatedDataTree = createSelector(
       const instanceId = moduleMatch[1];
       const entityNameMapping = entityNameMappings[instanceId];
 
-      if (!entityNameMapping || entityNameMapping.size === 0) return;
+      if (!entityNameMapping || entityNameMapping.size === 0) {
+        return;
+      }
+
+      // 원본 객체를 변경하지 않고 새 객체 생성 (mutation 방지)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newEntity: any = { ...entityAny };
+      let hasChanges = false;
+
+      // Modal 위젯의 name 파생 속성 직접 설정
+      // Modal.name은 "{{this.widgetName}}"으로 정의되어 있으나,
+      // 모듈 인스턴스에서는 이 바인딩이 평가되기 전에 JS 코드가 접근할 수 있음
+      // 따라서 name을 widgetName 값으로 직접 설정하여 showModal() 함수가 올바르게 작동하도록 함
+      if (entityAny.type === "MODAL_WIDGET" && entityAny.widgetName) {
+        newEntity.name = entityAny.widgetName;
+        hasChanges = true;
+      }
 
       // 위젯의 모든 속성을 순회하면서 바인딩 변환
       Object.keys(entityAny).forEach((key) => {
@@ -841,7 +865,8 @@ export const getUnevaluatedDataTree = createSelector(
           ) as string;
 
           if (transformed !== value) {
-            entityAny[key] = transformed;
+            newEntity[key] = transformed;
+            hasChanges = true;
           }
         } else if (typeof value === "object" && value !== null) {
           // 중첩 객체도 처리 (예: primaryColumns, defaultModel 등)
@@ -869,13 +894,19 @@ export const getUnevaluatedDataTree = createSelector(
                 }),
               );
 
-              entityAny[key] = transformedObj;
+              newEntity[key] = transformedObj;
+              hasChanges = true;
             }
           } catch {
             // JSON 변환 실패 시 무시
           }
         }
       });
+
+      // 변경 사항이 있으면 새 엔티티로 교체
+      if (hasChanges) {
+        dataTree[entityName] = newEntity;
+      }
     });
 
     return { unEvalTree: dataTree, configTree };
