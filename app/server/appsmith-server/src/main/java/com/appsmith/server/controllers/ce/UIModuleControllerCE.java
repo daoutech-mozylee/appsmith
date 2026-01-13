@@ -6,6 +6,7 @@ import com.appsmith.server.dtos.ResponseDTO;
 import com.appsmith.server.dtos.UIModuleDTO;
 import com.appsmith.server.dtos.UIModuleListDTO;
 import com.appsmith.server.dtos.UIModuleResponseDTO;
+import com.appsmith.server.dtos.UIPackageImportDTO;
 import com.appsmith.server.services.UIModuleService;
 import com.fasterxml.jackson.annotation.JsonView;
 import jakarta.validation.Valid;
@@ -93,5 +94,24 @@ public class UIModuleControllerCE {
     @DeleteMapping("/{uuid}")
     public Mono<ResponseDTO<Void>> disableModule(@PathVariable String uuid) {
         return service.disableModule(uuid).thenReturn(new ResponseDTO<>(HttpStatus.OK, null));
+    }
+
+    /**
+     * 패키지 JSON 일괄 Import
+     *
+     * 패키지 JSON 파일의 전체 구조를 받아서 모듈들을 일괄 등록합니다.
+     * actionList와 actionCollectionList는 각 모듈의 definition에 자동으로 병합됩니다.
+     *
+     * 사용 예:
+     * POST /all-apps/api/v1/modules/import
+     * Body: 패키지 JSON 전체 (moduleList, actionList, actionCollectionList 포함)
+     *
+     * @param packageDto 패키지 데이터
+     * @return Import된 모듈 목록
+     */
+    @JsonView(Views.Public.class)
+    @PostMapping("/import")
+    public Mono<ResponseDTO<List<UIModuleResponseDTO>>> importPackage(@RequestBody UIPackageImportDTO packageDto) {
+        return service.importPackage(packageDto).map(modules -> new ResponseDTO<>(HttpStatus.OK, modules));
     }
 }
