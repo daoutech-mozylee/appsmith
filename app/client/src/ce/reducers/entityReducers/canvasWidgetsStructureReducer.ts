@@ -38,6 +38,12 @@ export const handlers = {
   ) => {
     return denormalize("0", action.payload.widgets);
   },
+  [ReduxActionTypes.RESTORE_MODULE_WIDGETS]: (
+    state: CanvasWidgetsStructureReduxState,
+    action: ReduxAction<UpdateCanvasPayload>,
+  ) => {
+    return denormalize("0", action.payload.widgets);
+  },
   [ReduxActionTypes.UPDATE_LAYOUT]: (
     state: CanvasWidgetsStructureReduxState,
     action: ReduxAction<UpdateCanvasPayload>,

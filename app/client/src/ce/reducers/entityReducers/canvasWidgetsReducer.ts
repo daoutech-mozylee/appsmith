@@ -71,6 +71,23 @@ export const handlers = {
 
     return widgets;
   },
+  // 모듈 위젯 복원용 (평가 트리거 없음 - EVALUATE_REDUX_ACTIONS에 포함되지 않음)
+  [ReduxActionTypes.RESTORE_MODULE_WIDGETS]: (
+    state: CanvasWidgetsReduxState,
+    action: ReduxAction<UpdateCanvasPayload>,
+  ) => {
+    const { widgets } = action.payload;
+
+    for (const [widgetId, widgetProps] of Object.entries(widgets)) {
+      if (widgetProps.type === "CANVAS_WIDGET") {
+        const bottomRow = getCanvasBottomRow(widgetId, widgets);
+
+        widgets[widgetId].bottomRow = bottomRow;
+      }
+    }
+
+    return widgets;
+  },
   [ReduxActionTypes.UPDATE_LAYOUT]: (
     state: CanvasWidgetsReduxState,
     action: ReduxAction<UpdateCanvasPayload>,

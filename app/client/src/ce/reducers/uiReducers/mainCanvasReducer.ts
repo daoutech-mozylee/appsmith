@@ -29,6 +29,10 @@ export const handlers = {
     state.width = mainCanvas?.rightColumn || state.width;
     state.height = mainCanvas?.minHeight || state.height;
   },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  [ReduxActionTypes.RESTORE_MODULE_WIDGETS]: (state: MainCanvasReduxState) => {
+    // 모듈 위젯 복원 시에는 캔버스 크기 업데이트 불필요 (no-op)
+  },
   [ReduxActionTypes.UPDATE_CANVAS_LAYOUT]: (
     state: MainCanvasReduxState,
     action: ReduxAction<UpdateCanvasLayoutPayload>,

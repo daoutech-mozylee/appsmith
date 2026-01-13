@@ -123,6 +123,9 @@ const metaWidgetsReducer = createImmerReducer(initialState, {
   [ReduxActionTypes.INIT_CANVAS_LAYOUT]: (state: MetaWidgetsReduxState) => {
     return state;
   },
+  [ReduxActionTypes.RESTORE_MODULE_WIDGETS]: (state: MetaWidgetsReduxState) => {
+    return state;
+  },
   [ReduxActionTypes.UPDATE_MULTIPLE_META_WIDGET_PROPERTIES]: (
     state: MetaWidgetsReduxState,
     action: ReduxAction<{
