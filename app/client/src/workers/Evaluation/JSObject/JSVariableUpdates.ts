@@ -50,6 +50,7 @@ export function applyJSVariableUpdatesToEvalTree(updatesMap: UpdatedPathsMap) {
   if (!modifiedVariablesList.length) return;
 
   updateEvalTreeValueFromContext(modifiedVariablesList);
+
   /**
    *  Only evaluate the dependents of the updatedValue and
    *  skip the evaluation of updatedValue itself.

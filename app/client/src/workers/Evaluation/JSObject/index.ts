@@ -266,6 +266,17 @@ export function parseJSActions(
       );
       const entity = unEvalDataTree[entityName];
 
+      // 디버그: 모듈 인스턴스 JSObject diff 추적
+      if (entityName.startsWith("mod_")) {
+        // eslint-disable-next-line no-console
+        console.log(`[parseJSActions] Module JSObject diff detected:`, {
+          entityName,
+          propertyPath,
+          event: diff.event,
+          isJSAction: isJSAction(entity),
+        });
+      }
+
       if (!isJSAction(entity)) return false;
 
       if (diff.event === DataTreeDiffEvent.DELETE) {
@@ -283,6 +294,14 @@ export function parseJSActions(
         (diff.event === DataTreeDiffEvent.EDIT && propertyPath === "body") ||
         (diff.event === DataTreeDiffEvent.NEW && propertyPath === "")
       ) {
+        // 디버그: 모듈 인스턴스 JSObject 파싱
+        if (entityName.startsWith("mod_")) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[parseJSActions] Processing module JSObject: ${entityName}`,
+          );
+        }
+
         jsUpdates = saveResolvedFunctionsAndJSUpdates(
           dataTreeEvalRef,
           entity,

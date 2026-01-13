@@ -86,7 +86,19 @@ export default class JSObjectCollection {
 
     newVarState[propertyPath] = variableValue;
     this.variableState[entityName] = newVarState;
+
     JSObjectCollection.clearCachedVariablesForEvaluationContext(entityName);
+  }
+
+  /**
+   * 초기 로드 시 variableState를 설정합니다.
+   * setVariableValue와 달리 캐시 클리어를 하지 않아 불필요한 업데이트 이벤트를 방지합니다.
+   */
+  static initVariableState(
+    entityName: string,
+    variables: Record<string, unknown>,
+  ) {
+    this.variableState[entityName] = { ...variables };
   }
 
   static getVariableState(

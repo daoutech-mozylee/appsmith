@@ -167,8 +167,9 @@ const jsVariableUpdatesHandler = priorityBatchedActionHandler<Patch>(
 );
 
 export const jsVariableUpdatesHandlerWrapper = (patch: Patch) => {
-  if (!ExecutionMetaData.getExecutionMetaData().enableJSVarUpdateTracking)
-    return;
+  const metaData = ExecutionMetaData.getExecutionMetaData();
+
+  if (!metaData.enableJSVarUpdateTracking) return;
 
   jsVariableUpdatesHandler(patch);
 };
