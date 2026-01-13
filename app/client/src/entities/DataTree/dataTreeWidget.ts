@@ -367,12 +367,26 @@ const generateDataTreeWidgetWithoutMeta = (
 
 // @todo set the max size dynamically based on number of widgets. (widgets.length)
 
-const generateDataTreeWidgetWithoutMetaMemoized = memoize(
+// 모듈 위젯은 동적으로 생성되어 캐시가 stale 데이터를 반환할 수 있으므로
+// 일반 위젯만 memoization 적용
+const generateDataTreeWidgetWithoutMetaMemoizedInternal = memoize(
   generateDataTreeWidgetWithoutMeta,
   {
     maxSize: 1000,
   },
 );
+
+// 모듈 위젯(mod_로 시작)은 memoization 제외
+const generateDataTreeWidgetWithoutMetaMemoized = (
+  widget: FlattenedWidgetProps,
+) => {
+  // 모듈 인스턴스 위젯은 캐시를 사용하지 않음
+  if (widget.widgetName?.startsWith("mod_")) {
+    return generateDataTreeWidgetWithoutMeta(widget);
+  }
+
+  return generateDataTreeWidgetWithoutMetaMemoizedInternal(widget);
+};
 
 export const generateDataTreeWidget = (
   widget: FlattenedWidgetProps,
