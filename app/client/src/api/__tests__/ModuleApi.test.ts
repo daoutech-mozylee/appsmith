@@ -114,13 +114,16 @@ describe("ModuleApi", () => {
           description: "Test module description",
         },
         definition: {
-          layouts: {
-            dsl: {
-              widgetName: "Canvas",
-              type: "CANVAS_WIDGET",
-              children: [],
+          layouts: [
+            {
+              dsl: {
+                widgetId: "test-canvas-id",
+                widgetName: "Canvas",
+                type: "CANVAS_WIDGET",
+                children: [],
+              },
             },
-          },
+          ],
           inputsForm: [],
           outputsForm: [],
           actionList: [],

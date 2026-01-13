@@ -35,12 +35,18 @@ export interface UIModuleListItem {
 }
 
 /**
+ * Layout 아이템 구조 (배열의 요소)
+ */
+export interface UIModuleLayout {
+  dsl: ModuleDSL;
+}
+
+/**
  * 모듈 definition 구조
+ * API 응답: definition.layouts는 배열 형태로 반환됨
  */
 export interface UIModuleDefinition {
-  layouts: {
-    dsl: ModuleDSL;
-  };
+  layouts: UIModuleLayout[];
   inputsForm: ModuleInputSection[];
   outputsForm: ModuleOutputSection[];
   actionList?: ActionConfig[];
