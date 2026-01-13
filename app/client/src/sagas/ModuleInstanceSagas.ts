@@ -70,12 +70,49 @@ import {
   applyBindingTransformations,
   extractTargetWidgets,
   collectWidgetNameMappings,
+  transformDSLWithUniqueIds,
+  type ModuleDSLWidget,
 } from "utils/moduleTransformUtils";
+import { generateReactKey } from "utils/generators";
 import { objectKeys } from "@appsmith/utils";
 import { evaluateAndExecuteDynamicTrigger } from "sagas/EvaluationsSaga";
 import { EventType } from "constants/AppsmithActionConstants/ActionConstants";
 import { TriggerKind } from "constants/AppsmithActionConstants/ActionConstants";
 import { ENTITY_TYPE } from "ee/entities/AppsmithConsole/utils";
+
+/**
+ * DSL 트리를 평탄화하여 widgets 객체 형태로 변환
+ */
+function flattenDSLToWidgets(
+  dsl: ModuleDSLWidget,
+  widgets: CanvasWidgetsReduxState,
+  parentId: string,
+): CanvasWidgetsReduxState {
+  // 현재 위젯 추가
+  const flattenedWidget: FlattenedWidgetProps = {
+    ...dsl,
+    parentId,
+    children: dsl.children?.map((child) => child.widgetId) || [],
+  } as FlattenedWidgetProps;
+
+  // children 속성은 ID 배열로 변환됨
+  delete (flattenedWidget as ModuleDSLWidget).children;
+
+  if (dsl.children) {
+    flattenedWidget.children = dsl.children.map((child) => child.widgetId);
+  }
+
+  widgets[dsl.widgetId] = flattenedWidget;
+
+  // 자식 위젯들도 재귀적으로 평탄화
+  if (dsl.children && Array.isArray(dsl.children)) {
+    for (const child of dsl.children) {
+      flattenDSLToWidgets(child, widgets, dsl.widgetId);
+    }
+  }
+
+  return widgets;
+}
 
 /**
  * 모듈 인스턴스 등록 후 executeOnLoad Action/JSFunction들을 자동 실행
@@ -574,16 +611,54 @@ function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
   console.log("[ModuleRestore] handlePageLoadModuleRestore called");
 
   // API에서 모듈 목록 로드 (아직 초기화되지 않았으면)
-  // 실패해도 기존 PRELOADED_MODULES 폴백 사용
   try {
     yield call([ModuleRegistry, ModuleRegistry.initFromApi]);
     console.log(
       `[ModuleRestore] ModuleRegistry API initialized: ${ModuleRegistry.isApiInitialized()}, size=${ModuleRegistry.size()}`,
     );
   } catch (error) {
-    console.warn(
-      "[ModuleRestore] Failed to initialize from API, using preloaded modules",
-      error,
+    console.error("[ModuleRestore] Failed to initialize from API:", error);
+    // API 실패 시 모듈 없음 (JSON 폴백 사용 안 함)
+  }
+
+  // Datasources 로드 확인 및 필요시 로드
+  // Viewer 모드에서는 기본적으로 datasources가 로드되지 않지만,
+  // 모듈 내 Query 실행을 위해 datasourceId가 필요함
+  let datasourcesLoaded = (yield select(getDatasources)) as Datasource[];
+
+  if (datasourcesLoaded.length === 0) {
+    console.log("[ModuleRestore] Datasources not loaded, fetching from API...");
+
+    try {
+      const workspaceId = (yield select(getCurrentWorkspaceId)) as string;
+
+      if (workspaceId) {
+        const response = (yield call(
+          DatasourcesApi.fetchDatasources,
+          workspaceId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        )) as any;
+
+        if (response?.data && Array.isArray(response.data)) {
+          datasourcesLoaded = response.data as Datasource[];
+          // Redux store에도 저장 (다른 saga에서 사용할 수 있도록)
+          yield put({
+            type: ReduxActionTypes.FETCH_DATASOURCES_SUCCESS,
+            payload: datasourcesLoaded,
+          });
+          console.log(
+            `[ModuleRestore] Loaded ${datasourcesLoaded.length} datasources from API`,
+          );
+        }
+      }
+    } catch (error) {
+      // Viewer 모드에서 인증되지 않은 사용자는 401 에러 발생 가능
+      // 이 경우 datasource ID 없이 진행 (런타임에 에러 발생)
+      console.warn("[ModuleRestore] Failed to fetch datasources:", error);
+    }
+  } else {
+    console.log(
+      `[ModuleRestore] Datasources already loaded: ${datasourcesLoaded.length}`,
     );
   }
 
@@ -591,11 +666,20 @@ function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
   const pageId = (yield select(getCurrentPageId)) as string;
 
   // 모든 위젯 가져오기
-  const widgets: CanvasWidgetsReduxState = yield select(getWidgets);
+  const widgets = (yield select(getWidgets)) as CanvasWidgetsReduxState;
+
+  // 위젯 업데이트를 추적하기 위한 변수
+  let updatedWidgets = { ...widgets };
+  let widgetsNeedUpdate = false;
+
+  // 모듈 인스턴스 등록을 위한 페이로드 수집 (나중에 한꺼번에 디스패치)
+  const moduleInstancePayloads: RegisterModuleInstancePayload[] = [];
 
   // 이미 등록된 모듈 인스턴스 확인
-  const existingInstances: Record<string, unknown> =
-    yield select(getModuleInstances);
+  const existingInstances = (yield select(getModuleInstances)) as Record<
+    string,
+    unknown
+  >;
 
   // PACKAGE_MODULE_WIDGET 타입의 위젯 찾기
   const moduleWidgets = Object.values(widgets).filter(
@@ -610,6 +694,27 @@ function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
   for (const widget of moduleWidgets) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let widgetAny = widget as any;
+
+    // 디버그: 위젯의 children 상태 확인
+    console.log(
+      `[ModuleRestore] Widget ${widget.widgetId} children:`,
+      widget.children,
+      `type: ${widget.type}`,
+    );
+
+    // children이 있으면 각 child의 정보도 확인
+    if (widget.children && widget.children.length > 0) {
+      for (const childId of widget.children) {
+        const childWidget = widgets[childId];
+
+        console.log(
+          `[ModuleRestore] Child ${childId}:`,
+          childWidget
+            ? { type: childWidget.type, children: childWidget.children }
+            : "NOT FOUND",
+        );
+      }
+    }
 
     // 레거시 구조 마이그레이션 체크
     // moduleInstanceData가 존재하면 레거시 구조로 판단
@@ -693,7 +798,7 @@ function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
     if (definition) {
       // 레지스트리에서 원본 데이터 조회됨 - 변환하여 사용
       const entityNameMapping = new Map<string, string>();
-      const datasources: Datasource[] = yield select(getDatasources);
+      const datasources = (yield select(getDatasources)) as Datasource[];
 
       // 위젯 이름 매핑 수집 (바인딩 변환용)
       const targetWidgets = extractTargetWidgets(definition.dsl);
@@ -746,6 +851,142 @@ function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
           })),
         })),
       );
+
+      // 디버그: entityNameMapping 내용 출력
+      console.log(
+        `[ModuleRestore] entityNameMapping:`,
+        Array.from(entityNameMapping.entries()),
+      );
+
+      // 위젯 children이 비어있으면 DSL에서 위젯 재생성
+      // 페이지 새로고침 시 module 내부 위젯이 저장되지 않은 경우 복원
+      const hasValidChildren =
+        widget.children &&
+        widget.children.length > 0 &&
+        updatedWidgets[widget.children[0]];
+
+      // 디버그: hasValidChildren 조건 출력
+      console.log(
+        `[ModuleRestore] ${moduleInstanceId} hasValidChildren=${hasValidChildren}`,
+        {
+          widgetChildren: widget.children,
+          firstChildExists: widget.children?.[0]
+            ? !!updatedWidgets[widget.children[0]]
+            : false,
+          targetWidgetsCount: targetWidgets.length,
+        },
+      );
+
+      if (!hasValidChildren && definition.dsl && targetWidgets.length > 0) {
+        console.log(
+          `[ModuleRestore] Recreating widgets for ${moduleInstanceId}: targetWidgets=${targetWidgets.length}`,
+        );
+
+        // CANVAS_WIDGET ID 생성 (blueprint 패턴과 동일)
+        const canvasWidgetId = `${moduleInstanceId}_canvas_${generateReactKey()}`;
+
+        // ID 매핑 (위젯 재생성용)
+        const idMapping = new Map<string, string>();
+
+        // CANVAS_WIDGET 생성 (PackageModuleWidget의 자식)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const canvasWidget = {
+          widgetId: canvasWidgetId,
+          widgetName: `${moduleInstanceId}_Canvas`,
+          type: "CANVAS_WIDGET",
+          parentId: widget.widgetId,
+          children: [],
+          leftColumn: 0,
+          rightColumn: 64,
+          topRow: 0,
+          bottomRow: 40,
+          isLoading: false,
+          flexLayers: [],
+          useAutoLayout: false,
+          renderMode: "CANVAS",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any as FlattenedWidgetProps;
+
+        updatedWidgets[canvasWidgetId] = canvasWidget;
+
+        // 각 타겟 위젯을 변환하고 추가
+        const newChildrenIds: string[] = [];
+
+        for (const targetWidget of targetWidgets) {
+          // 디버그: 원본 위젯에서 바인딩이 있는 속성 찾기
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const originalBindings: Record<string, any> = {};
+
+          for (const [key, value] of Object.entries(targetWidget)) {
+            if (typeof value === "string" && value.includes("{{")) {
+              originalBindings[key] = value;
+            }
+          }
+
+          console.log(
+            `[ModuleRestore] Original widget ${targetWidget.widgetName}:`,
+            {
+              type: targetWidget.type,
+              bindings: originalBindings,
+            },
+          );
+
+          // 위젯과 그 자식들의 ID를 고유하게 변환 + 바인딩 변환
+          const transformedWidget = transformDSLWithUniqueIds(
+            targetWidget,
+            moduleInstanceId,
+            idMapping,
+            entityNameMapping,
+          );
+
+          // 디버그: 변환된 위젯에서 바인딩이 있는 속성 찾기
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const transformedBindings: Record<string, any> = {};
+
+          for (const [key, value] of Object.entries(transformedWidget)) {
+            if (typeof value === "string" && value.includes("{{")) {
+              transformedBindings[key] = value;
+            }
+          }
+
+          console.log(
+            `[ModuleRestore] Transformed widget ${transformedWidget.widgetName}:`,
+            {
+              type: transformedWidget.type,
+              bindings: transformedBindings,
+            },
+          );
+
+          // 변환된 위젯을 평탄화하여 widgets에 추가
+          updatedWidgets = flattenDSLToWidgets(
+            transformedWidget,
+            updatedWidgets,
+            canvasWidgetId,
+          );
+
+          // Canvas의 children에 추가할 ID 저장
+          newChildrenIds.push(transformedWidget.widgetId);
+        }
+
+        // Canvas 위젯의 children 업데이트
+        updatedWidgets[canvasWidgetId] = {
+          ...updatedWidgets[canvasWidgetId],
+          children: newChildrenIds,
+        };
+
+        // PackageModuleWidget의 children 업데이트
+        updatedWidgets[widget.widgetId] = {
+          ...updatedWidgets[widget.widgetId],
+          children: [canvasWidgetId],
+        };
+
+        widgetsNeedUpdate = true;
+
+        console.log(
+          `[ModuleRestore] Created ${newChildrenIds.length} widgets for ${moduleInstanceId}`,
+          newChildrenIds,
+        );
+      }
     } else if (moduleInstanceData) {
       // 레지스트리에 없음 - 레거시 데이터 사용 (fallback)
       actions = moduleInstanceData.actions || [];
@@ -773,24 +1014,43 @@ function* handlePageLoadModuleRestore(): Generator<unknown, void, unknown> {
       ? mergeInputsWithDefaults(instanceInputs, inputsForm)
       : instanceInputs;
 
-    // 모듈 인스턴스 등록
+    // 모듈 인스턴스 등록 페이로드 수집 (나중에 디스패치)
+    moduleInstancePayloads.push({
+      instanceId: moduleInstanceId,
+      moduleId: moduleUUID || "",
+      moduleName: definition?.moduleName || widgetAny.moduleName || "",
+      packageName: definition?.packageName || widgetAny.packageName || "",
+      widgetId: widget.widgetId,
+      pageId,
+      actions,
+      jsObjects,
+      inputsForm,
+      outputsForm,
+      initialInputs: mergedInputs,
+    });
+  }
+
+  // 중요: 위젯을 먼저 Redux store에 추가한 후 모듈 인스턴스 등록
+  // getCustomModuleInstancesDataTree 셀렉터가 위젯을 찾아서 entity name mapping을 구성하기 때문
+  // NOTE: RESTORE_MODULE_WIDGETS 사용 - EVALUATE_REDUX_ACTIONS에 포함되지 않아 저장과 충돌하지 않음
+  if (widgetsNeedUpdate) {
+    console.log(
+      `[ModuleRestore] Dispatching RESTORE_MODULE_WIDGETS (no eval trigger)`,
+    );
+    yield put({
+      type: ReduxActionTypes.RESTORE_MODULE_WIDGETS,
+      payload: { widgets: updatedWidgets },
+    });
+  }
+
+  // 위젯이 store에 있는 상태에서 모듈 인스턴스 등록
+  for (const payload of moduleInstancePayloads) {
+    console.log(
+      `[ModuleRestore] Registering module instance: ${payload.instanceId}`,
+    );
     yield put({
       type: ReduxActionTypes.REGISTER_MODULE_INSTANCE,
-      payload: {
-        instanceId: moduleInstanceId,
-        moduleId: moduleUUID || "",
-        moduleName: definition?.moduleName || widgetAny.moduleName || "",
-        packageName: definition?.packageName || widgetAny.packageName || "",
-        widgetId: widget.widgetId,
-        pageId,
-        actions,
-        jsObjects,
-        // Input/Output 정의 및 초기값 전달
-        inputsForm,
-        outputsForm,
-        // 병합된 inputs 사용 (기존 값 보존 + 새 필드 기본값)
-        initialInputs: mergedInputs,
-      } as RegisterModuleInstancePayload,
+      payload,
     });
   }
 }
