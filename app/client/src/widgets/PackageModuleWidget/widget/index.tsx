@@ -513,11 +513,25 @@ export class PackageModuleWidget extends BaseWidget<
   }
 
   renderChildren = () => {
-    return map(
-      // sort by row so stacking context is correct
+    const childrenToRender =
       this.props.positioning !== Positioning.Fixed
         ? this.props.children
-        : sortBy(compact(this.props.children), (child) => child.topRow),
+        : sortBy(compact(this.props.children), (child) => child.topRow);
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[PackageModuleWidget] renderChildren - widgetId: ${this.props.widgetId}`,
+      `children count: ${childrenToRender?.length || 0}`,
+      childrenToRender?.map((c) => ({
+        widgetId: c.widgetId,
+        type: c.type,
+        children: c.children?.length || 0,
+      })),
+    );
+
+    return map(
+      // sort by row so stacking context is correct
+      childrenToRender,
       this.renderChildWidget,
     );
   };
@@ -534,6 +548,12 @@ export class PackageModuleWidget extends BaseWidget<
       return true; // 초기화 중에는 폴백 표시하지 않음
     }
 
+    // API 초기화가 아직 안 됐으면, 일단 available로 처리
+    // 초기화 후 다시 렌더링됨 (빨간색 에러 메시지 방지)
+    if (!ModuleRegistry.isApiInitialized()) {
+      return true;
+    }
+
     // 레지스트리에서 모듈 확인
     return ModuleRegistry.has(moduleUUID);
   }
@@ -545,12 +565,21 @@ export class PackageModuleWidget extends BaseWidget<
       borderRadius,
       borderWidth,
       boxShadow,
+      children,
       containerStyle,
       moduleName,
       moduleUUID,
       renderMode,
       widgetId,
     } = this.props;
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[PackageModuleWidget] getWidgetView - widgetId: ${widgetId}, moduleUUID: ${moduleUUID}`,
+      `children: ${children?.length || 0}`,
+      `isModuleAvailable: ${this.isModuleAvailable()}`,
+      `ModuleRegistry.has: ${moduleUUID ? ModuleRegistry.has(moduleUUID) : "N/A"}`,
+    );
 
     // Deploy 모드(PAGE)에서는 isReadOnly를 false로 설정하여 상호작용 활성화
     // 에디터 모드(CANVAS)에서만 isReadOnly를 true로 설정하여 내부 편집 차단
