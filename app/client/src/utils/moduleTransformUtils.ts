@@ -329,9 +329,12 @@ export function transformRegistryActions(
       );
       const datasourceId = matchedDatasource?.id;
 
+      // runBehaviour는 action 루트 레벨에 있음 (unpublishedAction 바깥)
+      // JSON 구조: { pluginType, unpublishedAction: {...}, runBehaviour: "ON_PAGE_LOAD" }
+      const runBehaviour =
+        action.runBehaviour || unpublished.runBehaviour || "MANUAL";
       const executeOnLoad =
-        unpublished.runBehaviour === "AUTOMATIC" ||
-        unpublished.runBehaviour === "ON_PAGE_LOAD";
+        runBehaviour === "AUTOMATIC" || runBehaviour === "ON_PAGE_LOAD";
 
       moduleActions.push({
         name: newName,
@@ -347,7 +350,7 @@ export function transformRegistryActions(
           ...unpublished.actionConfiguration,
         },
         executeOnLoad,
-        runBehaviour: unpublished.runBehaviour,
+        runBehaviour,
       });
     }
   }
@@ -419,6 +422,7 @@ export function transformRegistryJSObjects(
 ): ModuleJSObjectConfig[] {
   // JS 함수의 runBehaviour 매핑 생성 (fullyQualifiedName -> runBehaviour)
   // actionList에서 pluginType: "JS"인 항목들에서 추출
+  // runBehaviour는 action 루트 레벨에 있음 (unpublishedAction 바깥)
   const jsRunBehaviourMap = new Map<string, string>();
 
   for (const action of actions) {
@@ -426,9 +430,15 @@ export function transformRegistryJSObjects(
       action.pluginType === "JS" &&
       action.unpublishedAction.fullyQualifiedName
     ) {
+      // action.runBehaviour 우선, 없으면 unpublishedAction.runBehaviour fallback
+      const runBehaviour =
+        action.runBehaviour ||
+        action.unpublishedAction.runBehaviour ||
+        "MANUAL";
+
       jsRunBehaviourMap.set(
         action.unpublishedAction.fullyQualifiedName,
-        action.unpublishedAction.runBehaviour,
+        runBehaviour,
       );
     }
   }
@@ -516,7 +526,30 @@ export function applyBindingTransformations(
 }
 
 /**
+ * 재귀적으로 CANVAS_WIDGET의 children을 찾아서 반환
+ * API 응답 구조: MODULE_CONTAINER_WIDGET → CONTAINER_WIDGET → CANVAS_WIDGET → 실제 위젯들
+ */
+function findCanvasChildren(widget: ModuleDSLWidget): ModuleDSLWidget[] {
+  if (widget.type === "CANVAS_WIDGET" && widget.children) {
+    return widget.children;
+  }
+
+  if (widget.children) {
+    for (const child of widget.children) {
+      const found = findCanvasChildren(child);
+
+      if (found.length > 0) {
+        return found;
+      }
+    }
+  }
+
+  return [];
+}
+
+/**
  * 모듈 DSL에서 실제 위젯들을 추출
+ * API 응답 구조: MainContainer → MODULE_CONTAINER_WIDGET → CONTAINER_WIDGET → CANVAS_WIDGET → 실제 위젯들
  */
 export function extractTargetWidgets(
   moduleDSL: ModuleDSLWidget,
@@ -526,18 +559,17 @@ export function extractTargetWidgets(
   if (moduleDSL.children && moduleDSL.children.length > 0) {
     for (const child of moduleDSL.children) {
       if (child.type === "MODULE_CONTAINER_WIDGET" && child.children) {
-        const containerCanvas = child.children[0];
+        // 재귀적으로 CANVAS_WIDGET 찾기
+        // 구조: MODULE_CONTAINER_WIDGET → CONTAINER_WIDGET → CANVAS_WIDGET → 실제 위젯들
+        const canvasChildren = findCanvasChildren(child);
 
-        if (
-          containerCanvas &&
-          containerCanvas.type === "CANVAS_WIDGET" &&
-          containerCanvas.children
-        ) {
-          targetWidgets.push(...containerCanvas.children);
+        if (canvasChildren.length > 0) {
+          targetWidgets.push(...canvasChildren);
         }
       } else if (child.type === "CANVAS_WIDGET" && child.children) {
         targetWidgets.push(...child.children);
       } else {
+        // Modal, Drawer 등 다른 위젯은 직접 추가
         targetWidgets.push(child);
       }
     }
